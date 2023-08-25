@@ -1,6 +1,4 @@
-import data_io
-import hitcaller
-import visualization
+from . import data_io, hitcaller, visualization
 
 import os
 import argparse
