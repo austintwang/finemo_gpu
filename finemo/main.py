@@ -171,7 +171,7 @@ def cli():
     visualize_parser = subparsers.add_parser("visualize", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
         help="Extract sequences and contributions from FASTA and bigwig files.")
     
-    visualize_parser.add_argument("-h", "--hits", type=str, required=True,
+    visualize_parser.add_argument("-H", "--hits", type=str, required=True,
         help="The `hits.tsv` output file from `call-hits`.")
     
     visualize_parser.add_argument("-o", "--out-dir", type=str, required=True,
