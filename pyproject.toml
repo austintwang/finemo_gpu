@@ -8,7 +8,7 @@ version = "0.0.1"
 dependencies = [
     "numpy",
     "scipy",
-    "pytorch",
+    "torch",
     "polars",
     "matplotlib",
     "scikit-learn",
