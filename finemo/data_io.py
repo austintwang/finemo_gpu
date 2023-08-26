@@ -8,6 +8,8 @@ import polars as pl
 import pyBigWig
 import pyfaidx
 
+from tqdm import tqdm
+
 NARROWPEAK_SCHEMA = ["chr", "peak_start", "peak_end", "peak_name", "peak_score", 
                      "peak_strand", "peak_signal", "peak_pval", "peak_qval", "peak_summit"]
 NARROWPEAK_DTYPES = [pl.Categorical, pl.UInt32, pl.UInt32, pl.Utf8, pl.UInt32, 
@@ -59,7 +61,7 @@ def load_regions_from_peaks(peaks, fa_path, bw_paths, half_width):
     contrib_buffer = np.zeros((len(bw_paths), half_width * 2), dtype=np.float16)
 
     try:
-        for ind, row in enumerate(peaks.iter_rows(named=True)):
+        for ind, row in tqdm(enumerate(peaks.iter_rows(named=True)), disable=None, unit="regions", total=num_peaks):
             chrom = row["chr"]
             start = row["peak_region_start"]
             end = start + 2 * half_width
