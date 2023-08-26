@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 NARROWPEAK_SCHEMA = ["chr", "peak_start", "peak_end", "peak_name", "peak_score", 
                      "peak_strand", "peak_signal", "peak_pval", "peak_qval", "peak_summit"]
-NARROWPEAK_DTYPES = [pl.Categorical, pl.UInt32, pl.UInt32, pl.Utf8, pl.UInt32, 
+NARROWPEAK_DTYPES = [pl.Utf8, pl.UInt32, pl.UInt32, pl.Utf8, pl.UInt32, 
                      pl.Utf8, pl.Float32, pl.Float32, pl.Float32, pl.UInt32] 
 
 def load_peaks(peaks_path, half_width):
