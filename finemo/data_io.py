@@ -47,32 +47,40 @@ def one_hot_encode(sequence, dtype=np.int8):
     return one_hot
 
 
-def load_regions_from_peaks(peaks, fa_path, bw_path, half_width):
+def load_regions_from_peaks(peaks, fa_path, bw_paths, half_width):
     num_peaks = peaks.height
 
-    genome = pyfaidx.Fasta(fa_path, one_based_attributes=False)
     sequences = np.zeros((num_peaks, 4, half_width * 2), dtype=np.int8)
-
-    bw = pyBigWig.open(bw_path)
     contribs = np.zeros((num_peaks, half_width * 2), dtype=np.float16)
 
-    for ind, row in enumerate(peaks.iter_rows(named=True)):
-        chrom = row["chr"]
-        start = row["peak_region_start"]
-        end = start + 2 * half_width
-        
-        sequence_data = genome[chrom][start:end]
-        sequence = sequence_data.seq
-        start_adj = sequence.start
-        end_adj = sequence.end
-        a = start_adj - start
-        b = end_adj - start
+    genome = pyfaidx.Fasta(fa_path, one_based_attributes=False)
+    
+    bws = [pyBigWig.open(i) for i in bw_paths]
+    contrib_buffer = np.zeros((len(bw_paths), half_width * 2), dtype=np.float16)
 
-        sequences[ind,:,a:b] = one_hot_encode(sequence)
+    try:
+        for ind, row in enumerate(peaks.iter_rows(named=True)):
+            chrom = row["chr"]
+            start = row["peak_region_start"]
+            end = start + 2 * half_width
+            
+            sequence_data = genome[chrom][start:end]
+            sequence = sequence_data.seq
+            start_adj = sequence.start
+            end_adj = sequence.end
+            a = start_adj - start
+            b = end_adj - start
 
-        contribs[ind,a:b] = np.nan_to_num(bw.values(chrom, start_adj, end_adj, numpy=True))
+            sequences[ind,:,a:b] = one_hot_encode(sequence)
 
-    bw.close()
+            for j, bw in enumerate(bws):
+                contrib_buffer[j,:] = bw.values(chrom, start_adj, end_adj, numpy=True)
+
+            contribs[ind,a:b] = np.nanmean(contrib_buffer, axis=0)
+    
+    finally:
+        for bw in bws:
+            bw.close()
     
     return sequences, contribs
 
@@ -142,10 +150,12 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold):
     motifs_df = pl.DataFrame(motif_data_lsts)
     cwms = np.stack(cwm_lst, dtype=np.float16, axis=1)
 
-    return motifs_df, cwms
+    motif_norm = (cwms**2).mean().sqrt()
+
+    return motifs_df, cwms, motif_norm
 
 
-def write_hits(hits_df, peaks_df, motifs_df, out_path_tsv, out_path_bed, half_width):
+def write_hits(hits_df, peaks_df, motifs_df, out_path_tsv, out_path_bed, half_width, motif_norm, contrib_norm):
     data_all = (
         hits_df
         .lazy()
@@ -157,7 +167,8 @@ def write_hits(hits_df, peaks_df, motifs_df, out_path_tsv, out_path_bed, half_wi
             start=pl.col("peak_region_start") + pl.col("hit_start") + pl.col("motif_start"),
             end=pl.col("peak_region_start") + pl.col("hit_start") + pl.col("motif_end"),
             motif_name=pl.col("motif_name"),
-            hit_score=pl.col("hit_score"),
+            hit_score_scaled=pl.col("hit_score"),
+            hit_score_unscaled=pl.col("hit_score") * motif_norm * contrib_norm,
             strand=pl.col("motif_strand"),
             peak_name=pl.col("peak_name"),
             peak_id=pl.col("peak_id"),

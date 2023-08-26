@@ -7,11 +7,11 @@ import torch
 import polars as pl
 
 
-def extract_regions(peaks_path, fa_path, bw_path, out_path, region_width):
+def extract_regions(peaks_path, fa_path, bw_paths, out_path, region_width):
     half_width = region_width // 2
 
     peaks_df = data_io.load_peaks(peaks_path, half_width)
-    sequences, contribs = data_io.load_regions_from_peaks(peaks_df, fa_path, bw_path, half_width)
+    sequences, contribs = data_io.load_regions_from_peaks(peaks_df, fa_path, bw_paths, half_width)
 
     data_io.write_regions_npz(sequences, contribs, out_path)
 
@@ -38,15 +38,15 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_thres
                          f"input contributions of shape {contribs.shape} "
                          f"are not compatible with region count of {num_regions}" )
 
-    motifs_df, cwms = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold)
+    motifs_df, cwms, motif_norm = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold)
     num_motifs = cwms.shape[1]
     motif_width = cwms.shape[2]
 
     cwms = torch.from_numpy(cwms)
     contribs = torch.from_numpy(contribs)
     sequences = torch.from_numpy(sequences)
-    hits, qc = hitcaller.fit_contribs(cwms, contribs, sequences, alpha, l1_ratio, step_size, 
-                                      convergence_tol, max_steps, batch_size, device)
+    hits, qc, contrib_norm = hitcaller.fit_contribs(cwms, contribs, sequences, alpha, l1_ratio, step_size, 
+                                                    convergence_tol, max_steps, batch_size, device)
     hits_df = pl.DataFrame(hits)
     qc_df = pl.DataFrame(qc)
 
@@ -54,7 +54,8 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_thres
     out_dir_tsv = os.path.join(out_dir, "hits.tsv")
     out_dir_bed = os.path.join(out_dir, "hits.bed")
     out_dir_qc = os.path.join(out_dir, "peaks_qc.tsv")
-    data_io.write_hits(hits_df, peaks_df, motifs_df, out_dir_tsv, out_dir_bed, half_width)
+    data_io.write_hits(hits_df, peaks_df, motifs_df, 
+                       out_dir_tsv, out_dir_bed, half_width, motif_norm, contrib_norm)
     data_io.write_qc(qc_df, peaks_df, out_dir_qc)
 
     params = {
@@ -159,8 +160,8 @@ def cli():
         help="A sorted peak regions file in ENCODE NarrowPeak format.")
     extract_regions_parser.add_argument("-f", "--fasta", type=str, required=True,
         help="A genome FASTA file. An .fai index file will be built in the same directory as the fasta file if one does not already exist.")
-    extract_regions_parser.add_argument("-b", "--bigwig", type=str, required=True,
-        help="A bigwig file of contribution scores. The covered regions should be a superset of those in provide peaks.")
+    extract_regions_parser.add_argument("-bs", "--bigwigs", type=str, required=True, nargs='+',
+        help="One or more bigwig files of contribution scores, with paths delimited by whitespace. Scores are averaged across files.")
     
     extract_regions_parser.add_argument("-o", "--out-path", type=str, required=True,
         help="The path to the output .npz file.")
