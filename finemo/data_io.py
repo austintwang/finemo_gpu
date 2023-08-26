@@ -68,8 +68,8 @@ def load_regions_from_peaks(peaks, fa_path, bw_paths, half_width):
             
             sequence_data = genome[chrom][start:end]
             sequence = sequence_data.seq
-            start_adj = sequence.start
-            end_adj = sequence.end
+            start_adj = sequence_data.start
+            end_adj = sequence_data.end
             a = start_adj - start
             b = end_adj - start
 
