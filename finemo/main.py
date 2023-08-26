@@ -189,7 +189,7 @@ def cli():
                   args.batch_size, args.device)
     
     elif args.cmd == "extract-regions":
-        extract_regions(args.peaks, args.fasta, args.bigwig, args.out_path, args.region_width)
+        extract_regions(args.peaks, args.fasta, args.bigwigs, args.out_path, args.region_width)
 
     elif args.cmd == "visualize":
         visualize(args.hits, args.out_dir)
