@@ -183,10 +183,13 @@ def cli():
     
     args = parser.parse_args()
 
-    if args.cmd == "call_hits":
+    if args.cmd == "call-hits":
         call_hits(args.regions, args.peaks, args.modisco_h5, args.out_dir, args.cwm_trim_threshold, 
                   args.alpha, args.l1_ratio, args.step_size, args.convergence_tol, args.max_steps, 
                   args.batch_size, args.device)
     
-    elif args.cmd == "extract_regions":
+    elif args.cmd == "extract-regions":
         extract_regions(args.peaks, args.fasta, args.bigwig, args.out_path, args.region_width)
+
+    elif args.cmd == "visualize":
+        visualize(args.hits, args.out_dir)
