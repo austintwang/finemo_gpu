@@ -97,6 +97,9 @@ def visualize(hits_path, out_dir):
     motif_order = visualization.cluster_matrix_indices(occ_mat.T)
     coocc_nlp = visualization.cooccurrence_sigs(coocc, num_peaks)
 
+    occ_path = os.path.join(out_dir, "motif_occurrences.tsv")
+    data_io.write_occ_df(occ_df, occ_path)
+    
     coocc_dir = os.path.join(out_dir, "motif_cooccurrence_matrices")
     data_io.write_coocc_mats(coocc, coocc_nlp, motif_names, coocc_dir)
 
@@ -160,7 +163,7 @@ def cli():
         help="A sorted peak regions file in ENCODE NarrowPeak format.")
     extract_regions_parser.add_argument("-f", "--fasta", type=str, required=True,
         help="A genome FASTA file. An .fai index file will be built in the same directory as the fasta file if one does not already exist.")
-    extract_regions_parser.add_argument("-bs", "--bigwigs", type=str, required=True, nargs='+',
+    extract_regions_parser.add_argument("-b", "--bigwigs", type=str, required=True, nargs='+',
         help="One or more bigwig files of contribution scores, with paths delimited by whitespace. Scores are averaged across files.")
     
     extract_regions_parser.add_argument("-o", "--out-path", type=str, required=True,
