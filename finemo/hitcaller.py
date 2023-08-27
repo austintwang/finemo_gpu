@@ -125,8 +125,9 @@ def fit_contribs(cwms, contribs, sequences,
 
     contrib_norm = (contribs**2).mean().float().sqrt().half().item()
     # print(sequences) ####
-    # print(contribs) ####
+    print(contribs) ####
     # print(contrib_norm) ####
+    print((contribs**2)) ####
     print((contribs**2).mean()) ####
     print((contribs**2).mean().float()) ####
     print((contribs**2).mean().float().sqrt()) ####
