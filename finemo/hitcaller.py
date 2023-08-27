@@ -124,9 +124,14 @@ def fit_contribs(cwms, contribs, sequences,
     cwms_t = cwms.flip(dims=(2,))
 
     contrib_norm = (contribs**2).mean().float().sqrt().half().item()
-    print(sequences) ####
-    print(contribs) ####
-    print(contrib_norm) ####
+    # print(sequences) ####
+    # print(contribs) ####
+    # print(contrib_norm) ####
+    print((contribs**2).mean()) ####
+    print((contribs**2).mean().float()) ####
+    print((contribs**2).mean().float().sqrt()) ####
+    print((contribs**2).mean().float().sqrt().half()) ####
+    print((contribs**2).mean().float().sqrt().half().item()) ####
 
     seq_inds = torch.arange(l + 2 * w - 2)[None,None,:]
     clip_mask = (seq_inds >= (w - 1)) & (seq_inds < (l - w - 1)) # (l + 2w - 2)
