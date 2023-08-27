@@ -59,7 +59,6 @@ def fit_batch(cwms, cwms_t, contribs, sequences, coef_init, clip_mask,
     """
     st_thresh = a_const * step_size
     shrink_factor = 1 + b_const * step_size
-    print(sequences) ####
 
     c_a = coef_init
     c_b = torch.zeros_like(c_a)
@@ -138,8 +137,8 @@ def fit_contribs(cwms, contribs, sequences,
         end = min(n, start + batch_size)
         b = end - start
 
-        sequences_batch = F.pad(sequences[start:end,:,:], (0, m - 1)).to(device=device) # (b, 4, l + w - 1)
-        contribs_batch = F.pad(contribs[start:end,None,:], (0, m - 1)).to(device=device) 
+        sequences_batch = F.pad(sequences[start:end,:,:], (0, w - 1)).to(device=device) # (b, 4, l + w - 1)
+        contribs_batch = F.pad(contribs[start:end,None,:], (0, w - 1)).to(device=device) 
         contribs_batch = (contribs_batch / contrib_norm) * sequences_batch.float() # (b, 4, l + w - 1)
         coef_init = torch.zeros((b, m, l + 2 * w - 2), dtype=torch.float16, device=device) # (b, m, l + 2w - 2)
 
