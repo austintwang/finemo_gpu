@@ -42,9 +42,6 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_thres
     num_motifs = cwms.shape[1]
     motif_width = cwms.shape[2]
 
-    cwms = torch.from_numpy(cwms)
-    contribs = torch.from_numpy(contribs)
-    sequences = torch.from_numpy(sequences)
     hits, qc, contrib_norm = hitcaller.fit_contribs(cwms, contribs, sequences, alpha, l1_ratio, step_size, 
                                                     convergence_tol, max_steps, batch_size, device)
     hits_df = pl.DataFrame(hits)
