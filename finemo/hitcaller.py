@@ -4,6 +4,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+from tqdm import tqdm, trange
+
 def log_likelihood(coefficients, cwms_t, contribs, sequences):
     """
     coefficients: (b, m, l + w - 1)
@@ -62,29 +64,33 @@ def fit_batch(cwms, cwms_t, contribs, sequences, coef_init, clip_mask,
     c_b = torch.zeros_like(c_a)
 
     converged = False
-    for i in range(max_steps):
-        c_a.requires_grad_()
-        ll, pred = log_likelihood(c_a, cwms_t, contribs, sequences)
-        ll_sum = ll.sum() / 2.
+    with trange(max_steps, total=np.inf, disable=None, position=1) as tbatch:
+        for i in tbatch:
+            c_a.requires_grad_()
+            ll, pred = log_likelihood(c_a, cwms_t, contribs, sequences)
+            ll_sum = ll.sum() / 2.
 
-        c_a_grad = torch.autograd.grad(ll_sum, c_a)
+            c_a_grad = torch.autograd.grad(ll_sum, c_a)
 
-        c_a.detach_()
-        ll.detach_()
-        pred.detach_()
-        c_a_grad.detach_()
+            c_a.detach_()
+            ll.detach_()
+            pred.detach_()
+            c_a_grad.detach_()
 
-        gap = dual_gap(c_a, cwms, contribs, pred, ll, a_const, b_const)
-        if torch.all(gap <= convergence_tol).item():
-            converged = True
-            break
+            gap = dual_gap(c_a, cwms, contribs, pred, ll, a_const, b_const)
 
-        c_b_prev = c_b
-        c_b = c_a - step_size * c_a_grad
-        c_b = (c_b - torch.clamp(c_b, min=-st_thresh, max=st_thresh)) / shrink_factor
+            tbatch.set_postfix(ll_max=ll.max().item()/2, gap_max=gap.max().item())
 
-        mom_term = i / (i + 3.)
-        c_a = (1 + mom_term) * c_b - mom_term * c_b_prev
+            if torch.all(gap <= convergence_tol).item():
+                converged = True
+                break
+
+            c_b_prev = c_b
+            c_b = c_a - step_size * c_a_grad
+            c_b = (c_b - torch.clamp(c_b, min=-st_thresh, max=st_thresh)) / shrink_factor
+
+            mom_term = i / (i + 3.)
+            c_a = (1 + mom_term) * c_b - mom_term * c_b_prev
 
     if not converged:
         warnings.warn(f"Not all regions have converged within max_steps={max_steps} iterations.", RuntimeWarning)
@@ -126,7 +132,7 @@ def fit_contribs(cwms, contribs, sequences,
     scores_lst = []
     qc_lsts = {"log_likelihood": [], "dual_gap": [], "num_steps": []}
 
-    for i in range(num_batches):
+    for i in trange(num_batches, disable=None, unit="batches", position=0):
         start = i * batch_size
         end = min(n, start + batch_size)
         b = end - start
