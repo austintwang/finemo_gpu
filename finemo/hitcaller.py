@@ -120,7 +120,7 @@ def fit_contribs(cwms, contribs, sequences,
     cwms = cwms.to(device=device)
     cwms_t = torch.permute(cwms, (1, 0, 2)).flip(dims=(2,))
 
-    contrib_norm = (contribs**2).mean().sqrt().item()
+    contrib_norm = (contribs**2).mean().float().sqrt().item()
 
     seq_inds = torch.arange(l + 2 * w - 2)[None,None,:]
     clip_mask = (seq_inds >= (w - 1)) & (seq_inds < (l - w - 1)) # (l + 2w - 2)
