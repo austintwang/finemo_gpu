@@ -77,7 +77,7 @@ def fit_batch(cwms, cwms_t, contribs, sequences, coef_init, clip_mask,
             pred.detach_()
             c_a_grad.detach_()
 
-            gap = dual_gap(c_a, cwms, contribs, pred, ll, a_const, b_const)
+            gap, = dual_gap((c_a,), (cwms,), contribs, pred, ll, a_const, b_const)
 
             tbatch.set_postfix(max_gap=gap.max().item(), min_gap=gap.min().item())
 
