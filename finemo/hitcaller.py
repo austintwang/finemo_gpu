@@ -78,9 +78,9 @@ def fit_batch(cwms, cwms_t, contribs, sequences, coef_init, clip_mask,
             c_a_grad.detach_()
 
             gap = dual_gap(c_a, cwms, contribs, pred, ll, a_const, b_const)
-            print(gap) ####
-            print(contribs) ####
-            print(pred) ####
+            # print(gap) ####
+            # print(contribs) ####
+            # print(pred) ####
 
             tbatch.set_postfix(max_gap=gap.max().item(), mean_gap=gap.mean().item())
 
@@ -124,6 +124,9 @@ def fit_contribs(cwms, contribs, sequences,
     cwms_t = cwms.flip(dims=(2,))
 
     contrib_norm = (contribs**2).mean().float().sqrt().half().item()
+    print(sequences) ####
+    print(contribs) ####
+    print(contrib_norm) ####
 
     seq_inds = torch.arange(l + 2 * w - 2)[None,None,:]
     clip_mask = (seq_inds >= (w - 1)) & (seq_inds < (l - w - 1)) # (l + 2w - 2)
