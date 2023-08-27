@@ -70,14 +70,14 @@ def fit_batch(cwms, cwms_t, contribs, sequences, coef_init, clip_mask,
             ll, pred = log_likelihood(c_a, cwms_t, contribs, sequences)
             ll_sum = ll.sum() / 2.
 
-            c_a_grad = torch.autograd.grad(ll_sum, c_a)
+            c_a_grad, = torch.autograd.grad(ll_sum, c_a)
 
             c_a.detach_()
             ll.detach_()
             pred.detach_()
             c_a_grad.detach_()
 
-            gap, = dual_gap((c_a,), (cwms,), contribs, pred, ll, a_const, b_const)
+            gap = dual_gap(c_a, cwms, contribs, pred, ll, a_const, b_const)
 
             tbatch.set_postfix(max_gap=gap.max().item(), min_gap=gap.min().item())
 
