@@ -139,7 +139,7 @@ def fit_contribs(cwms, contribs, sequences,
 
         sequences_batch = F.pad(sequences[start:end,:,:], (0, w - 1)).to(device=device) # (b, 4, l + w - 1)
         contribs_batch = F.pad(contribs[start:end,None,:], (0, w - 1)).to(device=device) 
-        contribs_batch = (contribs_batch / contrib_norm) * sequences_batch.float() # (b, 4, l + w - 1)
+        contribs_batch = (contribs_batch / contrib_norm) * sequences_batch.half() # (b, 4, l + w - 1)
         coef_init = torch.zeros((b, m, l + 2 * w - 2), dtype=torch.float16, device=device) # (b, m, l + 2w - 2)
 
         coef, ll, gap, steps = fit_batch(cwms, cwms_t, contribs_batch, sequences_batch, coef_init, clip_mask,
