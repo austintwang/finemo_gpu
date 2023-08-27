@@ -59,6 +59,7 @@ def fit_batch(cwms, cwms_t, contribs, sequences, coef_init, clip_mask,
     """
     st_thresh = a_const * step_size
     shrink_factor = 1 + b_const * step_size
+    print(sequences) ####
 
     c_a = coef_init
     c_b = torch.zeros_like(c_a)
