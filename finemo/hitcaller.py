@@ -126,7 +126,7 @@ def fit_contribs(cwms, contribs, sequences,
     clip_mask = (seq_inds >= (w - 1)) & (seq_inds < (l - w - 1)) # (l + 2w - 2)
     clip_mask = clip_mask.to(device=device)
 
-    num_batches = -(n // -b) # Ceiling division
+    num_batches = -(n // -batch_size) # Ceiling division
 
     hit_idxs_lst = []
     scores_lst = []
