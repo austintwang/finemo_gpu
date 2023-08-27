@@ -152,7 +152,7 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold):
     motifs_df = pl.DataFrame(motif_data_lsts)
     cwms = np.stack(cwm_lst, dtype=np.float16, axis=1)
 
-    motif_norm = (cwms**2).mean().sqrt()
+    motif_norm = np.sqrt((cwms**2).mean())
 
     return motifs_df, cwms, motif_norm
 
