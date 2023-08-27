@@ -81,7 +81,7 @@ def fit_batch(cwms, cwms_t, contribs, sequences, coef_init, clip_mask,
             # print(gap) ####
             # print(contribs) ####
             # print(pred) ####
-            print(c_a_grad) ####
+            # print(c_a_grad) ####
 
             tbatch.set_postfix(max_gap=gap.max().item(), mean_gap=gap.mean().item())
 
