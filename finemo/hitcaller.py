@@ -118,7 +118,7 @@ def fit_contribs(cwms, contribs, sequences,
     b_const = alpha * out_size * (1 - l1_ratio)
 
     cwms = cwms.to(device=device)
-    cwms_t = torch.flip(dims=(2,))
+    cwms_t = cwms.flip(dims=(2,))
 
     contrib_norm = (contribs**2).mean().float().sqrt().item()
 
