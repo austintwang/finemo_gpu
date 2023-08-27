@@ -79,7 +79,7 @@ def fit_batch(cwms, cwms_t, contribs, sequences, coef_init, clip_mask,
 
             gap = dual_gap(c_a, cwms, contribs, pred, ll, a_const, b_const)
 
-            tbatch.set_postfix(ll_max=ll.max().item()/2, gap_max=gap.max().item())
+            tbatch.set_postfix(max_gap=gap.max().item(), min_gap=gap.min().item())
 
             if torch.all(gap <= convergence_tol).item():
                 converged = True
