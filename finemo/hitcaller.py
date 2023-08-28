@@ -44,10 +44,10 @@ def dual_gap(coefficients, cwms, contribs, pred, ll, a_const, b_const):
     l2_term = b_const * torch.sum(coefficients**2, dim=(1,2))
 
     dual_gap = (ll_scaled - dual_diff + l1_term + l2_term).abs()
-    print(ll_scaled) ####
-    print(dual_diff) ####
-    print(l1_term) ####
-    print(l2_term) ####
+    # print(ll_scaled) ####
+    # print(dual_diff) ####
+    # print(l1_term) ####
+    # print(l2_term) ####
 
     return dual_gap
     
@@ -88,6 +88,8 @@ def fit_batch(cwms, cwms_t, contribs, sequences, coef_init, clip_mask,
             # print(pred) ####
             # print(c_a_grad.amin(dim=(1,2))) ####
             # print(c_a.count_nonzero(dim=(1,2))) ####
+            print(pred) ####
+            print(contribs) ####
 
             tbatch.set_postfix(max_gap=gap.max().item(), mean_gap=gap.mean().item())
 
