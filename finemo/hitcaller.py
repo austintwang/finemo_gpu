@@ -88,6 +88,7 @@ def fit_batch(cwms, cwms_t, contribs, sequences, coef_init, clip_mask,
             # print(contribs) ####
             # print(pred) ####
             # print(c_a_grad.amin(dim=(1,2))) ####
+            print(c_a_grad) ####
             # print(c_a.count_nonzero(dim=(1,2))) ####
             # print(pred) ####
             # print(contribs) ####
