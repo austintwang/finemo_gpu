@@ -37,6 +37,7 @@ def dual_gap(coefficients, cwms, contribs, pred, ll, a_const, b_const):
     dual_scale = torch.clamp(a_const / dual_norm, max=1.)
     ll_scaled = ll * dual_scale
     # print(dual_scale) ####
+    print(residuals.abs().amax(dim=(1,2))) ####
 
     dual_diff = torch.tensordot(residuals, contribs, dims=([1, 2], [1, 2]))
 
@@ -88,8 +89,8 @@ def fit_batch(cwms, cwms_t, contribs, sequences, coef_init, clip_mask,
             # print(pred) ####
             # print(c_a_grad.amin(dim=(1,2))) ####
             # print(c_a.count_nonzero(dim=(1,2))) ####
-            print(pred) ####
-            print(contribs) ####
+            # print(pred) ####
+            # print(contribs) ####
 
             tbatch.set_postfix(max_gap=gap.max().item(), mean_gap=gap.mean().item())
 
