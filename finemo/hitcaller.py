@@ -36,7 +36,7 @@ def dual_gap(coefficients, cwms, contribs, pred, ll, a_const, b_const):
     dual_norm = F.conv_transpose1d(residuals, cwms).abs().amax(dim=(1,2)) # (b)
     dual_scale = torch.clamp(a_const / dual_norm, max=1.)
     ll_scaled = ll * dual_scale
-    print(dual_scale) ####
+    # print(dual_scale) ####
 
     dual_diff = torch.tensordot(residuals, contribs, dims=([1, 2], [1, 2]))
 
@@ -44,6 +44,7 @@ def dual_gap(coefficients, cwms, contribs, pred, ll, a_const, b_const):
     l2_term = b_const * torch.sum(coefficients**2, dim=(1,2))
 
     dual_gap = (ll_scaled - dual_diff + l1_term + l2_term).abs()
+    print(dual_gap) ####
 
     return dual_gap
     
