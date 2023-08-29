@@ -40,7 +40,7 @@ def dual_gap(coefficients, cwms, contribs, pred, ll, a_const, b_const):
     # print(residuals.abs().amax(dim=(1,2))) ####
 
     # dual_diff = torch.tensordot(residuals, contribs, dims=([1, 2], [1, 2]))
-    dual_diff =( residuals * contribs).sum(dims=(1,2))
+    dual_diff = (residuals * contribs).sum(dim=(1,2))
 
     l1_term = a_const * torch.linalg.vector_norm(coefficients, ord=1, dim=(1,2))
     l2_term = b_const * torch.sum(coefficients**2, dim=(1,2))
