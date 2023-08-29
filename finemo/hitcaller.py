@@ -86,7 +86,7 @@ def prox_grad_step(coefficients, cwms_t, contribs, sequences,
 
     residuals = contribs - pred # (b, 4, l + w - 1)
     ngrad = F.conv_transpose1d(residuals, cwms_t) # (b, m, l + 2w - 2)
-    print(ngrad) ####
+    # print(ngrad) ####
 
     ll = (residuals**2).sum(dim=(1,2)) # (b)
     
