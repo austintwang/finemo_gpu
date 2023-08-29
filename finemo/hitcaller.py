@@ -17,9 +17,10 @@ def log_likelihood(coefficients, cwms_t, contribs, sequences):
     pred_masked = pred * sequences # (b, 4, l)
 
     ll = F.mse_loss(pred_masked, contribs, reduction='none').sum(dim=(1,2))
-    print(ll) #####
-    print(pred_masked) #####
-    print(contribs) #####
+    print(ll) ####
+    # print(pred_masked) ####
+    # print(contribs) ####
+    print(F.mse_loss(pred_masked, contribs, reduction='none')) ####
     
     return ll, pred_masked
 
