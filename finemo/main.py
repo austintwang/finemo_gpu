@@ -3,7 +3,6 @@ from . import data_io, hitcaller, visualization
 import os
 import argparse
 
-import torch
 import polars as pl
 
 
