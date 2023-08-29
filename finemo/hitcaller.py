@@ -56,6 +56,7 @@ def dual_gap(coefficients, cwms_t, contribs, pred, ll, a_const, b_const):
     gap_inds = torch.argsort(dual_gap, descending=True)[:10] ####
     # print(gap_inds) ####
     print(ll[gap_inds]) ####
+    print(dual_scale[gap_inds]) ####
     print(ll_scaled[gap_inds]) ####
     # print(dual_diff.shape) ####
     print(dual_diff[gap_inds]) ####
