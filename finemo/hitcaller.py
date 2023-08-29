@@ -85,11 +85,11 @@ def prox_grad_step(coefficients, cwms_t, contribs, sequences,
     pred = pred_unmasked * sequences # (b, 4, l + w - 1)
 
     residuals = contribs - pred # (b, 4, l + w - 1)
-    grad = F.conv_transpose1d(residuals, cwms_t) # (b, m, l + 2w - 2)
+    ngrad = F.conv_transpose1d(residuals, cwms_t) # (b, m, l + 2w - 2)
 
     ll = (residuals**2).sum(dim=(1,2)) # (b)
     
-    dual_norm = (grad - b_const * coefficients).abs().amax(dim=(1,2)) # (b)
+    dual_norm = (ngrad - b_const * coefficients).abs().amax(dim=(1,2)) # (b)
     dual_scale = (torch.clamp(a_const / dual_norm, max=1.)**2 + 1) / 2 # (b)
     ll_scaled = ll * dual_scale # (b)
 
@@ -100,7 +100,7 @@ def prox_grad_step(coefficients, cwms_t, contribs, sequences,
 
     dual_gap = (ll_scaled - dual_diff + l1_term + l2_term).abs() # (b)
 
-    c_next = coefficients - step_size * grad # (b, m, l + 2w - 2)
+    c_next = coefficients + step_size * ngrad # (b, m, l + 2w - 2)
     c_next = (c_next - torch.clamp(c_next, min=-st_thresh, max=st_thresh)) / shrink_factor
         # (b, m, l + 2w - 2)
 
