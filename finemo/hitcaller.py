@@ -145,7 +145,8 @@ def fit_contribs(cwms, contribs, sequences,
     contribs = torch.from_numpy(contribs)
     sequences = torch.from_numpy(sequences)
 
-    cwms = cwms.to(device=device)
+    # cwms = cwms.to(device=device)
+    cwms = cwms.to(device=device).float()
     cwms_t = cwms.flip(dims=(2,))
 
     seq_inds = torch.arange(l + 2 * w - 2)[None,None,:]
