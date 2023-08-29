@@ -39,6 +39,7 @@ def dual_gap(coefficients, cwms_t, contribs, pred, ll, a_const, b_const):
     """
 
     residuals = contribs - pred # (b, 4, l)
+    resid_coef = F.conv_transpose1d(residuals, cwms_t) - b_const * coefficients
     dual_norm = F.conv_transpose1d(residuals, cwms_t).abs().amax(dim=(1,2)) # (b)
     dual_scale = (torch.clamp(a_const / dual_norm, max=1.)**2 + 1) / 2
     ll_scaled = ll * dual_scale
