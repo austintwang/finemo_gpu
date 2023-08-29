@@ -27,7 +27,7 @@ def log_likelihood(coefficients, cwms_t, contribs, sequences):
     return ll, pred_masked
 
 
-def dual_gap(coefficients, cwms, contribs, pred, ll, a_const, b_const):
+def dual_gap(coefficients, cwms_t, contribs, pred, ll, a_const, b_const):
     """
     coefficients: (b, m, l + 2w - 2)
     cwms_t: (m, 4, w)
@@ -39,7 +39,7 @@ def dual_gap(coefficients, cwms, contribs, pred, ll, a_const, b_const):
     """
 
     residuals = contribs - pred # (b, 4, l)
-    dual_norm = F.conv_transpose1d(residuals, cwms).abs().amax(dim=(1,2)) # (b)
+    dual_norm = F.conv_transpose1d(residuals, cwms_t).abs().amax(dim=(1,2)) # (b)
     dual_scale = (torch.clamp(a_const / dual_norm, max=1.)**2 + 1) / 2
     ll_scaled = ll * dual_scale
     # print(dual_scale) ####
@@ -63,7 +63,7 @@ def dual_gap(coefficients, cwms, contribs, pred, ll, a_const, b_const):
     return dual_gap
     
 
-def fit_batch(cwms, cwms_t, contribs, sequences, coef_init, clip_mask,
+def fit_batch(cwms_t, contribs, sequences, coef_init, clip_mask,
               a_const, b_const, step_size, convergence_tol, max_steps):
     """
     cwms: (4, m, w)
@@ -93,7 +93,7 @@ def fit_batch(cwms, cwms_t, contribs, sequences, coef_init, clip_mask,
             pred.detach_()
             c_a_grad.detach_()
 
-            gap = dual_gap(c_a, cwms, contribs, pred, ll, a_const, b_const)
+            gap = dual_gap(c_a, cwms_t, contribs, pred, ll, a_const, b_const)
             # print(gap) ####
             # print(contribs) ####
             # print(pred) ####
@@ -148,8 +148,9 @@ def fit_contribs(cwms, contribs, sequences,
     sequences = torch.from_numpy(sequences)
 
     # cwms = cwms.to(device=device)
-    cwms = cwms.to(device=device).float()
-    cwms_t = cwms.flip(dims=(2,))
+    # cwms = cwms.to(device=device).float()
+    # cwms_t = cwms.flip(dims=(2,))
+    cwms_t = cwms.to(device=device).float()
 
     seq_inds = torch.arange(l + 2 * w - 2)[None,None,:]
     clip_mask = (seq_inds >= (w - 1)) & (seq_inds < (l - w - 1)) # (l + 2w - 2)
