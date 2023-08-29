@@ -160,6 +160,8 @@ def fit_contribs(cwms, contribs, sequences,
     qc_lsts = {"log_likelihood": [], "dual_gap": [], "num_steps": []}
 
     for i in trange(num_batches, disable=None, unit="batches", position=0):
+        if i == 0:
+            continue ####
         start = i * batch_size
         end = min(n, start + batch_size)
         b = end - start
