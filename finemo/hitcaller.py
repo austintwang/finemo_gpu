@@ -84,7 +84,7 @@ def prox_grad_step(coefficients, cwms_t, contribs, sequences,
     pred_unmasked = F.conv1d(coefficients, cwms_t) # (b, 4, l + w - 1)
     pred = pred_unmasked * sequences # (b, 4, l + w - 1)
 
-    residuals = contribs - pred # (b, 4, l + w - 1)
+    residuals = pred - contribs # (b, 4, l + w - 1)
     grad = F.conv_transpose1d(residuals, cwms_t) # (b, m, l + 2w - 2)
 
     ll = (residuals**2).sum(dim=(1,2)) # (b)
