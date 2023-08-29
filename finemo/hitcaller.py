@@ -143,9 +143,12 @@ def fit_contribs(cwms, contribs, sequences,
     _, m, w = cwms.shape
     n, _, l = sequences.shape
 
-    out_size = l + w - 1
-    a_const = alpha * out_size * l1_ratio
-    b_const = alpha * out_size * (1 - l1_ratio)
+    # out_size = l + w - 1
+    # a_const = alpha * out_size * l1_ratio
+    # b_const = alpha * out_size * (1 - l1_ratio)
+
+    a_const = alpha * l1_ratio
+    b_const = alpha * (1 - l1_ratio)
 
     contrib_norm = np.sqrt((contribs**2).mean())
 
