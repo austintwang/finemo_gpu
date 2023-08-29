@@ -86,6 +86,7 @@ def prox_grad_step(coefficients, cwms_t, contribs, sequences,
 
     residuals = contribs - pred # (b, 4, l + w - 1)
     ngrad = F.conv_transpose1d(residuals, cwms_t) # (b, m, l + 2w - 2)
+    print(ngrad) ####
 
     ll = (residuals**2).sum(dim=(1,2)) # (b)
     
@@ -104,7 +105,7 @@ def prox_grad_step(coefficients, cwms_t, contribs, sequences,
     c_next = (c_next - torch.clamp(c_next, min=-st_thresh, max=st_thresh)) / shrink_factor
         # (b, m, l + 2w - 2)
 
-    return c_next, dual_gap
+    return c_next, dual_gap, ll
     
 
 def fit_batch(cwms_t, contribs, sequences, coef_init, clip_mask,
@@ -128,7 +129,7 @@ def fit_batch(cwms_t, contribs, sequences, coef_init, clip_mask,
         for i in tbatch:
 
             c_b_prev = c_b
-            c_b, gap = prox_grad_step(c_a, cwms_t, contribs, sequences, a_const, b_const, st_thresh, shrink_factor, step_size)
+            c_b, gap, ll = prox_grad_step(c_a, cwms_t, contribs, sequences, a_const, b_const, st_thresh, shrink_factor, step_size)
 
             # c_a.requires_grad_()
             # ll, pred = log_likelihood(c_a, cwms_t, contribs, sequences)
