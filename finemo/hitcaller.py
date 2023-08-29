@@ -61,6 +61,7 @@ def dual_gap(coefficients, cwms_t, contribs, pred, ll, a_const, b_const):
     print(l1_term[gap_inds]) ####
     print(l2_term[gap_inds]) ####
     print(dual_gap[gap_inds]) ####
+    print(dual_gap) ####
 
     return dual_gap
     
