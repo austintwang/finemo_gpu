@@ -145,7 +145,7 @@ def cli():
         help="Optimizer step size.")
     call_hits_parser.add_argument("-c", "--convergence-tol", type=float, default=0.001,
         help="Tolerance for assessing convergence. The optimizer exits when the dual gap is less than the tolerance.")
-    call_hits_parser.add_argument("-S", "--max-steps", type=int, default=1000,
+    call_hits_parser.add_argument("-S", "--max-steps", type=int, default=10000,
         help="Maximum optimizer steps.")
     call_hits_parser.add_argument("-b", "--batch-size", type=int, default=1000,
         help="Batch size for optimization.")
