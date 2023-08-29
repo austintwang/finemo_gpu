@@ -179,7 +179,7 @@ def fit_contribs(cwms, contribs, sequences,
         contribs_batch = (contribs_batch / contrib_norm) * sequences_batch # (b, 4, l + w - 1)
         coef_init = torch.zeros((b, m, l + 2 * w - 2), dtype=torch.float32, device=device) # (b, m, l + 2w - 2)
 
-        coef, ll, gap, steps = fit_batch(cwms, cwms_t, contribs_batch, sequences_batch, coef_init, clip_mask,
+        coef, ll, gap, steps = fit_batch(cwms, contribs_batch, sequences_batch, coef_init, clip_mask,
                                          a_const, b_const, step_size, convergence_tol, max_steps)
         
         hit_idxs_batch = torch.clone(coef.indices())
