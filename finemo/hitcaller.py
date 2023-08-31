@@ -6,6 +6,8 @@ import torch.nn.functional as F
 
 from tqdm import tqdm, trange
 
+from scipy.stats import spearmanr ####
+
 # def log_likelihood(coefficients, cwms_t, contribs, sequences):
 #     """
 #     coefficients: (b, m, l + w - 1)
@@ -124,6 +126,9 @@ def fit_batch(cwms_t, contribs, sequences, coef_init, clip_mask,
     c_a = coef_init
     c_b = torch.zeros_like(c_a)
 
+    contribs_sum = contribs.sum(dim=(1,2)) ####
+    contribs_sum_np = contribs_sum.numpy(force=True) ####
+
     converged = False
     with trange(max_steps, total=np.inf, disable=None, position=1) as tbatch:
         for i in tbatch:
@@ -151,6 +156,7 @@ def fit_batch(cwms_t, contribs, sequences, coef_init, clip_mask,
             # # print(c_a.count_nonzero(dim=(1,2))) ####
             # # print(pred) ####
             # # print(contribs) ####
+            print(spearmanr(gap.numpy(force=True), contribs_sum_np).statistic)
 
             tbatch.set_postfix(max_gap=gap.max().item(), mean_gap=gap.mean().item())
 
