@@ -156,7 +156,9 @@ def fit_batch(cwms_t, contribs, sequences, coef_init, clip_mask,
             # # print(c_a.count_nonzero(dim=(1,2))) ####
             # # print(pred) ####
             # # print(contribs) ####
-            print(spearmanr(gap.numpy(force=True), contribs_sum_np).statistic)
+            g = gap.numpy(force=True) ####
+            c = contribs_sum_np ####
+            print(spearmanr(g, c).statistic, np.corrcoef(g, c)) ####
 
             tbatch.set_postfix(max_gap=gap.max().item(), mean_gap=gap.mean().item())
 
