@@ -157,11 +157,12 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold):
     return motifs_df, cwms, motif_norm
 
 
-def write_hits(hits_df, peaks_df, motifs_df, out_path_tsv, out_path_bed, half_width, motif_norm, contrib_norm):
+def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, half_width, motif_norm):
     data_all = (
         hits_df
         .lazy()
         .join(peaks_df, on="peak_id", how="inner")
+        .join(qc_df, on="peak_id", how="inner")
         .join(motifs_df, on="motif_id", how="inner")
         .select(
             chr_id=pl.col("chr_id"),
@@ -170,7 +171,7 @@ def write_hits(hits_df, peaks_df, motifs_df, out_path_tsv, out_path_bed, half_wi
             end=pl.col("peak_region_start") + pl.col("hit_start") + pl.col("motif_end"),
             motif_name=pl.col("motif_name"),
             hit_score_scaled=pl.col("hit_score"),
-            hit_score_unscaled=pl.col("hit_score") * motif_norm * contrib_norm,
+            hit_score_unscaled=pl.col("hit_score") * pl.col("contrib_scale") * motif_norm,
             strand=pl.col("motif_strand"),
             peak_name=pl.col("peak_name"),
             peak_id=pl.col("peak_id"),

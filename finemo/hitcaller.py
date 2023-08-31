@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from tqdm import tqdm, trange
 
-from scipy.stats import spearmanr ####
+# from scipy.stats import spearmanr ####
 
 # def log_likelihood(coefficients, cwms_t, contribs, sequences):
 #     """
@@ -156,9 +156,9 @@ def fit_batch(cwms_t, contribs, sequences, coef_init, clip_mask,
             # # print(c_a.count_nonzero(dim=(1,2))) ####
             # # print(pred) ####
             # # print(contribs) ####
-            g = gap.numpy(force=True) ####
-            c = contribs_sum_np ####
-            print(spearmanr(g, c).statistic, np.corrcoef(g, c)) ####
+            # g = gap.numpy(force=True) ####
+            # c = contribs_sum_np ####
+            # print(spearmanr(g, c).statistic, np.corrcoef(g, c)) ####
 
             tbatch.set_postfix(max_gap=gap.max().item(), mean_gap=gap.mean().item())
 
@@ -201,7 +201,7 @@ def fit_contribs(cwms, contribs, sequences,
     a_const = alpha * l1_ratio
     b_const = alpha * (1 - l1_ratio)
 
-    contrib_norm = np.sqrt((contribs**2).mean())
+    # contrib_norm = np.sqrt((contribs**2).mean())
 
     cwms = torch.from_numpy(cwms)
     contribs = torch.from_numpy(contribs)
@@ -220,7 +220,7 @@ def fit_contribs(cwms, contribs, sequences,
 
     hit_idxs_lst = []
     scores_lst = []
-    qc_lsts = {"log_likelihood": [], "dual_gap": [], "num_steps": []}
+    qc_lsts = {"log_likelihood": [], "dual_gap": [], "num_steps": [], "contrib_scale": []}
 
     for i in trange(num_batches, disable=None, unit="batches", position=0):
         start = i * batch_size
@@ -234,8 +234,10 @@ def fit_contribs(cwms, contribs, sequences,
 
         sequences_batch = F.pad(sequences[start:end,:,:], (0, w - 1)).to(device=device) # (b, 4, l + w - 1)
         contribs_batch = F.pad(contribs[start:end,None,:], (0, w - 1)).float().to(device=device) 
-        contribs_batch = (contribs_batch / contrib_norm) * sequences_batch # (b, 4, l + w - 1)
         coef_init = torch.zeros((b, m, l + 2 * w - 2), dtype=torch.float32, device=device) # (b, m, l + 2w - 2)
+
+        scale = (contribs_batch**2).sum(dim=(1,2)) / l
+        contribs_batch = (contribs_batch / scale) * sequences_batch # (b, 4, l + w - 1)
 
         coef, ll, gap, steps = fit_batch(cwms_t, contribs_batch, sequences_batch, coef_init, clip_mask,
                                          a_const, b_const, step_size, convergence_tol, max_steps)
@@ -252,6 +254,7 @@ def fit_contribs(cwms, contribs, sequences,
         qc_lsts["log_likelihood"].append(ll.numpy(force=True))
         qc_lsts["dual_gap"].append(gap.numpy(force=True))
         qc_lsts["num_steps"].append(np.full(b, steps, dtype=np.int32))
+        qc_lsts["contrib_scale"].append(scale.numpy(force=True))
 
     hit_idxs = np.concatenate(hit_idxs_lst, axis=0)
     scores = np.concatenate(scores_lst, axis=0)
@@ -265,6 +268,6 @@ def fit_contribs(cwms, contribs, sequences,
 
     qc = {k: np.concatenate(v, axis=0) for k, v in qc_lsts.items()}
 
-    return hits, qc, contrib_norm
+    return hits, qc
 
 

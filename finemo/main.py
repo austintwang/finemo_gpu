@@ -41,18 +41,18 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_thres
     num_motifs = cwms.shape[1]
     motif_width = cwms.shape[2]
 
-    hits, qc, contrib_norm = hitcaller.fit_contribs(cwms, contribs, sequences, alpha, l1_ratio, step_size, 
-                                                    convergence_tol, max_steps, batch_size, device)
+    hits, qc = hitcaller.fit_contribs(cwms, contribs, sequences, alpha, l1_ratio, step_size, 
+                                      convergence_tol, max_steps, batch_size, device)
     hits_df = pl.DataFrame(hits)
     qc_df = pl.DataFrame(qc)
 
     os.makedirs(out_dir, exist_ok=True)
-    out_dir_tsv = os.path.join(out_dir, "hits.tsv")
-    out_dir_bed = os.path.join(out_dir, "hits.bed")
-    out_dir_qc = os.path.join(out_dir, "peaks_qc.tsv")
-    data_io.write_hits(hits_df, peaks_df, motifs_df, 
-                       out_dir_tsv, out_dir_bed, half_width, motif_norm, contrib_norm)
-    data_io.write_qc(qc_df, peaks_df, out_dir_qc)
+    out_path_tsv = os.path.join(out_dir, "hits.tsv")
+    out_path_bed = os.path.join(out_dir, "hits.bed")
+    out_path_qc = os.path.join(out_dir, "peaks_qc.tsv")
+    data_io.write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, 
+                       out_path_bed, half_width, motif_norm)
+    data_io.write_qc(qc_df, peaks_df, out_path_qc)
 
     params = {
         "inputs": {
