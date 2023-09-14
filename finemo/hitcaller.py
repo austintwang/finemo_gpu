@@ -136,14 +136,14 @@ def fit_batch(cwms_t, contribs, sequences, coef_init, clip_mask,
         for i in tbatch:
 
             c_b_prev = c_b
-            # c_b, gap, ll = prox_grad_step(c_a, cwms_t, contribs, sequences, a_const, b_const, st_thresh, shrink_factor, step_size)
+            c_b, gap, ll = prox_grad_step(c_a, cwms_t, contribs, sequences, a_const, b_const, st_thresh, shrink_factor, step_size)
 
-            with profile(activities=[ ####
-                    ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
-                with record_function("model_inference"):
-                    c_b, gap, ll = prox_grad_step(c_a, cwms_t, contribs, sequences, a_const, b_const, st_thresh, shrink_factor, step_size)
+            # with profile(activities=[ ####
+            #         ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
+            #     with record_function("model_inference"):
+            #         c_b, gap, ll = prox_grad_step(c_a, cwms_t, contribs, sequences, a_const, b_const, st_thresh, shrink_factor, step_size)
 
-            print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10)) ####
+            # print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10)) ####
 
 
             # c_a.requires_grad_()

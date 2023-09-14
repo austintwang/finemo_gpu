@@ -130,7 +130,10 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold):
             for ind, (pattern_name, pattern) in enumerate(sorted(metacluster.items(), key=key)):
                 pattern_tag = f'{name}.{pattern_name}'
 
-                cwm_fwd = pattern['contrib_scores'][:].T
+                cwm_raw = pattern['contrib_scores'][:].T
+                cwm_norm = np.sqrt((cwm_raw**2).sum())
+
+                cwm_fwd = cwm_raw / cwm_norm
                 cwm_rev = cwm_fwd[::-1,::-1]
                 start_fwd, end_fwd = trim_motif(cwm_fwd, trim_threshold)
                 start_rev, end_rev = trim_motif(cwm_rev, trim_threshold)
@@ -140,12 +143,14 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold):
                 motif_data_lsts["motif_strand"].append('+')
                 motif_data_lsts["motif_start"].append(start_fwd)
                 motif_data_lsts["motif_end"].append(end_fwd)
+                motif_data_lsts["motif_scale"].append(cwm_norm)
 
                 motif_data_lsts["motif_id"].append(2 * ind + 1)
                 motif_data_lsts["motif_name"].append(pattern_tag)
                 motif_data_lsts["motif_strand"].append('-')
                 motif_data_lsts["motif_start"].append(start_rev)
                 motif_data_lsts["motif_end"].append(end_rev)
+                motif_data_lsts["motif_scale"].append(cwm_norm)
 
                 cwm_lst.extend([cwm_fwd, cwm_rev])
 
@@ -171,7 +176,7 @@ def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, 
             end=pl.col("peak_region_start") + pl.col("hit_start") + pl.col("motif_end"),
             motif_name=pl.col("motif_name"),
             hit_score_scaled=pl.col("hit_score"),
-            hit_score_unscaled=pl.col("hit_score") * pl.col("contrib_scale") * motif_norm,
+            hit_score_unscaled=pl.col("hit_score") * pl.col("contrib_scale") * pl.col("motif_scale"),
             strand=pl.col("motif_strand"),
             peak_name=pl.col("peak_name"),
             peak_id=pl.col("peak_id"),
@@ -186,8 +191,8 @@ def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, 
 
     data_bed = (
         data_all
-        .drop("peak_name", "peak_id")
-        .unique(subset=["chr", "start", "end", "motif_name", "strand"], maintain_order=True)
+        .select(["chr", "start", "end", "motif_name", "strand"])        
+        .unique(maintain_order=True)
         .collect()
     )
     data_bed.write_csv(out_path_bed, has_header=False, separator="\t")
