@@ -1,4 +1,4 @@
-from . import data_io, hitcaller, visualization
+from . import data_io
 
 import os
 import argparse
@@ -17,6 +17,8 @@ def extract_regions(peaks_path, fa_path, bw_paths, out_path, region_width):
 
 def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_threshold, 
               alpha, l1_ratio, step_size, convergence_tol, max_steps, batch_size, device):
+    
+    from . import hitcaller
     
     sequences, contribs = data_io.load_regions_npz(regions_path)
 
@@ -85,6 +87,8 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_thres
 
 
 def visualize(hits_path, out_dir):
+    from . import visualization
+
     hits_df = data_io.load_hits(hits_path)
     num_peaks = hits_df.height
 
