@@ -171,7 +171,9 @@ def fit_batch(cwms_t, contribs, sequences, coef_init, clip_mask,
             # print(spearmanr(g, c).statistic, np.corrcoef(g, c)) ####
 
             # tbatch.set_postfix(max_gap=gap.max().item(), mean_gap=gap.mean().item())
-            tbatch.set_postfix(max_gap=gap.max().item(), mean_gap=gap.mean().item(), max_ll=ll.max().item(), mean_ll=ll.mean().item()) ####
+            num_nonzero = c_a.count_nonzero((1,2),) ####
+            tbatch.set_postfix(max_gap=gap.max().item(), mean_gap=gap.mean().item(), max_ll=ll.max().item(), mean_ll=ll.mean().item(), 
+                               max_nonzero=num_nonzero.max().item(), mean_nonzero=num_nonzero.mean().item()) ####
 
 
             if torch.all(gap <= convergence_tol).item():
