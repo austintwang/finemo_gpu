@@ -39,7 +39,7 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_thres
                          f"input contributions of shape {contribs.shape} "
                          f"are not compatible with region count of {num_regions}" )
 
-    motifs_df, cwms, motif_norm = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold)
+    motifs_df, cwms = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold)
     num_motifs = cwms.shape[1]
     motif_width = cwms.shape[2]
 
@@ -52,8 +52,8 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_thres
     out_path_tsv = os.path.join(out_dir, "hits.tsv")
     out_path_bed = os.path.join(out_dir, "hits.bed")
     out_path_qc = os.path.join(out_dir, "peaks_qc.tsv")
-    data_io.write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, 
-                       out_path_bed, half_width, motif_norm)
+    data_io.write_hits(hits_df, peaks_df, motifs_df, qc_df, 
+                       out_path_tsv, out_path_bed, half_width)
     data_io.write_qc(qc_df, peaks_df, out_path_qc)
 
     params = {

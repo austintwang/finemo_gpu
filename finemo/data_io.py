@@ -157,12 +157,10 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold):
     motifs_df = pl.DataFrame(motif_data_lsts)
     cwms = np.stack(cwm_lst, dtype=np.float16, axis=1)
 
-    motif_norm = np.sqrt((cwms**2).mean())
-
-    return motifs_df, cwms, motif_norm
+    return motifs_df, cwms
 
 
-def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, half_width, motif_norm):
+def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, half_width):
     data_all = (
         hits_df
         .lazy()
