@@ -273,6 +273,8 @@ def fit_contribs(cwms, contribs, sequences,
         qc_lsts["num_steps"].append(np.full(b, steps, dtype=np.int32))
         qc_lsts["contrib_scale"].append(scale.numpy(force=True))
 
+        break ####
+
     hit_idxs = np.concatenate(hit_idxs_lst, axis=0)
     scores = np.concatenate(scores_lst, axis=0)
 
