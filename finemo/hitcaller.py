@@ -113,7 +113,7 @@ def prox_grad_step(coefficients, cwms_t, contribs, sequences,
     
 
 def fit_batch(cwms_t, contribs, sequences, coef_init, clip_mask,
-              a_const, b_const, step_size, convergence_tol, max_steps):
+              l, a_const, b_const, step_size, convergence_tol, max_steps):
     """
     cwms: (4, m, w)
     cwms_t: (m, 4, w)
@@ -128,8 +128,8 @@ def fit_batch(cwms_t, contribs, sequences, coef_init, clip_mask,
     c_a = coef_init
     c_b = torch.zeros_like(c_a)
 
-    contribs_sum = contribs.sum(dim=(1,2)) ####
-    contribs_sum_np = contribs_sum.numpy(force=True) ####
+    # contribs_sum = contribs.sum(dim=(1,2)) ####
+    # contribs_sum_np = contribs_sum.numpy(force=True) ####
 
     converged = False
     with trange(max_steps, total=np.inf, disable=None, position=1) as tbatch:
@@ -137,6 +137,8 @@ def fit_batch(cwms_t, contribs, sequences, coef_init, clip_mask,
 
             c_b_prev = c_b
             c_b, gap, ll = prox_grad_step(c_a, cwms_t, contribs, sequences, a_const, b_const, st_thresh, shrink_factor, step_size)
+            gap = gap / l
+            ll = ll / (2 * l)
 
             # with profile(activities=[ ####
             #         ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
@@ -170,7 +172,7 @@ def fit_batch(cwms_t, contribs, sequences, coef_init, clip_mask,
             # c = contribs_sum_np ####
             # print(spearmanr(g, c).statistic, np.corrcoef(g, c)) ####
 
-            # tbatch.set_postfix(max_gap=gap.max().item(), mean_gap=gap.mean().item())
+            # tbatch.set_postfix(max_gap=gap.max().item(), mean_gap=gap.mean().item(), max_ll=ll.max().item(), mean_ll=ll.mean().item())
             num_nonzero = c_a.count_nonzero((1,2),) ####
             tbatch.set_postfix(max_gap=gap.max().item(), mean_gap=gap.mean().item(), max_ll=ll.max().item(), mean_ll=ll.mean().item(), 
                                max_nonzero=num_nonzero.max().item(), mean_nonzero=num_nonzero.float().mean().item()) ####
@@ -193,7 +195,7 @@ def fit_batch(cwms_t, contribs, sequences, coef_init, clip_mask,
     coef_final = c_a * clip_mask
     coef_sparse = coef_final.to_sparse()
 
-    ll = ll / 2.
+    # ll = ll / 2.
 
     return coef_sparse, ll, gap, i
 
@@ -254,7 +256,7 @@ def fit_contribs(cwms, contribs, sequences,
         contribs_batch = (contribs_batch / scale) * sequences_batch # (b, 4, l + w - 1)
 
         coef, ll, gap, steps = fit_batch(cwms_t, contribs_batch, sequences_batch, coef_init, clip_mask,
-                                         a_const, b_const, step_size, convergence_tol, max_steps)
+                                         l, a_const, b_const, step_size, convergence_tol, max_steps)
         
         hit_idxs_batch = torch.clone(coef.indices())
         hit_idxs_batch[0:] += start
