@@ -271,7 +271,7 @@ def fit_contribs(cwms, contribs, sequences,
         qc_lsts["log_likelihood"].append(ll.numpy(force=True))
         qc_lsts["dual_gap"].append(gap.numpy(force=True))
         qc_lsts["num_steps"].append(np.full(b, steps, dtype=np.int32))
-        qc_lsts["contrib_scale"].append(scale.numpy(force=True))
+        qc_lsts["contrib_scale"].append(scale.squeeze().numpy(force=True))
 
         break ####
 
