@@ -240,7 +240,7 @@ def write_qc(qc_df, peaks_df, out_path):
         qc_df
         .lazy()
         .join(peaks_df.lazy(), on="peak_id", how="inner")
-        .sort(["chr_id", "peak_start"])
+        .sort(["chr_id", "peak_region_start"])
         .drop("chr_id")
         .collect()
     )
