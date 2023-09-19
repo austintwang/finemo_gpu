@@ -161,10 +161,10 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold):
 
 
 def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, half_width):
-    print(hits_df) ####
-    print(peaks_df) ####
-    print(motifs_df) ####
-    print(qc_df) ####
+    # print(hits_df) ####
+    # print(peaks_df) ####
+    # print(motifs_df) ####
+    # print(qc_df) ####
 
     # data_all = (
     #     hits_df
@@ -240,7 +240,7 @@ def write_qc(qc_df, peaks_df, out_path):
         qc_df
         .lazy()
         .join(peaks_df.lazy(), on="peak_id", how="inner")
-        .sort(["chr_id", "start"])
+        .sort(["chr_id", "peak_start"])
         .drop("chr_id")
         .collect()
     )
