@@ -260,8 +260,8 @@ def fit_contribs(cwms, contribs, sequences,
                                          l, a_const, b_const, step_size, convergence_tol, max_steps)
         
         hit_idxs_batch = torch.clone(coef.indices())
-        hit_idxs_batch[0:] += start
-        hit_idxs_batch[2:] -= m - 1
+        hit_idxs_batch[0,:] += start
+        hit_idxs_batch[2,:] -= m - 1
 
         scores_batch = coef.values()
 
@@ -279,9 +279,9 @@ def fit_contribs(cwms, contribs, sequences,
     scores = np.concatenate(scores_lst, axis=0)
 
     hits = {
-        "peak_id": hit_idxs[0:],
-        "motif_id": hit_idxs[1:],
-        "hit_start": hit_idxs[2:],
+        "peak_id": hit_idxs[:,0],
+        "motif_id": hit_idxs[:,1],
+        "hit_start": hit_idxs[:,2],
         "hit_score": scores
     }
 
