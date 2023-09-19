@@ -279,7 +279,7 @@ def fit_contribs(cwms, contribs, sequences,
     scores = np.concatenate(scores_lst, axis=0)
 
     hits = {
-        "peak_id": hit_idxs[:,0],
+        "peak_id": hit_idxs[:,0].astype(np.uint32),
         "motif_id": hit_idxs[:,1],
         "hit_start": hit_idxs[:,2],
         "hit_score": scores
