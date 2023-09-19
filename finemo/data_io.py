@@ -172,6 +172,15 @@ def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, 
         .join(peaks_df.lazy(), on="peak_id", how="inner")
         .join(qc_df.lazy(), on="peak_id", how="inner")
         .join(motifs_df.lazy(), on="motif_id", how="inner")
+        .collect()
+    ) ####
+    
+    data_all = (
+        hits_df
+        .lazy()
+        .join(peaks_df.lazy(), on="peak_id", how="inner")
+        .join(qc_df.lazy(), on="peak_id", how="inner")
+        .join(motifs_df.lazy(), on="motif_id", how="inner")
         .select(
             chr_id=pl.col("chr_id"),
             chr=pl.col("chr"),
