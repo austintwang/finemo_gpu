@@ -247,9 +247,9 @@ def write_qc(qc_df, peaks_df, out_path):
     df.write_csv(out_path, separator="\t")
 
 
-def write_params(out_path):
+def write_params(params, out_path):
     with open(out_path, "w") as f:
-        json.dump(out_path, f, indent=4)
+        json.dump(params, f, indent=4)
 
 
 def write_occ_df(occ_df, out_path):

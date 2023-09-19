@@ -82,8 +82,8 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_thres
             "num_motifs": num_motifs,
         }
     }
-    out_dir_params = os.path.join(out_dir, "parameters.json")
-    data_io.write_params(params, out_dir_params)
+    out_path_params = os.path.join(out_dir, "parameters.json")
+    data_io.write_params(params, out_path_params)
 
 
 def visualize(hits_path, out_dir):
