@@ -174,6 +174,7 @@ def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, 
         .join(motifs_df.lazy(), on="motif_id", how="inner")
         .collect()
     ) ####
+    print(data_all) ####
     
     data_all = (
         hits_df
