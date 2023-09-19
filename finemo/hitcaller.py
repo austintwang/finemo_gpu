@@ -265,7 +265,7 @@ def fit_contribs(cwms, contribs, sequences,
 
         scores_batch = coef.values()
 
-        hit_idxs_lst.append(hit_idxs_batch.numpy(force=True))
+        hit_idxs_lst.append(hit_idxs_batch.numpy(force=True).T)
         scores_lst.append(scores_batch.numpy(force=True))
 
         qc_lsts["log_likelihood"].append(ll.numpy(force=True))
