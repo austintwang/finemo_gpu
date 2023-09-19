@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from tqdm import tqdm, trange
 
-from torch_utils import compile_if_possible
+from .torch_utils import compile_if_possible
 
 # from torch.profiler import profile, record_function, ProfilerActivity ####
 
