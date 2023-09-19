@@ -6,7 +6,9 @@ import torch.nn.functional as F
 
 from tqdm import tqdm, trange
 
-from torch.profiler import profile, record_function, ProfilerActivity ####
+from torch_utils import compile_if_possible
+
+# from torch.profiler import profile, record_function, ProfilerActivity ####
 
 # from scipy.stats import spearmanr ####
 
@@ -72,7 +74,7 @@ from torch.profiler import profile, record_function, ProfilerActivity ####
 
 #     return dual_gap
 
-
+# @compile_if_possible
 def prox_grad_step(coefficients, cwms_t, contribs, sequences, 
                    a_const, b_const, st_thresh, shrink_factor, step_size):
     """
@@ -138,7 +140,7 @@ def fit_batch(cwms_t, contribs, sequences, coef_init, clip_mask,
             c_b_prev = c_b
             c_b, gap, ll = prox_grad_step(c_a, cwms_t, contribs, sequences, a_const, b_const, st_thresh, shrink_factor, step_size)
             gap = gap / l
-            ll = ll / (2 * l)
+            # ll = ll / (2 * l)
 
             # with profile(activities=[ ####
             #         ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
@@ -172,11 +174,10 @@ def fit_batch(cwms_t, contribs, sequences, coef_init, clip_mask,
             # c = contribs_sum_np ####
             # print(spearmanr(g, c).statistic, np.corrcoef(g, c)) ####
 
-            # tbatch.set_postfix(max_gap=gap.max().item(), mean_gap=gap.mean().item(), max_ll=ll.max().item(), mean_ll=ll.mean().item())
-            num_nonzero = c_a.count_nonzero((1,2),) ####
-            tbatch.set_postfix(max_gap=gap.max().item(), mean_gap=gap.mean().item(), max_ll=ll.max().item(), mean_ll=ll.mean().item(), 
-                               max_nonzero=num_nonzero.max().item(), mean_nonzero=num_nonzero.float().mean().item()) ####
-
+            tbatch.set_postfix(max_gap=gap.max().item(), mean_gap=gap.mean().item())
+            # num_nonzero = c_a.count_nonzero((1,2),) ####
+            # tbatch.set_postfix(max_gap=gap.max().item(), mean_gap=gap.mean().item(), max_ll=ll.max().item(), mean_ll=ll.mean().item(), 
+            #                    max_nonzero=num_nonzero.max().item(), mean_nonzero=num_nonzero.float().mean().item()) ####
 
             if torch.all(gap <= convergence_tol).item():
                 converged = True
@@ -195,7 +196,7 @@ def fit_batch(cwms_t, contribs, sequences, coef_init, clip_mask,
     coef_final = c_a * clip_mask
     coef_sparse = coef_final.to_sparse()
 
-    # ll = ll / 2.
+    ll = ll / (2 * l)
 
     return coef_sparse, ll, gap, i
 
