@@ -237,7 +237,7 @@ def fit_contribs(cwms, contribs, sequences,
 
     hit_idxs_lst = []
     scores_lst = []
-    qc_lsts = {"log_likelihood": [], "dual_gap": [], "num_steps": [], "contrib_scale": []}
+    qc_lsts = {"peak_id": np.arange(n), "log_likelihood": [], "dual_gap": [], "num_steps": [], "contrib_scale": []}
 
     for i in trange(num_batches, disable=None, unit="batches", position=0):
         start = i * batch_size
