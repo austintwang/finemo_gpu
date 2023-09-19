@@ -286,8 +286,8 @@ def fit_contribs(cwms, contribs, sequences,
     }
 
     qc = {k: np.concatenate(v, axis=0) for k, v in qc_lsts.items()}
-    qc.update({"peak_id": np.arange(n)})
-    qc.update({"peak_id": np.arange(2000)}) ####
+    qc.update({"peak_id": np.arange(n, dtype=np.uint32)})
+    qc.update({"peak_id": np.arange(2000, dtype=np.uint32)}) ####
 
     return hits, qc
 
