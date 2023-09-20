@@ -263,8 +263,8 @@ def fit_contribs(cwms, contribs, sequences,
         hit_idxs_batch[0,:] += start
         hit_idxs_batch[2,:] -= w - 1
         # print(hit_idxs_batch[:,:10]) ####
-        # print(hit_idxs_batch) ####
-        # print(coef) ####
+        print(hit_idxs_batch) ####
+        print(coef) ####
 
         scores_batch = coef.values()
 
