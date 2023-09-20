@@ -262,6 +262,7 @@ def fit_contribs(cwms, contribs, sequences,
         hit_idxs_batch = torch.clone(coef.indices())
         hit_idxs_batch[0,:] += start
         hit_idxs_batch[2,:] -= m - 1
+        print(hit_idxs_batch.shape) ####
 
         scores_batch = coef.values()
 
