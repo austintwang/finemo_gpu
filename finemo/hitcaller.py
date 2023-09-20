@@ -135,7 +135,8 @@ def fit_contribs(cwms, contribs, sequences,
     sequences = torch.from_numpy(sequences)
 
     cwms_t = cwms.flip(dims=(2,))
-    cwms_t = cwms_t.to(device=device).float()
+    cwms_t = cwms_t.to(device=device)
+    # cwms_t = cwms_t.to(device=device).float()
 
     seq_inds = torch.arange(l + 2 * w - 2)[None,None,:]
     clip_mask = (seq_inds >= (w - 1)) & (seq_inds < (l - w - 1)) # (l + 2w - 2)
@@ -152,14 +153,13 @@ def fit_contribs(cwms, contribs, sequences,
         end = min(n, start + batch_size)
         b = end - start
 
-        # sequences_batch = F.pad(sequences[start:end,:,:], (0, w - 1)).to(device=device) # (b, 4, l + w - 1)
-        # contribs_batch = F.pad(contribs[start:end,None,:], (0, w - 1)).to(device=device) 
-        # contribs_batch = (contribs_batch / contrib_norm) * sequences_batch.half() # (b, 4, l + w - 1)
-        # coef_init = torch.zeros((b, m, l + 2 * w - 2), dtype=torch.float16, device=device) # (b, m, l + 2w - 2)
-
         sequences_batch = F.pad(sequences[start:end,:,:], (0, w - 1)).to(device=device) # (b, 4, l + w - 1)
-        contribs_batch = F.pad(contribs[start:end,None,:], (0, w - 1)).float().to(device=device) 
-        coef_init = torch.zeros((b, m, l + 2 * w - 2), dtype=torch.float32, device=device) # (b, m, l + 2w - 2)
+        contribs_batch = F.pad(contribs[start:end,None,:], (0, w - 1)).half().to(device=device) 
+        coef_init = torch.zeros((b, m, l + 2 * w - 2), dtype=torch.float16, device=device) # (b, m, l + 2w - 2)
+
+        # sequences_batch = F.pad(sequences[start:end,:,:], (0, w - 1)).to(device=device) # (b, 4, l + w - 1)
+        # contribs_batch = F.pad(contribs[start:end,None,:], (0, w - 1)).float().to(device=device) 
+        # coef_init = torch.zeros((b, m, l + 2 * w - 2), dtype=torch.float32, device=device) # (b, m, l + 2w - 2)
 
         scale = ((contribs_batch**2).sum(dim=(1,2), keepdim=True) / l).sqrt()
         contribs_batch = (contribs_batch / scale) * sequences_batch # (b, 4, l + w - 1)
