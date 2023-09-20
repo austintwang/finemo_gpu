@@ -217,7 +217,8 @@ def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, 
 
     data_bed = (
         data_all
-        .select(["chr", "start", "end", "motif_name", "strand"])        
+        .with_columns(pl.lit(0).alias('dummy_score'))
+        .select(["chr", "start", "end", "motif_name", "dummy_score", "strand"])        
         .unique(maintain_order=True)
         .collect()
     )
