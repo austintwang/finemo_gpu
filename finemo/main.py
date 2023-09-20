@@ -141,17 +141,17 @@ def cli():
     
     call_hits_parser.add_argument("-t", "--cwm-trim-threshold", type=float, default=0.3,
         help="Trim treshold for determining motif start and end positions within the full input motif CWM's.")
-    call_hits_parser.add_argument("-a", "--alpha", type=float, default=5.,
+    call_hits_parser.add_argument("-a", "--alpha", type=float, default=7.,
         help="Total regularization weight.")
     call_hits_parser.add_argument("-l", "--l1-ratio", type=float, default=0.99,
         help="Elastic net mixing parameter. This specifies the fraction of `alpha` used for L1 regularization.")
-    call_hits_parser.add_argument("-s", "--step-size", type=float, default=0.007,
+    call_hits_parser.add_argument("-s", "--step-size", type=float, default=0.015,
         help="Optimizer step size.")
     call_hits_parser.add_argument("-c", "--convergence-tol", type=float, default=0.01,
         help="Tolerance for assessing convergence. The optimizer exits when the dual gap is less than the tolerance.")
     call_hits_parser.add_argument("-S", "--max-steps", type=int, default=10000,
         help="Maximum optimizer steps.")
-    call_hits_parser.add_argument("-b", "--batch-size", type=int, default=1000,
+    call_hits_parser.add_argument("-b", "--batch-size", type=int, default=2000,
         help="Batch size for optimization.")
     call_hits_parser.add_argument("-d", "--device", type=str, default="cuda",
         help="Pytorch device name. Set to `cpu` to run without a GPU.")

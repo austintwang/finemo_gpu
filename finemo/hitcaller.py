@@ -171,8 +171,8 @@ def fit_contribs(cwms, contribs, sequences,
         hit_idxs_batch[0,:] += start
         hit_idxs_batch[2,:] -= w - 1
         # print(hit_idxs_batch[:,:10]) ####
-        print(hit_idxs_batch) ####
-        print(coef) ####
+        # print(hit_idxs_batch) ####
+        # print(coef) ####
 
         scores_batch = coef.values()
 
@@ -184,7 +184,7 @@ def fit_contribs(cwms, contribs, sequences,
         qc_lsts["num_steps"].append(np.full(b, steps, dtype=np.int32))
         qc_lsts["contrib_scale"].append(scale.squeeze().numpy(force=True))
 
-        break ####
+        # break ####
 
     hit_idxs = np.concatenate(hit_idxs_lst, axis=0)
     scores = np.concatenate(scores_lst, axis=0)
