@@ -226,8 +226,9 @@ def fit_contribs(cwms, contribs, sequences,
 
     # cwms = cwms.to(device=device)
     # cwms = cwms.to(device=device).float()
-    # cwms_t = cwms.flip(dims=(2,))
-    cwms_t = cwms.to(device=device).float()
+    cwms_t = cwms.flip(dims=(2,))
+    cwms_t = cwms_t.to(device=device).float()
+    # cwms_t = cwms.to(device=device).float()
 
     seq_inds = torch.arange(l + 2 * w - 2)[None,None,:]
     clip_mask = (seq_inds >= (w - 1)) & (seq_inds < (l - w - 1)) # (l + 2w - 2)
