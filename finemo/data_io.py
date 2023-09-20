@@ -116,7 +116,7 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold):
     """
     Adapted from https://github.com/jmschrei/tfmodisco-lite/blob/570535ee5ccf43d670e898d92d63af43d68c38c5/modiscolite/report.py#L252-L272
     """
-    motif_data_lsts = {"motif_id": [], "motif_name": [], "motif_strand": [], 
+    motif_data_lsts = {"motif_name": [], "motif_strand": [], 
                        "motif_start": [], "motif_end": [], "motif_scale": []}
     cwm_lst = [] 
 
