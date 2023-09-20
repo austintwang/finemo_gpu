@@ -10,69 +10,6 @@ from .torch_utils import compile_if_possible
 
 # from torch.profiler import profile, record_function, ProfilerActivity ####
 
-# from scipy.stats import spearmanr ####
-
-# def log_likelihood(coefficients, cwms_t, contribs, sequences):
-#     """
-#     coefficients: (b, m, l + w - 1)
-#     cwms_t: (m, 4, w)
-#     contribs: (b, 4, l)
-#     sequences: (b, 4, l)
-#     """
-#     pred = F.conv1d(coefficients, cwms_t) # (b, 4, l)
-#     pred_masked = pred * sequences # (b, 4, l)
-
-#     ll = F.mse_loss(pred_masked, contribs, reduction='none').sum(dim=(1,2))
-#     # print(ll) ####
-#     # print(pred_masked) ####
-#     # print(contribs) ####
-#     # print(F.mse_loss(pred_masked, contribs, reduction='none')) ####
-#     # print(((pred_masked - contribs)**2).sum(dim=(1,2))) ####
-
-    
-#     return ll, pred_masked
-
-
-# def dual_gap(coefficients, cwms_t, contribs, pred, ll, a_const, b_const):
-#     """
-#     coefficients: (b, m, l + 2w - 2)
-#     cwms_t: (m, 4, w)
-#     contribs: (b, 4, l + w - 1)
-#     pred: (b, 4, l + w - 1)
-#     ll: (b)
-
-#     # https://stanford.edu/~boyd/papers/pdf/l1_ls.pdf, Section III
-#     """
-
-#     residuals = contribs - pred # (b, 4, l)
-#     resid_coef = F.conv_transpose1d(residuals, cwms_t) - b_const * coefficients
-#     dual_norm = resid_coef.abs().amax(dim=(1,2)) # (b)
-#     dual_scale = (torch.clamp(a_const / dual_norm, max=1.)**2 + 1) / 2
-#     ll_scaled = ll * dual_scale
-#     # print(dual_scale) ####
-#     # print(residuals.abs().amax(dim=(1,2))) ####
-
-#     # dual_diff = torch.tensordot(residuals, contribs, dims=([1, 2], [1, 2]))
-#     dual_diff = (residuals * contribs).sum(dim=(1,2))
-
-#     l1_term = a_const * torch.linalg.vector_norm(coefficients, ord=1, dim=(1,2))
-#     l2_term = b_const * torch.sum(coefficients**2, dim=(1,2))
-
-#     dual_gap = (ll_scaled - dual_diff + l1_term + l2_term).abs()
-
-#     # gap_inds = torch.argsort(dual_gap, descending=True)[:10] ####
-#     # print(gap_inds) ####
-#     # print(ll[gap_inds]) ####
-#     # print(dual_scale[gap_inds]) ####
-#     # print(ll_scaled[gap_inds]) ####
-#     # # print(dual_diff.shape) ####
-#     # print(dual_diff[gap_inds]) ####
-#     # print(l1_term[gap_inds]) ####
-#     # print(l2_term[gap_inds]) ####
-#     # print(dual_gap[gap_inds]) ####
-#     # # print(dual_gap) ####
-
-#     return dual_gap
 
 # @compile_if_possible
 def prox_grad_step(coefficients, cwms_t, contribs, sequences, 
@@ -96,7 +33,8 @@ def prox_grad_step(coefficients, cwms_t, contribs, sequences,
 
     ll = (residuals**2).sum(dim=(1,2)) # (b)
     
-    dual_norm = (ngrad - b_const * coefficients).abs().amax(dim=(1,2)) # (b)
+    # dual_norm = (ngrad - b_const * coefficients).abs().amax(dim=(1,2)) # (b)
+    dual_norm = (ngrad - b_const * coefficients).amax(dim=(1,2)) # (b)
     dual_scale = (torch.clamp(a_const / dual_norm, max=1.)**2 + 1) / 2 # (b)
     ll_scaled = ll * dual_scale # (b)
 
@@ -108,8 +46,9 @@ def prox_grad_step(coefficients, cwms_t, contribs, sequences,
     dual_gap = (ll_scaled - dual_diff + l1_term + l2_term).abs() # (b)
 
     c_next = coefficients + step_size * ngrad # (b, m, l + 2w - 2)
-    c_next = (c_next - torch.clamp(c_next, min=-st_thresh, max=st_thresh)) / shrink_factor
-        # (b, m, l + 2w - 2)
+    # c_next = (c_next - torch.clamp(c_next, min=-st_thresh, max=st_thresh)) / shrink_factor
+    #     # (b, m, l + 2w - 2)
+    c_next = F.relu(c_next - st_thresh) / shrink_factor # (b, m, l + 2w - 2)
 
     return c_next, dual_gap, ll
     
@@ -149,31 +88,6 @@ def fit_batch(cwms_t, contribs, sequences, coef_init, clip_mask,
 
             # print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10)) ####
 
-
-            # c_a.requires_grad_()
-            # ll, pred = log_likelihood(c_a, cwms_t, contribs, sequences)
-            # ll_sum = ll.sum() / 2.
-
-            # c_a_grad, = torch.autograd.grad(ll_sum, c_a)
-
-            # c_a.detach_()
-            # ll.detach_()
-            # pred.detach_()
-            # c_a_grad.detach_()
-
-            # gap = dual_gap(c_a, cwms_t, contribs, pred, ll, a_const, b_const)
-            # # print(gap) ####
-            # # print(contribs) ####
-            # # print(pred) ####
-            # # print(c_a_grad.amin(dim=(1,2))) ####
-            # # print(c_a_grad) ####
-            # # print(c_a.count_nonzero(dim=(1,2))) ####
-            # # print(pred) ####
-            # # print(contribs) ####
-            # g = gap.numpy(force=True) ####
-            # c = contribs_sum_np ####
-            # print(spearmanr(g, c).statistic, np.corrcoef(g, c)) ####
-
             tbatch.set_postfix(max_gap=gap.max().item(), mean_gap=gap.mean().item())
             # num_nonzero = c_a.count_nonzero((1,2),) ####
             # tbatch.set_postfix(max_gap=gap.max().item(), mean_gap=gap.mean().item(), max_ll=ll.max().item(), mean_ll=ll.mean().item(), 
@@ -182,10 +96,6 @@ def fit_batch(cwms_t, contribs, sequences, coef_init, clip_mask,
             if torch.all(gap <= convergence_tol).item():
                 converged = True
                 break
-
-            # c_b_prev = c_b
-            # c_b = c_a - step_size * c_a_grad
-            # c_b = (c_b - torch.clamp(c_b, min=-st_thresh, max=st_thresh)) / shrink_factor
 
             mom_term = i / (i + 3.)
             c_a = (1 + mom_term) * c_b - mom_term * c_b_prev
@@ -224,11 +134,8 @@ def fit_contribs(cwms, contribs, sequences,
     contribs = torch.from_numpy(contribs)
     sequences = torch.from_numpy(sequences)
 
-    # cwms = cwms.to(device=device)
-    # cwms = cwms.to(device=device).float()
     cwms_t = cwms.flip(dims=(2,))
     cwms_t = cwms_t.to(device=device).float()
-    # cwms_t = cwms.to(device=device).float()
 
     seq_inds = torch.arange(l + 2 * w - 2)[None,None,:]
     clip_mask = (seq_inds >= (w - 1)) & (seq_inds < (l - w - 1)) # (l + 2w - 2)
