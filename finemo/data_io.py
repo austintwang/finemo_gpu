@@ -138,14 +138,14 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold):
                 start_fwd, end_fwd = trim_motif(cwm_fwd, trim_threshold)
                 start_rev, end_rev = trim_motif(cwm_rev, trim_threshold)
 
-                motif_data_lsts["motif_id"].append(2 * ind)
+                # motif_data_lsts["motif_id"].append(2 * ind)
                 motif_data_lsts["motif_name"].append(pattern_tag)
                 motif_data_lsts["motif_strand"].append('+')
                 motif_data_lsts["motif_start"].append(start_fwd)
                 motif_data_lsts["motif_end"].append(end_fwd)
                 motif_data_lsts["motif_scale"].append(cwm_norm)
 
-                motif_data_lsts["motif_id"].append(2 * ind + 1)
+                # motif_data_lsts["motif_id"].append(2 * ind + 1)
                 motif_data_lsts["motif_name"].append(pattern_tag)
                 motif_data_lsts["motif_strand"].append('-')
                 motif_data_lsts["motif_start"].append(start_rev)
@@ -154,7 +154,7 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold):
 
                 cwm_lst.extend([cwm_fwd, cwm_rev])
 
-    motifs_df = pl.DataFrame(motif_data_lsts)
+    motifs_df = pl.DataFrame(motif_data_lsts).with_row_count(name="motif_id")
     cwms = np.stack(cwm_lst, dtype=np.float16, axis=1)
 
     return motifs_df, cwms
