@@ -93,8 +93,8 @@ def visualize(hits_path, out_dir):
     num_peaks = hits_df.height
 
     occ_df, occ_mat, occ_bin, coocc, motif_names = visualization.get_motif_occurences(hits_df)
-    peak_order = visualization.cluster_matrix_indices(occ_mat)
-    motif_order = visualization.cluster_matrix_indices(occ_mat.T)
+    peak_order = visualization.order_rows(occ_mat)
+    motif_order = visualization.order_rows(occ_mat.T)
     coocc_nlp = visualization.cooccurrence_sigs(coocc, num_peaks)
 
     occ_path = os.path.join(out_dir, "motif_occurrences.tsv")
