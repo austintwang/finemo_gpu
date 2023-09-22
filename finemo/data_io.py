@@ -104,8 +104,8 @@ def trim_motif(cwm, trim_threshold):
     score = np.sum(np.abs(cwm), axis=0)
     trim_thresh = np.max(score) * trim_threshold
     pass_inds = np.nonzero(score >= trim_thresh)
-    start = max(np.min(pass_inds) - 4, 0)
-    end = min(np.max(pass_inds) + 4 + 1, len(score))
+    start = max(np.min(pass_inds), 0)
+    end = min(np.max(pass_inds) + 1, len(score))
 
     return start, end
 
