@@ -229,7 +229,7 @@ def load_hits(hits_path):
     hits_df = (
         pl.scan_csv(hits_path, separator='\t', quote_char=None)
         .select(["motif_name", "hit_score", "peak_id"])
-        .with_column(pl.lit(1).alias("count"))
+        .with_columns(pl.lit(1).alias("count"))
         .collect()
     )
 
