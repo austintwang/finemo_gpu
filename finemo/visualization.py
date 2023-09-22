@@ -11,7 +11,9 @@ import matplotlib.pyplot as plt
 def get_motif_occurences(hits_df):
     occ_df = (
         hits_df
-        .pivot(index="peak_id", columns="motif_name", values="count", maintain_order=False)
+        .pivot(index="peak_id", columns="motif_name", values="count", 
+               aggregate_function="sum", maintain_order=False)
+        .fill_null(0)
         .sort(["peak_id"])
     )
 
