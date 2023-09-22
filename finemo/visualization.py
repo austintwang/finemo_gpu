@@ -2,8 +2,9 @@ import os
 
 import numpy as np
 from scipy.stats import fisher_exact
-from scipy.cluster.hierarchy import leaves_list, optimal_leaf_ordering, linkage
-from sklearn.cluster import KMeans
+from scipy.cluster import hierarchy
+# from scipy.cluster.hierarchy import leaves_list, optimal_leaf_ordering, linkage
+# from sklearn.cluster import KMeans
 import polars as pl
 import matplotlib.pyplot as plt
 
@@ -53,37 +54,44 @@ def cooccurrence_sigs(coocc, num_peaks):
     return nlps
 
 
-def cluster_matrix_indices(matrix):
-    """
-    Clusters matrix using k-means. Always clusters on the first
-    axis. Returns the indices needed to optimally order the matrix
-    by clusters.
+# def cluster_matrix_indices(matrix):
+#     """
+#     Clusters matrix using k-means. Always clusters on the first
+#     axis. Returns the indices needed to optimally order the matrix
+#     by clusters.
     
-    Adapted from: https://github.com/kundajelab/FiNeMo/blob/fa7d70974c5ea6a4f83898ce01e9f97ed2273a33/vizutils.py#L100-L129
-    """
-    if len(matrix) == 1:
-        # Don't cluster at all
-        return np.array([0])
+#     Adapted from: https://github.com/kundajelab/FiNeMo/blob/fa7d70974c5ea6a4f83898ce01e9f97ed2273a33/vizutils.py#L100-L129
+#     """
+#     if len(matrix) == 1:
+#         # Don't cluster at all
+#         return np.array([0])
 
-    num_clusters = min(max(5, len(matrix) // 4), len(matrix))
+#     num_clusters = min(max(5, len(matrix) // 4), len(matrix))
     
-    # Perform k-means clustering
-    kmeans = KMeans(n_clusters=num_clusters)
-    cluster_assignments = kmeans.fit_predict(matrix)
+#     # Perform k-means clustering
+#     kmeans = KMeans(n_clusters=num_clusters)
+#     cluster_assignments = kmeans.fit_predict(matrix)
 
-    # Perform hierarchical clustering on the cluster centers to determine optimal ordering
-    kmeans_centers = kmeans.cluster_centers_
-    cluster_order = leaves_list(
-        optimal_leaf_ordering(linkage(kmeans_centers, method="centroid"), kmeans_centers)
-    )
+#     # Perform hierarchical clustering on the cluster centers to determine optimal ordering
+#     kmeans_centers = kmeans.cluster_centers_
+#     cluster_order = leaves_list(
+#         optimal_leaf_ordering(linkage(kmeans_centers, method="centroid"), kmeans_centers)
+#     )
 
-    # Order the peaks so that the cluster assignments follow the optimal ordering
-    cluster_inds = []
-    for cluster_id in cluster_order:
-        cluster_inds.append(np.where(cluster_assignments == cluster_id)[0])
-    cluster_inds = np.concatenate(cluster_inds)
+#     # Order the peaks so that the cluster assignments follow the optimal ordering
+#     cluster_inds = []
+#     for cluster_id in cluster_order:
+#         cluster_inds.append(np.where(cluster_assignments == cluster_id)[0])
+#     cluster_inds = np.concatenate(cluster_inds)
 
-    return cluster_inds
+#     return cluster_inds
+
+def order_rows(matrix):
+    linkage = hierarchy.linkage(matrix, method='average', metric='euclidean',optimal_ordering=False)
+    dendrogram = hierarchy.dendrogram(linkage, no_plot=True)
+    order = dendrogram['leaves']
+    
+    return order
 
 
 def plot_score_distributions(hits_df, plot_dir):
