@@ -228,7 +228,7 @@ def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, 
 def load_hits(hits_path):
     hits_df = (
         pl.scan_csv(hits_path, separator='\t', quote_char=None)
-        .select(["motif_name", "hit_score", "peak_id"])
+        .select(["motif_name", "hit_score_scaled", "peak_id"])
         .with_columns(pl.lit(1).alias("count"))
         .collect()
     )
