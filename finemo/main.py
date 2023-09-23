@@ -93,7 +93,7 @@ def visualize(hits_path, out_dir):
     num_peaks = hits_df.height
 
     occ_df, occ_mat, occ_bin, coocc, motif_names = visualization.get_motif_occurences(hits_df)
-    peak_order = visualization.order_rows(occ_mat)
+    # peak_order = visualization.order_rows(occ_mat)
     motif_order = visualization.order_rows(occ_mat.T)
     coocc_nlp = visualization.cooccurrence_sigs(coocc, num_peaks)
 
@@ -112,8 +112,8 @@ def visualize(hits_path, out_dir):
     frac_peaks_path = os.path.join(out_dir, "frac_peaks_with_motif.png")
     visualization.plot_frac_peaks(occ_bin, motif_names, frac_peaks_path)
 
-    occ_path = os.path.join(out_dir, "peak_motif_occurrences.png")
-    visualization.plot_occurrence(occ_mat, motif_names, peak_order, motif_order, occ_path)
+    # occ_path = os.path.join(out_dir, "peak_motif_occurrences.png")
+    # visualization.plot_occurrence(occ_mat, motif_names, peak_order, motif_order, occ_path)
 
     coocc_counts_path = os.path.join(out_dir, "motif_cooccurrence_counts.png")
     visualization.plot_cooccurrence_counts(coocc, motif_names, motif_order, coocc_counts_path)

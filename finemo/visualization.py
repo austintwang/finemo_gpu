@@ -17,7 +17,7 @@ def get_motif_occurences(hits_df):
         .fill_null(0)
         .sort(["peak_id"])
     )
-    print(occ_df) ####
+    # print(occ_df) ####
 
     motif_names = occ_df.columns[1:]
 
