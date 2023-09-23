@@ -186,7 +186,7 @@ def plot_occurrence(occ_mat, motif_names, peak_order, motif_order, plot_path):
 
 
 def plot_cooccurrence_counts(coocc, motif_names, motif_order, plot_path):
-    matrix = coocc[motif_order, motif_order]
+    matrix = coocc[np.ix_(motif_order, motif_order)]
 
     motif_names = np.array(motif_names)[motif_order]
 
