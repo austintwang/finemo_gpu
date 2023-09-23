@@ -212,7 +212,7 @@ def plot_cooccurrence_counts(coocc, motif_names, motif_order, plot_path):
 
 
 def plot_cooccurrence_sigs(coocc_nlp, motif_names, motif_order, plot_path):
-    matrix = coocc_nlp[motif_order, motif_order]
+    matrix = coocc_nlp[np.ix_(motif_order, motif_order)]
 
     motif_names = np.array(motif_names)[motif_order]
 
