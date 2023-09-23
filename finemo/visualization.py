@@ -97,9 +97,8 @@ def order_rows(matrix):
 def plot_score_distributions(hits_df, plot_dir):
     os.makedirs(plot_dir, exist_ok=True)
     
-    bins = 20
     for name, data in hits_df.groupby("motif_name"):
-        scores = data.get_column("hit_score").to_numpy()
+        scores = data.get_column("hit_score_scaled").to_numpy()
 
         fig, ax = plt.subplots(figsize=(8, 8))
 
