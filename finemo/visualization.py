@@ -108,7 +108,7 @@ def plot_score_distributions(hits_df, plot_dir):
         ax.set_xlabel("Score")
         ax.set_ylabel("Count per bin")
 
-        output_path = os.path.join(plot_dir, f"{name}".png)
+        output_path = os.path.join(plot_dir, f"{name}.png")
         plt.savefig(output_path, dpi=300)
 
 
@@ -134,7 +134,7 @@ def plot_homotypic_densities(occ_mat, motif_names, plot_dir):
 
         fig.tight_layout()
         
-        output_path = os.path.join(plot_dir, f"{k}".png)
+        output_path = os.path.join(plot_dir, f"{k}.png")
         plt.savefig(output_path, dpi=300)
 
 
