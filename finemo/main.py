@@ -97,6 +97,8 @@ def visualize(hits_path, out_dir):
     motif_order = visualization.order_rows(occ_mat.T)
     coocc_nlp = visualization.cooccurrence_sigs(coocc, num_peaks)
 
+    os.makedirs(out_dir, exist_ok=True)
+
     occ_path = os.path.join(out_dir, "motif_occurrences.tsv")
     data_io.write_occ_df(occ_df, occ_path)
     
