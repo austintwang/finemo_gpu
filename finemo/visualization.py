@@ -50,7 +50,7 @@ def cooccurrence_sigs(coocc, num_peaks):
             print(pval) ####
             nlp = np.nan_to_num(-np.log10(pval))
 
-            nlps[i,j] = nlp
+            nlps[i,j] = nlps[j,i] = nlp
 
     return nlps
 
@@ -243,7 +243,7 @@ def plot_cooccurrence_sigs(coocc_nlp, motif_names, motif_order, plot_path):
     # Annotate heatmap
     for i in range(matrix.shape[0]):
         for j in range(i):
-            text = f"{matrix[i,j]:.1f}"
+            text = f"{matrix[i,j]:.1e}"
             ax.text(j, i, text, ha="center", va="center", size=2)
 
     fig.tight_layout()
