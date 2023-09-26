@@ -95,7 +95,7 @@ def visualize(hits_path, out_dir):
     occ_df, occ_mat, occ_bin, coocc, motif_names = visualization.get_motif_occurences(hits_df)
     # peak_order = visualization.order_rows(occ_mat)
     motif_order = visualization.order_rows(occ_mat.T)
-    coocc_nlp = visualization.cooccurrence_sigs(coocc, num_peaks)
+    coocc_nlp, coocc_or = visualization.cooccurrence_sigs(coocc, num_peaks)
 
     os.makedirs(out_dir, exist_ok=True)
 
@@ -122,6 +122,9 @@ def visualize(hits_path, out_dir):
 
     coocc_sigs_path = os.path.join(out_dir, "motif_cooccurrence_neg_log10p.png")
     visualization.plot_cooccurrence_sigs(coocc_nlp, motif_names, motif_order, coocc_sigs_path)
+
+    coocc_ors_path = os.path.join(out_dir, "motif_cooccurrence_odds_ratios.png")
+    visualization.plot_cooccurrence_ors(coocc_nlp, motif_names, motif_order, coocc_ors_path)
 
 
 def cli():

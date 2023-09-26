@@ -37,6 +37,7 @@ def get_motif_occurences(hits_df):
 def cooccurrence_sigs(coocc, num_peaks):
     num_motifs = coocc.shape[0]
     nlps = np.zeros((num_motifs, num_motifs))
+    odds_ratios = np.ones((num_motifs, num_motifs))
 
     for i in range(num_motifs):
         for j in range(i):
@@ -46,13 +47,16 @@ def cooccurrence_sigs(coocc, num_peaks):
             cont_table[0,1] = coocc[j,j] - coocc[i,j]
             cont_table[1,1] = num_peaks - coocc[i,i] - coocc[j,j] + coocc[i,j]
 
-            pval = fisher_exact(cont_table, alternative="greater").pvalue
+            res = fisher_exact(cont_table, alternative="greater")
+            pval = res.pvalue
+            odds_ratio = res.statistic
             # print(pval) ####
             nlp = np.clip(-np.log10(pval), None, 300)
 
             nlps[i,j] = nlps[j,i] = nlp
+            odds_ratios[i,j] = odds_ratios[j,i] = odds_ratio
 
-    return nlps
+    return nlps, odds_ratios
 
 
 # def cluster_matrix_indices(matrix):
@@ -216,7 +220,35 @@ def plot_cooccurrence_counts(coocc, motif_names, motif_order, plot_path):
     for i in range(matrix.shape[0]):
         for j in range(i + 1):
             text = f"{matrix[i,j]:.1e}"
-            ax.text(j, i, text, ha="center", va="center", size=2)
+            ax.text(j, i, text, ha="center", va="center", size=1)
+
+    fig.tight_layout()
+    plt.savefig(plot_path, dpi=300)
+
+
+def plot_cooccurrence_ors(coocc_or, motif_names, motif_order, plot_path):
+    matrix = coocc_or[np.ix_(motif_order, motif_order)]
+
+    motif_names = np.array(motif_names)[motif_order]
+
+    # plt.figure(figsize=(15,15))
+
+    fig, ax = plt.subplots()
+    
+    # Plot the heatmap
+    ax.imshow(matrix)
+
+    # Set axes on heatmap
+    ax.set_xticks(np.arange(len(motif_names)))
+    ax.set_xticklabels(motif_names, size=4, rotation=90)
+    ax.set_yticks(np.arange(len(motif_names)))
+    ax.set_yticklabels(motif_names, size=4)
+
+    # Annotate heatmap
+    for i in range(matrix.shape[0]):
+        for j in range(i):
+            text = f"{matrix[i,j]:.1e}"
+            ax.text(j, i, text, ha="center", va="center", size=1)
 
     fig.tight_layout()
     plt.savefig(plot_path, dpi=300)
@@ -244,7 +276,7 @@ def plot_cooccurrence_sigs(coocc_nlp, motif_names, motif_order, plot_path):
     for i in range(matrix.shape[0]):
         for j in range(i):
             text = f"{matrix[i,j]:.1e}"
-            ax.text(j, i, text, ha="center", va="center", size=2)
+            ax.text(j, i, text, ha="center", va="center", size=1)
 
     fig.tight_layout()
     plt.savefig(plot_path, dpi=300)
