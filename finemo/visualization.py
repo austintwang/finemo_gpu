@@ -36,7 +36,7 @@ def get_motif_occurences(hits_df):
 
 def cooccurrence_sigs(coocc, num_peaks):
     num_motifs = coocc.shape[0]
-    nlps = np.full((num_motifs, num_motifs), np.nan)
+    nlps = np.zeros((num_motifs, num_motifs))
 
     for i in range(num_motifs):
         for j in range(i):
@@ -47,8 +47,8 @@ def cooccurrence_sigs(coocc, num_peaks):
             cont_table[1,1] = num_peaks - coocc[i,i] - coocc[j,j] + coocc[i,j]
 
             pval = fisher_exact(cont_table, alternative="greater").pvalue
-            print(pval) ####
-            nlp = np.nan_to_num(-np.log10(pval))
+            # print(pval) ####
+            nlp = np.clip(-np.log10(pval), None, 300)
 
             nlps[i,j] = nlps[j,i] = nlp
 
@@ -215,7 +215,7 @@ def plot_cooccurrence_counts(coocc, motif_names, motif_order, plot_path):
     # Annotate heatmap
     for i in range(matrix.shape[0]):
         for j in range(i + 1):
-            text = f"{matrix[i,j]:.2e}"
+            text = f"{matrix[i,j]:.1e}"
             ax.text(j, i, text, ha="center", va="center", size=2)
 
     fig.tight_layout()
