@@ -198,7 +198,7 @@ def plot_cooccurrence_counts(coocc, motif_names, motif_order, plot_path):
 
     motif_names = np.array(motif_names)[motif_order]
 
-    plt.figure(figsize=(15,15))
+    # plt.figure(figsize=(15,15))
 
     fig, ax = plt.subplots()
     
@@ -207,15 +207,15 @@ def plot_cooccurrence_counts(coocc, motif_names, motif_order, plot_path):
 
     # Set axes on heatmap
     ax.set_xticks(np.arange(len(motif_names)))
-    ax.set_xticklabels(motif_names, rotation=90)
+    ax.set_xticklabels(motif_names, size=5, rotation=90)
     ax.set_yticks(np.arange(len(motif_names)))
-    ax.set_yticklabels(motif_names)
+    ax.set_yticklabels(motif_names, size=5)
 
     # Annotate heatmap
     for i in range(matrix.shape[0]):
         for j in range(i):
             text = f"{matrix[i,j]}"
-            ax.text(j, i, text, ha="center", va="center")
+            ax.text(j, i, text, ha="center", va="center", size=5)
 
     fig.tight_layout()
     plt.savefig(plot_path, dpi=300)
@@ -226,7 +226,7 @@ def plot_cooccurrence_sigs(coocc_nlp, motif_names, motif_order, plot_path):
 
     motif_names = np.array(motif_names)[motif_order]
 
-    plt.figure(figsize=(15,15))
+    # plt.figure(figsize=(15,15))
 
     fig, ax = plt.subplots()
     
@@ -235,15 +235,15 @@ def plot_cooccurrence_sigs(coocc_nlp, motif_names, motif_order, plot_path):
 
     # Set axes on heatmap
     ax.set_xticks(np.arange(len(motif_names)))
-    ax.set_xticklabels(motif_names, rotation=90)
+    ax.set_xticklabels(motif_names, size=5, rotation=90)
     ax.set_yticks(np.arange(len(motif_names)))
-    ax.set_yticklabels(motif_names)
+    ax.set_yticklabels(motif_names, size=5)
 
     # Annotate heatmap
     for i in range(matrix.shape[0]):
         for j in range(i):
             text = f"{matrix[i,j]:.1f}"
-            ax.text(j, i, text, ha="center", va="center")
+            ax.text(j, i, text, ha="center", va="center", size=5)
 
     fig.tight_layout()
     plt.savefig(plot_path, dpi=300)
