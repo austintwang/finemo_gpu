@@ -111,6 +111,8 @@ def plot_score_distributions(hits_df, plot_dir):
         output_path = os.path.join(plot_dir, f"{name}.png")
         plt.savefig(output_path, dpi=300)
 
+        plt.close(fig)
+
 
 def plot_homotypic_densities(occ_mat, motif_names, plot_dir):
     """
@@ -137,6 +139,8 @@ def plot_homotypic_densities(occ_mat, motif_names, plot_dir):
         output_path = os.path.join(plot_dir, f"{k}.png")
         plt.savefig(output_path, dpi=300)
 
+        plt.close(fig)
+
 
 def plot_frac_peaks(occ_bin, motif_names, plot_path):
     """
@@ -159,6 +163,8 @@ def plot_frac_peaks(occ_bin, motif_names, plot_path):
     plt.xticks(rotation=90)
 
     plt.savefig(plot_path)
+
+    plt.close(fig)
 
     
 def plot_occurrence(occ_mat, motif_names, peak_order, motif_order, plot_path):
@@ -184,11 +190,15 @@ def plot_occurrence(occ_mat, motif_names, peak_order, motif_order, plot_path):
     fig.tight_layout()
     plt.savefig(plot_path, dpi=300)
 
+    plt.close(fig)
+
 
 def plot_cooccurrence_counts(coocc, motif_names, motif_order, plot_path):
     matrix = coocc[np.ix_(motif_order, motif_order)]
 
     motif_names = np.array(motif_names)[motif_order]
+
+    plt.figure(figsize=(15,15))
 
     fig, ax = plt.subplots()
     
@@ -216,6 +226,8 @@ def plot_cooccurrence_sigs(coocc_nlp, motif_names, motif_order, plot_path):
 
     motif_names = np.array(motif_names)[motif_order]
 
+    plt.figure(figsize=(15,15))
+
     fig, ax = plt.subplots()
     
     # Plot the heatmap
@@ -235,3 +247,5 @@ def plot_cooccurrence_sigs(coocc_nlp, motif_names, motif_order, plot_path):
 
     fig.tight_layout()
     plt.savefig(plot_path, dpi=300)
+
+    plt.close(fig)
