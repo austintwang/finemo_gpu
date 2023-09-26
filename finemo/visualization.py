@@ -37,7 +37,7 @@ def get_motif_occurences(hits_df):
 def cooccurrence_sigs(coocc, num_peaks):
     num_motifs = coocc.shape[0]
     nlps = np.zeros((num_motifs, num_motifs))
-    odds_ratios = np.ones((num_motifs, num_motifs))
+    lors = np.zeros((num_motifs, num_motifs))
 
     for i in range(num_motifs):
         for j in range(i):
@@ -52,11 +52,12 @@ def cooccurrence_sigs(coocc, num_peaks):
             odds_ratio = res.statistic
             # print(pval) ####
             nlp = np.clip(-np.log10(pval), None, 300)
+            lor = np.log10(odds_ratio)
 
             nlps[i,j] = nlps[j,i] = nlp
-            odds_ratios[i,j] = odds_ratios[j,i] = odds_ratio
+            lors[i,j] = lors[j,i] = lor
 
-    return nlps, odds_ratios
+    return nlps, lors
 
 
 # def cluster_matrix_indices(matrix):
@@ -226,8 +227,8 @@ def plot_cooccurrence_counts(coocc, motif_names, motif_order, plot_path):
     plt.savefig(plot_path, dpi=600)
 
 
-def plot_cooccurrence_ors(coocc_or, motif_names, motif_order, plot_path):
-    matrix = coocc_or[np.ix_(motif_order, motif_order)]
+def plot_cooccurrence_lors(coocc_lor, motif_names, motif_order, plot_path):
+    matrix = coocc_lor[np.ix_(motif_order, motif_order)]
 
     motif_names = np.array(motif_names)[motif_order]
 
