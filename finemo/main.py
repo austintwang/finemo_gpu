@@ -124,7 +124,7 @@ def visualize(hits_path, out_dir):
     visualization.plot_cooccurrence_sigs(coocc_nlp, motif_names, motif_order, coocc_sigs_path)
 
     coocc_ors_path = os.path.join(out_dir, "motif_cooccurrence_odds_ratios.png")
-    visualization.plot_cooccurrence_ors(coocc_nlp, motif_names, motif_order, coocc_ors_path)
+    visualization.plot_cooccurrence_ors(coocc_or, motif_names, motif_order, coocc_ors_path)
 
 
 def cli():

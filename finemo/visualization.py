@@ -220,10 +220,10 @@ def plot_cooccurrence_counts(coocc, motif_names, motif_order, plot_path):
     for i in range(matrix.shape[0]):
         for j in range(i + 1):
             text = f"{matrix[i,j]:.1e}"
-            ax.text(j, i, text, ha="center", va="center", size=1)
+            ax.text(j, i, text, ha="center", va="center", size=1.5)
 
     fig.tight_layout()
-    plt.savefig(plot_path, dpi=300)
+    plt.savefig(plot_path, dpi=600)
 
 
 def plot_cooccurrence_ors(coocc_or, motif_names, motif_order, plot_path):
@@ -248,10 +248,10 @@ def plot_cooccurrence_ors(coocc_or, motif_names, motif_order, plot_path):
     for i in range(matrix.shape[0]):
         for j in range(i):
             text = f"{matrix[i,j]:.1e}"
-            ax.text(j, i, text, ha="center", va="center", size=1)
+            ax.text(j, i, text, ha="center", va="center", size=1.5)
 
     fig.tight_layout()
-    plt.savefig(plot_path, dpi=300)
+    plt.savefig(plot_path, dpi=600)
 
 
 def plot_cooccurrence_sigs(coocc_nlp, motif_names, motif_order, plot_path):
@@ -276,9 +276,9 @@ def plot_cooccurrence_sigs(coocc_nlp, motif_names, motif_order, plot_path):
     for i in range(matrix.shape[0]):
         for j in range(i):
             text = f"{matrix[i,j]:.1e}"
-            ax.text(j, i, text, ha="center", va="center", size=1)
+            ax.text(j, i, text, ha="center", va="center", size=1.5)
 
     fig.tight_layout()
-    plt.savefig(plot_path, dpi=300)
+    plt.savefig(plot_path, dpi=600)
 
     plt.close(fig)
