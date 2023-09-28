@@ -8,7 +8,7 @@ import polars as pl
 import pyBigWig
 import pyfaidx
 
-from tqdm import tqdm
+from tqdm import tqdm, trange
 
 NARROWPEAK_SCHEMA = ["chr", "peak_start", "peak_end", "peak_name", "peak_score", 
                      "peak_strand", "peak_signal", "peak_pval", "peak_qval", "peak_summit"]
@@ -49,7 +49,7 @@ def one_hot_encode(sequence, dtype=np.int8):
     return one_hot
 
 
-def load_regions_from_peaks(peaks, fa_path, bw_paths, half_width):
+def load_regions_from_bw(peaks, fa_path, bw_paths, half_width):
     num_peaks = peaks.height
 
     sequences = np.zeros((num_peaks, 4, half_width * 2), dtype=np.int8)
@@ -87,6 +87,42 @@ def load_regions_from_peaks(peaks, fa_path, bw_paths, half_width):
     return sequences, contribs
 
 
+def load_regions_from_h5(peaks, h5_paths, half_width):
+    num_peaks = peaks.height
+
+    sequences = np.zeros((num_peaks, 4, half_width * 2), dtype=np.int8)
+    contribs = np.zeros((num_peaks, 4, half_width * 2), dtype=np.float16)
+
+    h5s = [h5py.File(i) for i in h5_paths]
+    seq_buffer = np.zeros((len(h5_paths), 4, half_width * 2), dtype=np.int8)
+    contrib_buffer = np.zeros((len(h5_paths), 4, half_width * 2), dtype=np.float16)
+
+    try:
+        for ind in trange(num_peaks):
+            for j, f in enumerate(h5s):
+                seq = f['raw']['seq'][ind,:,:]
+                contrib = f['shap']['seq'][ind,:,:]
+
+                start = seq.shape[-1] // 2 - half_width
+                end = start + 2 * half_width
+
+                seq_buffer[j,:,:] = seq[:,start:end]
+                contrib_buffer[j,:,:] = contrib[:,start:end]
+
+            if not (seq_buffer == seq_buffer[0:1,:,:]).all():
+                raise ValueError(f"Input sequences do not match at peak index {ind}")
+            
+            sequences[ind,:] = seq_buffer[0,:,:]
+
+            contribs[ind,:] = np.nanmean(contrib_buffer, axis=0)
+    
+    finally:
+        for f in h5s:
+            f.close()
+    
+    return sequences, contribs
+
+
 def load_regions_npz(npz_path):
     data = np.load(npz_path)
 
@@ -112,13 +148,18 @@ def trim_motif(cwm, trim_threshold):
 
 MODISCO_PATTERN_GROUPS = ['pos_patterns', 'neg_patterns']
 
-def load_modisco_motifs(modisco_h5_path, trim_threshold):
+def load_modisco_motifs(modisco_h5_path, trim_threshold, use_hypothetical):
     """
     Adapted from https://github.com/jmschrei/tfmodisco-lite/blob/570535ee5ccf43d670e898d92d63af43d68c38c5/modiscolite/report.py#L252-L272
     """
     motif_data_lsts = {"motif_name": [], "motif_strand": [], 
                        "motif_start": [], "motif_end": [], "motif_scale": []}
     cwm_lst = [] 
+
+    if use_hypothetical:
+        cwm_key = 'hypothetical_contribs'
+    else:
+        cwm_key = 'contrib_scores'
 
     with h5py.File(modisco_h5_path, 'r') as modisco_results:
         for name in MODISCO_PATTERN_GROUPS:
@@ -130,7 +171,7 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold):
             for ind, (pattern_name, pattern) in enumerate(sorted(metacluster.items(), key=key)):
                 pattern_tag = f'{name}.{pattern_name}'
 
-                cwm_raw = pattern['contrib_scores'][:].T
+                cwm_raw = pattern[cwm_key][:].T
                 cwm_norm = np.sqrt((cwm_raw**2).sum())
 
                 cwm_fwd = cwm_raw / cwm_norm

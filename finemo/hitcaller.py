@@ -11,21 +11,19 @@ from .torch_utils import compile_if_possible
 # from torch.profiler import profile, record_function, ProfilerActivity ####
 
 
-# @compile_if_possible
-def prox_grad_step(coefficients, cwms_t, contribs, sequences, 
+# @compile_if_possible(fullgraph=True)
+def prox_grad_step(coefficients, cwms_t, contribs, pred_mask, 
                    a_const, b_const, st_thresh, shrink_factor, step_size):
     """
     coefficients: (b, m, l + 2w - 2)
     cwms_t: (m, 4, w)
     contribs: (b, 4, l + w - 1)
-    sequences: (b, 4, l + w - 1)
-    pred: (b, 4, l + w - 1)
-    ll: (b)
+    pred_mask: (b, 4, l + w - 1)
 
     # https://stanford.edu/~boyd/papers/pdf/l1_ls.pdf, Section III
     """
     pred_unmasked = F.conv1d(coefficients, cwms_t) # (b, 4, l + w - 1)
-    pred = pred_unmasked * sequences # (b, 4, l + w - 1)
+    pred = pred_unmasked * pred_mask # (b, 4, l + w - 1)
 
     residuals = contribs - pred # (b, 4, l + w - 1)
     ngrad = F.conv_transpose1d(residuals, cwms_t) # (b, m, l + 2w - 2)
@@ -111,15 +109,49 @@ def fit_batch(cwms_t, contribs, sequences, coef_init, clip_mask,
     return coef_sparse, ll, gap, i
 
 
-def fit_contribs(cwms, contribs, sequences, 
-                 alpha, l1_ratio, step_size, convergence_tol, max_steps, batch_size, device):
+def _load_batch_compact_fmt(contribs, sequences, start, end, motif_width, device):
+    contribs_batch = F.pad(contribs[start:end,None,:], (0, motif_width - 1)).float().to(device=device)
+    sequences_batch = F.pad(sequences[start:end,:,:], (0, motif_width - 1)).to(device=device) # (b, 4, l + w - 1)
+
+    return contribs_batch, sequences_batch
+
+
+def _load_batch_non_hyp(contribs, sequences, start, end, motif_width, device):
+    contribs_hyp = F.pad(contribs[start:end,:,:], (0, motif_width - 1)).float().to(device=device) 
+    sequences_batch = F.pad(sequences[start:end,:,:], (0, motif_width - 1)).to(device=device) # (b, 4, l + w - 1)
+    contribs_batch = contribs_hyp * sequences_batch
+
+    return contribs_batch, sequences_batch
+
+
+def _load_batch_hyp(contribs, sequences, start, end, motif_width, device):
+    contribs_batch = F.pad(contribs[start:end,:,:], (0, motif_width - 1)).float().to(device=device) 
+
+    return contribs_batch, 1
+
+
+def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, 
+                 step_size, convergence_tol, max_steps, batch_size, device):
     """
     cwms: (4, m, w)
-    contribs: (n, l)
+    contribs: (n, 4, l) or (n, l)  
     sequences: (n, 4, l)
     """
     _, m, w = cwms.shape
     n, _, l = sequences.shape
+
+    if len(contribs.shape) == 3:
+        if use_hypothetical:
+            load_batch_fn = _load_batch_hyp
+        else:
+            load_batch_fn = _load_batch_non_hyp
+    elif len(contribs.shape) == 2:
+        if use_hypothetical:
+            raise ValueError("Input regions do not contain hypothetical contribution scores")
+        else:
+            load_batch_fn = _load_batch_compact_fmt
+    else:
+        raise ValueError(f"Input contributions array is of incorrect shape {contribs.shape}")
 
     # out_size = l + w - 1
     # a_const = alpha * out_size * l1_ratio
@@ -157,8 +189,10 @@ def fit_contribs(cwms, contribs, sequences,
         # contribs_batch = F.pad(contribs[start:end,None,:], (0, w - 1)).half().to(device=device) 
         # coef_init = torch.zeros((b, m, l + 2 * w - 2), dtype=torch.float16, device=device) # (b, m, l + 2w - 2)
 
-        sequences_batch = F.pad(sequences[start:end,:,:], (0, w - 1)).to(device=device) # (b, 4, l + w - 1)
-        contribs_batch = F.pad(contribs[start:end,None,:], (0, w - 1)).float().to(device=device) 
+        # sequences_batch = F.pad(sequences[start:end,:,:], (0, w - 1)).to(device=device) # (b, 4, l + w - 1)
+        # contribs_batch = F.pad(contribs[start:end,None,:], (0, w - 1)).float().to(device=device) 
+
+        contribs_batch, sequences_batch = load_batch_fn(contribs, sequences, start, end, w, device)
         coef_init = torch.zeros((b, m, l + 2 * w - 2), dtype=torch.float32, device=device) # (b, m, l + 2w - 2)
 
         scale = ((contribs_batch**2).sum(dim=(1,2), keepdim=True) / l).sqrt()
