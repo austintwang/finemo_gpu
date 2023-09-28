@@ -201,7 +201,7 @@ def cli():
     
     extract_regions_h5_parser.add_argument("-p", "--peaks", type=str, required=True,
         help="A sorted peak regions file in ENCODE NarrowPeak format.")
-    extract_regions_h5_parser.add_argument("-h", "--h5s", type=str, required=True, nargs='+',
+    extract_regions_h5_parser.add_argument("-c", "--h5s", type=str, required=True, nargs='+',
         help="One or more H5 files of contribution scores, with paths delimited by whitespace. Scores are averaged across files.")
     
     extract_regions_h5_parser.add_argument("-o", "--out-path", type=str, required=True,
