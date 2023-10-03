@@ -213,7 +213,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
                 c_b[converged,:,:] *= 0
                 i[converged] *= 0
 
-            c_a, c_b, gap, ll = opt_iter.send(contribs_buf, seqs_buf, c_a, c_b, i, step_sizes)
+            c_a, c_b, gap, ll = opt_iter.send((contribs_buf, seqs_buf, c_a, c_b, i, step_sizes),)
             i += 1
 
             active = inds_buf >= 0
