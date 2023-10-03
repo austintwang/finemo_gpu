@@ -80,7 +80,7 @@ def _load_batch_compact_fmt(contribs, sequences, start, end, motif_width, l, dev
     lpad = motif_width - 1
     pad_lens = (0, lpad, 0, 0, 0, overhang)
 
-    inds = F.pad(torch.arange(start, end), (0, overhang), value=-1).to(device=device)
+    inds = F.pad(torch.arange(start, end), (0, overhang), value=-1, dtype=torch.int).to(device=device)
 
     contribs_compact = F.pad(contribs[start:end,None,:], pad_lens).float().to(device=device)
     sequences_batch = F.pad(sequences[start:end,:,:], pad_lens).to(device=device) # (b, 4, l + w - 1)
@@ -99,7 +99,7 @@ def _load_batch_non_hyp(contribs, sequences, start, end, motif_width, l, device)
     lpad = motif_width - 1
     pad_lens = (0, lpad, 0, 0, 0, overhang)
 
-    inds = F.pad(torch.arange(start, end), (0, overhang), value=-1).to(device=device)
+    inds = F.pad(torch.arange(start, end), (0, overhang), value=-1, dtype=torch.int).to(device=device)
 
     contribs_hyp = F.pad(contribs[start:end,:,:], pad_lens).float().to(device=device) 
     sequences_batch = F.pad(sequences[start:end,:,:], pad_lens).to(device=device) # (b, 4, l + w - 1)
@@ -118,7 +118,7 @@ def _load_batch_hyp(contribs, sequences, start, end, motif_width, l, device):
     lpad = motif_width - 1
     pad_lens = (0, lpad, 0, 0, 0, overhang)
 
-    inds = F.pad(torch.arange(start, end), (0, overhang), value=-1).to(device=device)
+    inds = F.pad(torch.arange(start, end), (0, overhang), value=-1, dtype=torch.int).to(device=device)
 
     contribs_batch = F.pad(contribs[start:end,:,:], pad_lens).float().to(device=device) 
 
