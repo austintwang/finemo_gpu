@@ -176,8 +176,8 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
 
     c_a = torch.zeros((b, m, l + 2 * w - 2), dtype=torch.float32, device=device) # (b, m, l + 2w - 2)
     c_b = torch.zeros_like(c_a)
-    i = torch.zeros((b,), dtype=torch.int, device=device)
-    step_sizes = torch.full((b,), step_size_max, dtype=torch.float32, device=device)
+    i = torch.zeros((b, 1, 1), dtype=torch.int, device=device)
+    step_sizes = torch.full((b, 1, 1), step_size_max, dtype=torch.float32, device=device)
     # dual_gaps = torch.zeros((b,), dtype=torch.float32, device=device)
     
     converged = torch.full((b,), True, dtype=torch.bool, device=device)
@@ -222,9 +222,9 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
             c_a[diverged,:,:] *= 0
             c_b[diverged,:,:] *= 0
             i[diverged] *= 0
-            step_sizes[diverged] *= step_adjust
+            step_sizes[diverged,:,:] *= step_adjust
 
-            timeouts = i > max_steps
+            timeouts = (i > max_steps).squeeze()
             if timeouts.sum().item() > 0:
                 warnings.warn(f"Not all regions have converged within max_steps={max_steps} iterations.", RuntimeWarning)
 
@@ -245,7 +245,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
 
                 gap_out = gap[converged]
                 ll_out = ll[converged]
-                step_out = i[converged]
+                step_out = i[converged,0,0]
 
                 hit_idxs_lst.append(hit_idxs_out.numpy(force=True).T)
                 scores_lst.append(scores_out.numpy(force=True))
