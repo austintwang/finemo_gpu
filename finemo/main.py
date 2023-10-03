@@ -171,7 +171,7 @@ def cli():
         help="Elastic net mixing parameter. This specifies the fraction of `alpha` used for L1 regularization.")
     call_hits_parser.add_argument("-s", "--step-size", type=float, default=0.02,
         help="Maximum optimizer step size.")
-    call_hits_parser.add_argument("-s", "--step-adjust", type=float, default=0.7,
+    call_hits_parser.add_argument("-A", "--step-adjust", type=float, default=0.7,
         help="Optimizer step size adjustment factor. If the optimizer diverges, the step size is multiplicatively adjusted by this factor")
     call_hits_parser.add_argument("-c", "--convergence-tol", type=float, default=0.01,
         help="Tolerance for assessing convergence. The optimizer exits when the dual gap is less than the tolerance.")
