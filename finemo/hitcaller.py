@@ -74,8 +74,9 @@ def optimizer(cwms_t, l, a_const, b_const):
 
 
 def _load_batch_compact_fmt(contribs, sequences, start, end, motif_width, l, device):
+    n = end - start
     end = min(end, contribs.shape[0])
-    overhang = contribs.shape[0] - end
+    overhang = n - (end - start)
     lpad = motif_width - 1
     pad_lens = (0, lpad, 0, 0, 0, overhang)
 
@@ -92,8 +93,9 @@ def _load_batch_compact_fmt(contribs, sequences, start, end, motif_width, l, dev
 
 
 def _load_batch_non_hyp(contribs, sequences, start, end, motif_width, l, device):
+    n = end - start
     end = min(end, contribs.shape[0])
-    overhang = contribs.shape[0] - end
+    overhang = n - (end - start)
     lpad = motif_width - 1
     pad_lens = (0, lpad, 0, 0, 0, overhang)
 
@@ -110,8 +112,9 @@ def _load_batch_non_hyp(contribs, sequences, start, end, motif_width, l, device)
 
 
 def _load_batch_hyp(contribs, sequences, start, end, motif_width, l, device):
+    n = end - start
     end = min(end, contribs.shape[0])
-    overhang = contribs.shape[0] - end
+    overhang = n - (end - start)
     lpad = motif_width - 1
     pad_lens = (0, lpad, 0, 0, 0, overhang)
 
