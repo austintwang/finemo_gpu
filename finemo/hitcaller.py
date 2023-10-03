@@ -187,7 +187,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
     if use_hypothetical:
         seqs_buf = 1
     else:
-        seqs_buf = torch.zeros((b, 4, l + w - 1), dtype=torch.float32, device=device)
+        seqs_buf = torch.zeros((b, 4, l + w - 1), dtype=torch.int8, device=device)
     inds_buf = torch.zeros((b,), dtype=torch.int, device=device)
     scale_buf = torch.zeros((b,), dtype=torch.float, device=device)
 
