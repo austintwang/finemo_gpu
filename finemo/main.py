@@ -24,8 +24,8 @@ def extract_regions_h5(peaks_path, h5_paths, out_path, region_width):
     data_io.write_regions_npz(sequences, contribs, out_path)
 
 
-def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_threshold, 
-              alpha, l1_ratio, step_size, convergence_tol, max_steps, batch_size, device, use_hypothetical):
+def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_threshold, alpha, l1_ratio, 
+              step_size, convergence_tol, max_steps, buffer_size, step_adjust, device, use_hypothetical):
     
     params = locals()
     from . import hitcaller
@@ -53,8 +53,8 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_thres
     num_motifs = cwms.shape[1]
     motif_width = cwms.shape[2]
 
-    hits, qc = hitcaller.fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, 
-                                      step_size, convergence_tol, max_steps, batch_size, device)
+    hits, qc = hitcaller.fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, step_size, 
+                                      convergence_tol, max_steps, buffer_size, step_adjust, device)
     hits_df = pl.DataFrame(hits)
     qc_df = pl.DataFrame(qc).with_row_count(name="peak_id")
 
@@ -169,8 +169,10 @@ def cli():
         help="Total regularization weight.")
     call_hits_parser.add_argument("-l", "--l1-ratio", type=float, default=0.99,
         help="Elastic net mixing parameter. This specifies the fraction of `alpha` used for L1 regularization.")
-    call_hits_parser.add_argument("-s", "--step-size", type=float, default=0.015,
-        help="Optimizer step size.")
+    call_hits_parser.add_argument("-s", "--step-size", type=float, default=0.02,
+        help="Maximum optimizer step size.")
+    call_hits_parser.add_argument("-s", "--step-adjust", type=float, default=0.7,
+        help="Optimizer step size adjustment factor. If the optimizer diverges, the step size is multiplicatively adjusted by this factor")
     call_hits_parser.add_argument("-c", "--convergence-tol", type=float, default=0.01,
         help="Tolerance for assessing convergence. The optimizer exits when the dual gap is less than the tolerance.")
     call_hits_parser.add_argument("-S", "--max-steps", type=int, default=10000,
@@ -224,7 +226,7 @@ def cli():
     if args.cmd == "call-hits":
         call_hits(args.regions, args.peaks, args.modisco_h5, args.out_dir, args.cwm_trim_threshold, 
                   args.alpha, args.l1_ratio, args.step_size, args.convergence_tol, args.max_steps, 
-                  args.batch_size, args.device, args.hypothetical)
+                  args.buffer_size, args.step_adjust, args.device, args.hypothetical)
     
     elif args.cmd == "extract-regions-bw":
         extract_regions_bw(args.peaks, args.fasta, args.bigwigs, args.out_path, args.region_width)
