@@ -238,6 +238,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
 
                 coef_out = (c_a[converged,:,:] * clip_mask).to_sparse()
                 print(coef_out) ####
+                print(c_a[converged,:,:] * clip_mask) ####
 
                 hit_idxs_out = torch.clone(coef_out.indices())
                 hit_idxs_out[0,:] = F.embedding(hit_idxs_out[0,:], inds_out[:,None])
