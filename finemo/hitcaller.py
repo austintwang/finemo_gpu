@@ -172,7 +172,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
 
     hit_idxs_lst = []
     scores_lst = []
-    qc_lsts = {"log_likelihood": [], "dual_gap": [], "num_steps": [], "contrib_scale": []}
+    qc_lsts = {"log_likelihood": [], "dual_gap": [], "num_steps": [], "contrib_scale": [], "step_size": []}
 
     opt_iter = optimizer(cwms_t, l, a_const, b_const)
     opt_iter.send(None)
@@ -253,6 +253,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
                 gap_out = gap[converged]
                 ll_out = ll[converged]
                 step_out = i[converged,0,0]
+                step_sizes_out = step_sizes[converged,0,0]
 
                 hit_idxs_lst.append(hit_idxs_out.numpy(force=True).T)
                 scores_lst.append(scores_out.numpy(force=True))
@@ -261,6 +262,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
                 qc_lsts["dual_gap"].append(gap_out.numpy(force=True))
                 qc_lsts["num_steps"].append(step_out.numpy(force=True))
                 qc_lsts["contrib_scale"].append(scale_out.numpy(force=True))
+                qc_lsts["step_size"].append(step_sizes_out.numpy(force=True))
 
                 num_complete += num_load
                 pbar.update(num_load)
