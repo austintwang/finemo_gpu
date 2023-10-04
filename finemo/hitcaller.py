@@ -230,7 +230,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
 
             converged = ((gap <= convergence_tol) | timeouts) & active
             num_load = converged.sum().item()
-            print(num_load) ####
+            # print(num_load) ####
 
             if num_load > 0:
                 inds_out = inds_buf[converged]
