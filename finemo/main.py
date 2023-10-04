@@ -165,7 +165,7 @@ def cli():
     
     call_hits_parser.add_argument("-t", "--cwm-trim-threshold", type=float, default=0.3,
         help="Trim treshold for determining motif start and end positions within the full input motif CWM's.")
-    call_hits_parser.add_argument("-a", "--alpha", type=float, default=7.,
+    call_hits_parser.add_argument("-a", "--alpha", type=float, default=3.,
         help="Total regularization weight.")
     call_hits_parser.add_argument("-l", "--l1-ratio", type=float, default=0.99,
         help="Elastic net mixing parameter. This specifies the fraction of `alpha` used for L1 regularization.")
@@ -173,7 +173,7 @@ def cli():
         help="Maximum optimizer step size.")
     call_hits_parser.add_argument("-A", "--step-adjust", type=float, default=0.7,
         help="Optimizer step size adjustment factor. If the optimizer diverges, the step size is multiplicatively adjusted by this factor")
-    call_hits_parser.add_argument("-c", "--convergence-tol", type=float, default=0.01,
+    call_hits_parser.add_argument("-c", "--convergence-tol", type=float, default=0.001,
         help="Tolerance for assessing convergence. The optimizer exits when the dual gap is less than the tolerance.")
     call_hits_parser.add_argument("-S", "--max-steps", type=int, default=10000,
         help="Maximum optimizer steps.")
