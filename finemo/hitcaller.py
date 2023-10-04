@@ -230,12 +230,14 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
 
             converged = ((gap <= convergence_tol) | timeouts) & active
             num_load = converged.sum().item()
+            print(num_load) ####
 
             if num_load > 0:
                 inds_out = inds_buf[converged]
                 scale_out = scale_buf[converged]
 
                 coef_out = (c_a[converged,:,:] * clip_mask).to_sparse()
+                print(coef_out) ####
 
                 hit_idxs_out = torch.clone(coef_out.indices())
                 hit_idxs_out[0,:] = F.embedding(hit_idxs_out[0,:], inds_out[:,None])
