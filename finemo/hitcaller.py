@@ -259,7 +259,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
                 qc_lsts["contrib_scale"].append(scale_out.numpy(force=True))
 
                 num_complete += num_load
-                pbar.update(num_complete)
+                pbar.update(num_load)
 
     hit_idxs = np.concatenate(hit_idxs_lst, axis=0)
     scores = np.concatenate(scores_lst, axis=0)
