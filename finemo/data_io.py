@@ -201,34 +201,7 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, use_hypothetical):
     return motifs_df, cwms
 
 
-def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, half_width):
-    # print(hits_df) ####
-    # print(peaks_df) ####
-    # print(motifs_df) ####
-    # print(qc_df) ####
-
-    # data_all = (
-    #     hits_df
-    #     .lazy()
-    #     .join(peaks_df.lazy(), on="peak_id", how="inner")
-    #     .join(qc_df.lazy(), on="peak_id", how="inner")
-    #     .join(motifs_df.lazy(), on="motif_id", how="inner")
-    #     .select(
-    #         chr_id=pl.col("chr_id"),
-    #         chr=pl.col("chr"),
-    #         start=pl.col("peak_region_start") + pl.col("hit_start") + pl.col("motif_start"),
-    #         end=pl.col("peak_region_start") + pl.col("hit_start") + pl.col("motif_end"),
-    #         motif_name=pl.col("motif_name"),
-    #         hit_score_scaled=pl.col("hit_score"),
-    #         hit_score_unscaled=pl.col("hit_score") * pl.col("contrib_scale") * pl.col("motif_scale"),
-    #         strand=pl.col("motif_strand"),
-    #         peak_name=pl.col("peak_name"),
-    #         peak_id=pl.col("peak_id"),
-    #         peak_summit_distance=pl.col("hit_start") - half_width,
-    #     )
-    #     .collect()
-    # ) ####
-    # print(data_all) ####
+def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, half_width, motif_width):
     
     data_all = (
         hits_df
@@ -241,6 +214,8 @@ def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, 
             chr=pl.col("chr"),
             start=pl.col("peak_region_start") + pl.col("hit_start") + pl.col("motif_start"),
             end=pl.col("peak_region_start") + pl.col("hit_start") + pl.col("motif_end"),
+            start_untrimmed=pl.col("peak_region_start") + pl.col("hit_start"),
+            end_untrimmed=pl.col("peak_region_start") + pl.col("hit_start") + motif_width,
             motif_name=pl.col("motif_name"),
             hit_score_scaled=pl.col("hit_score"),
             hit_score_unscaled=pl.col("hit_score") * pl.col("contrib_scale") * pl.col("motif_scale"),
