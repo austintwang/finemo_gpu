@@ -67,10 +67,13 @@ def optimizer(cwms_t, l, a_const, b_const):
         gap = gap / l
         ll = ll / (2 * l)
 
-        contribs, sequences, c_a, c_b, i, step_sizes = yield c_a, c_b, gap, ll
-
         mom_term = i / (i + 3.)
         c_a = (1 + mom_term) * c_b - mom_term * c_b_prev
+
+        contribs, sequences, c_a, c_b, i, step_sizes = yield c_a, c_b, gap, ll
+
+        # mom_term = i / (i + 3.)
+        # c_a = (1 + mom_term) * c_b - mom_term * c_b_prev
 
 
 def _load_batch_compact_fmt(contribs, sequences, start, end, motif_width, l, device):
@@ -236,7 +239,8 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
                 inds_out = inds_buf[converged]
                 scale_out = scale_buf[converged]
 
-                coef_out = (c_a[converged,:,:] * clip_mask).to_sparse()
+                # coef_out = (c_a[converged,:,:] * clip_mask).to_sparse()
+                coef_out = (c_b[converged,:,:] * clip_mask).to_sparse()
                 # print(coef_out) ####
                 # print(c_a[converged,:,:] * clip_mask) ####
 
