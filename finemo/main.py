@@ -258,7 +258,7 @@ def cli():
     modisco_recall_parser.add_argument("-W", "--modisco-region-width", type=int, default=400,
         help="The width of the region extracted around each peak summit used by TFMoDisCo.")
     
-    call_hits_parser.add_argument("-n", "--scale-hits", action="store_true", default=False,
+    modisco_recall_parser.add_argument("-n", "--scale-hits", action="store_true", default=False,
         help="Use scaled hit scores (normalized for overall contribution strength of region).")
 
     
