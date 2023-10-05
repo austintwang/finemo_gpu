@@ -249,7 +249,7 @@ def load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=False):
         "seqlet_start": np.concatenate(start_lst),
         "seqlet_end": np.concatenate(end_lst),
         "is_revcomp": np.concatenate(is_revcomp_lst),
-        "peak_id": np.concatenate(peak_ids),
+        "peak_id": np.concatenate(peak_id_lst),
         "motif_name": pattern_tags,
     }
     
@@ -348,7 +348,7 @@ def write_coocc_mats(coocc_counts, coocc_sigs, motif_names, out_dir):
 
 def write_modisco_recall(seqlet_recalls, seqlet_counts, out_dir):
     os.makedirs(out_dir, exist_ok=True)
-    
+
     with open(os.path.join(out_dir, "seqlet_counts.json"), "w") as f:
         json.dump(seqlet_counts, f, indent=4)
 
