@@ -60,6 +60,48 @@ def cooccurrence_sigs(coocc, num_peaks):
     return nlps, lors
 
 
+def seqlet_recall(hits_df, seqlets_df, seqlet_counts, scale_scores):
+    if scale_scores:
+        score_col = "hit_score_scaled"
+    else:
+        score_col = "hit_score_unscaled"
+
+    overlaps_dfs = (
+        hits_df
+        .select(
+            chr=pl.col("chr"),
+            start_untrimmed=pl.col("start_untrimmed"),
+            end_untrimmed=pl.col("end_untrimmed"),
+            is_revcomp=pl.col("strand") == '+',
+            motif_name= pl.col("motif_name"),
+            score=pl.col(score_col)
+        )
+        .join(
+            seqlets_df, 
+            on=["chr", "start_untrimmed", "end_untrimmed", "is_revcomp", "motif_name"],
+            how="left"
+        )
+        .with_columns(pl.col("seqlet_indicator").fill_null(strategy="zero"))
+        .collect()
+        .partition_by("motif_name", dict=True)
+    )
+
+    recalls = {}
+    for k, v in overlaps_dfs.items():
+        recall_data = (
+            v.lazy()
+            .sort("score", descending=True)
+            .select(seqlet_recall=pl.cumsum("seqlet_indicator"))
+            .collect()
+            .get_column("seqlet_recall")
+            .to_numpy() / seqlet_counts[k]
+        )
+
+        recalls[k] = recall_data
+
+    return recalls
+
+
 # def cluster_matrix_indices(matrix):
 #     """
 #     Clusters matrix using k-means. Always clusters on the first
@@ -283,3 +325,19 @@ def plot_cooccurrence_sigs(coocc_nlp, motif_names, motif_order, plot_path):
     plt.savefig(plot_path, dpi=600)
 
     plt.close(fig)
+
+
+def plot_modisco_recall(seqlet_recalls, plot_dir):
+    os.makedirs(plot_dir, exist_ok=True)
+    for k, v in seqlet_recalls.items():
+        x = np.arange(v.shape[0])
+        
+        plt.plot(x, v)
+        plt.title(f"{k} Modisco seqlet recall")
+        plt.xlabel("Hit rank")
+        plt.ylabel("Recall")
+        
+        output_path = os.path.join(plot_dir, f"{k}.png")
+        plt.savefig(output_path, dpi=300)
+
+        plt.close()

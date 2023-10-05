@@ -103,15 +103,15 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_thres
 
 
 def visualize(hits_path, out_dir):
-    from . import visualization
+    from . import evaluation
 
     hits_df = data_io.load_hits(hits_path)
     num_peaks = hits_df.height
 
-    occ_df, occ_mat, occ_bin, coocc, motif_names = visualization.get_motif_occurences(hits_df)
+    occ_df, occ_mat, occ_bin, coocc, motif_names = evaluation.get_motif_occurences(hits_df)
     # peak_order = visualization.order_rows(occ_mat)
-    motif_order = visualization.order_rows(occ_mat.T)
-    coocc_nlp, coocc_lor = visualization.cooccurrence_sigs(coocc, num_peaks)
+    motif_order = evaluation.order_rows(occ_mat.T)
+    coocc_nlp, coocc_lor = evaluation.cooccurrence_sigs(coocc, num_peaks)
 
     os.makedirs(out_dir, exist_ok=True)
 
@@ -122,25 +122,42 @@ def visualize(hits_path, out_dir):
     data_io.write_coocc_mats(coocc, coocc_nlp, motif_names, coocc_dir)
 
     score_dist_dir = os.path.join(out_dir, "hit_score_distributions")
-    visualization.plot_score_distributions(hits_df, score_dist_dir)
+    evaluation.plot_score_distributions(hits_df, score_dist_dir)
 
     hits_cdf_dir = os.path.join(out_dir, "motif_peak_hit_cdfs")
-    visualization.plot_homotypic_densities(occ_mat, motif_names, hits_cdf_dir)
+    evaluation.plot_homotypic_densities(occ_mat, motif_names, hits_cdf_dir)
 
     frac_peaks_path = os.path.join(out_dir, "frac_peaks_with_motif.png")
-    visualization.plot_frac_peaks(occ_bin, motif_names, frac_peaks_path)
+    evaluation.plot_frac_peaks(occ_bin, motif_names, frac_peaks_path)
 
     # occ_path = os.path.join(out_dir, "peak_motif_occurrences.png")
     # visualization.plot_occurrence(occ_mat, motif_names, peak_order, motif_order, occ_path)
 
     coocc_counts_path = os.path.join(out_dir, "motif_cooccurrence_counts.png")
-    visualization.plot_cooccurrence_counts(coocc, motif_names, motif_order, coocc_counts_path)
+    evaluation.plot_cooccurrence_counts(coocc, motif_names, motif_order, coocc_counts_path)
 
     coocc_sigs_path = os.path.join(out_dir, "motif_cooccurrence_neg_log10p.png")
-    visualization.plot_cooccurrence_sigs(coocc_nlp, motif_names, motif_order, coocc_sigs_path)
+    evaluation.plot_cooccurrence_sigs(coocc_nlp, motif_names, motif_order, coocc_sigs_path)
 
     coocc_ors_path = os.path.join(out_dir, "motif_cooccurrence_odds_ratios.png")
-    visualization.plot_cooccurrence_lors(coocc_lor, motif_names, motif_order, coocc_ors_path)
+    evaluation.plot_cooccurrence_lors(coocc_lor, motif_names, motif_order, coocc_ors_path)
+
+
+def modisco_recall(hits_path, modisco_h5_path, peaks_path, out_dir, modisco_region_width, scale_hits):
+    from . import evaluation
+
+    half_width = modisco_region_width // 2
+    peaks_df = data_io.load_peaks(peaks_path, half_width)
+    hits_df = data_io.load_hits(hits_path, lazy=True)
+    seqlets_df, seqlet_counts = data_io.load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=True)
+
+    seqlet_recalls = evaluation.seqlet_recall(hits_df, seqlets_df, seqlet_counts, scale_hits)
+    
+    recall_dir= os.path.join(out_dir, "modisco_recall_data")
+    data_io.write_modisco_recall(seqlet_recalls, seqlet_counts, recall_dir)
+
+    plot_dir = os.path.join(out_dir, "modisco_recall_plots")
+    evaluation.plot_modisco_recall(seqlet_recalls, plot_dir)
 
 
 def cli():
@@ -151,7 +168,7 @@ def cli():
         help="Call hits on provided sequences, contributions, and motif CWM's.")
     
     call_hits_parser.add_argument("-y", "--hypothetical", action="store_true", default=False,
-	    help="Use hypothetical contribution scores and CWM's.")
+        help="Use hypothetical contribution scores and CWM's.")
 
     call_hits_parser.add_argument("-r", "--regions", type=str, required=True,
         help="A .npz file of input sequences and contributions. Can be generated using `finemo extract_regions`.")
@@ -182,6 +199,7 @@ def cli():
     call_hits_parser.add_argument("-d", "--device", type=str, default="cuda",
         help="Pytorch device name. Set to `cpu` to run without a GPU.")
     
+    
     extract_regions_bw_parser = subparsers.add_parser("extract-regions-bw", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
         help="Extract sequences and contributions from FASTA and bigwig files.")
     
@@ -198,6 +216,7 @@ def cli():
     extract_regions_bw_parser.add_argument("-w", "--region-width", type=int, default=1000,
         help="The width of the region extracted around each peak summit.")
     
+
     extract_regions_h5_parser = subparsers.add_parser("extract-regions-h5", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
         help="Extract sequences and contributions from chromBPNet contributions h5 files.")
     
@@ -212,6 +231,7 @@ def cli():
     extract_regions_h5_parser.add_argument("-w", "--region-width", type=int, default=1000,
         help="The width of the region extracted around each peak summit.")
     
+
     visualize_parser = subparsers.add_parser("visualize", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
         help="Extract sequences and contributions from FASTA and bigwig files.")
     
@@ -220,6 +240,29 @@ def cli():
     
     visualize_parser.add_argument("-o", "--out-dir", type=str, required=True,
         help="The path to the output directory.")
+    
+
+    modisco_recall_parser = subparsers.add_parser("modisco-recall", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
+        help="Assess recall of TFMoDisCo seqlets from called hits.")
+    
+    modisco_recall_parser.add_argument("-H", "--hits", type=str, required=True,
+        help="The `hits.tsv` output file from `call-hits`.")
+    modisco_recall_parser.add_argument("-p", "--peaks", type=str, required=True,
+        help="A sorted peak regions file in ENCODE NarrowPeak format. These should exactly match the regions in `--regions`.")
+    modisco_recall_parser.add_argument("-m", "--modisco-h5", type=str, required=True,
+        help="A tfmodisco-lite output H5 file of motif patterns.")
+    
+    modisco_recall_parser.add_argument("-o", "--out-dir", type=str, required=True,
+        help="The path to the output directory.")
+    
+    extract_regions_bw_parser.add_argument("-w", "--region-width", type=int, default=400,
+        help="The width of the region extracted around each peak summit.")
+    
+    call_hits_parser.add_argument("-n", "--scale-hits", action="store_true", default=False,
+        help="Use scaled hit scores (normalized for overall contribution strength of region).")
+    
+
+
     
     args = parser.parse_args()
 
@@ -236,3 +279,6 @@ def cli():
 
     elif args.cmd == "visualize":
         visualize(args.hits, args.out_dir)
+
+    elif args.cmd == "modisco-recall":
+        modisco_recall(args.hits, args.modisco_h5, args.peaks, args.out_dir, args.modisco_region_width, args.scale_hits)

@@ -201,8 +201,78 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, use_hypothetical):
     return motifs_df, cwms
 
 
-def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, half_width, motif_width):
+def load_hits(hits_path, lazy=False):
+    hits_df = (
+        pl.scan_csv(hits_path, separator='\t', quote_char=None)
+        .select(["motif_name", "hit_score_scaled", "peak_id"])
+        .with_columns(pl.lit(1).alias("count"))
+    )
+
+    return hits_df if lazy else hits_df.collect()
+
+
+def load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=False):
     
+    start_lst = []
+    end_lst = []
+    is_revcomp_lst = []
+    peak_id_lst = []
+    pattern_tags = []
+
+    seqlet_counts = {}
+    with h5py.File(modisco_h5_path, 'r') as modisco_results:
+        for name in MODISCO_PATTERN_GROUPS:
+            if name not in modisco_results.keys():
+                continue
+
+            metacluster = modisco_results[name]
+            key = lambda x: int(x[0].split("_")[-1])
+            for ind, (pattern_name, pattern) in enumerate(sorted(metacluster.items(), key=key)):
+                pattern_tag = f'{name}.{pattern_name}'
+
+                starts = pattern['seqlets/start'][:]
+                ends = pattern['seqlets/end'][:]
+                is_revcomps = pattern['seqlets/is_revcomp'][:]
+                peak_ids = pattern['seqlets/example_idx'][:]
+
+                n_seqlets, = pattern['seqlets/n_seqlets'][:]
+
+                start_lst.append(starts)
+                end_lst.append(ends)
+                is_revcomp_lst.append(is_revcomps)
+                peak_id_lst.append(peak_ids)
+                pattern_tags.extend([pattern_tag for _ in range(n_seqlets)])
+
+                seqlet_counts[pattern_tag] = n_seqlets
+
+    df_data = {
+        "seqlet_start": np.concatenate(start_lst),
+        "seqlet_end": np.concatenate(end_lst),
+        "is_revcomp": np.concatenate(is_revcomp_lst),
+        "peak_id": np.concatenate(peak_ids),
+        "motif_name": pattern_tags,
+    }
+    
+    seqlets_df = (
+        pl.LazyFrame(df_data)
+        .join(peaks_df.lazy(), on="peak_id", how="inner")
+        .select(
+            chr=pl.col("chr"),
+            start_untrimmed=pl.col("peak_region_start") + pl.col("seqlet_start"),
+            end_untrimmed=pl.col("peak_region_start") + pl.col("seqlet_end"),
+            is_revcomp=pl.col("is_revcomp"),
+            motif_name= pl.col("motif_name")
+        )
+        .with_columns(pl.lit(1).alias('seqlet_indicator'))
+    )
+
+    seqlets_df = seqlets_df if lazy else seqlets_df.collect()
+
+    return seqlets_df, seqlet_counts
+
+
+def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, half_width, motif_width):
+
     data_all = (
         hits_df
         .lazy()
@@ -222,7 +292,7 @@ def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, 
             strand=pl.col("motif_strand"),
             peak_name=pl.col("peak_name"),
             peak_id=pl.col("peak_id"),
-            peak_summit_distance=pl.col("hit_start") - half_width,
+            # peak_summit_distance=pl.col("hit_start") + pl.col("motif_start") - half_width,
         )
         .sort(["chr_id", "start"])
         .drop("chr_id")
@@ -239,17 +309,6 @@ def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, 
         .collect()
     )
     data_bed.write_csv(out_path_bed, has_header=False, separator="\t")
-
-
-def load_hits(hits_path):
-    hits_df = (
-        pl.scan_csv(hits_path, separator='\t', quote_char=None)
-        .select(["motif_name", "hit_score_scaled", "peak_id"])
-        .with_columns(pl.lit(1).alias("count"))
-        .collect()
-    )
-
-    return hits_df
 
 
 def write_qc(qc_df, peaks_df, out_path):
@@ -287,4 +346,11 @@ def write_coocc_mats(coocc_counts, coocc_sigs, motif_names, out_dir):
             f.write(f"{n}\n")
 
 
+def write_modisco_recall(seqlet_recalls, seqlet_counts, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
+    
+    with open(os.path.join(out_dir, "seqlet_counts.json"), "w") as f:
+        json.dump(seqlet_counts, f, indent=4)
 
+    for k, v in seqlet_recalls.items():
+        np.savetxt(os.path.join(out_dir, f'{k}.txt.gz'), v)
