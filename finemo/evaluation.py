@@ -60,7 +60,7 @@ def cooccurrence_sigs(coocc, num_peaks):
     return nlps, lors
 
 
-def seqlet_recall(hits_df, seqlets_df, seqlet_counts, scale_scores):
+def seqlet_recall(hits_df, peaks_df, seqlets_df, seqlet_counts, scale_scores, modisco_half_width):
     if scale_scores:
         score_col = "hit_score_scaled"
     else:
@@ -68,13 +68,21 @@ def seqlet_recall(hits_df, seqlets_df, seqlet_counts, scale_scores):
 
     overlaps_dfs = (
         hits_df
+        .join(
+            peaks_df, on="peak_id", how="inner"
+        )
         .select(
             chr=pl.col("chr"),
             start_untrimmed=pl.col("start_untrimmed"),
             end_untrimmed=pl.col("end_untrimmed"),
             is_revcomp=pl.col("strand") == '-',
             motif_name= pl.col("motif_name"),
-            score=pl.col(score_col)
+            score=pl.col(score_col),
+            start_offset=(pl.col("start_untrimmed") - pl.col("peak_region_start") - modisco_half_width).abs(),
+            ends_offset=(pl.col("end_untrimmed") - pl.col("peak_region_start") - modisco_half_width).abs(),
+        )
+        .filter(
+            (pl.col("start_offset") < modisco_half_width) & (pl.col("ends_offset") < modisco_half_width)
         )
         .join(
             seqlets_df, 
