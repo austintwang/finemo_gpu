@@ -68,6 +68,7 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, seqlet_counts, scale_scores, mo
 
     overlaps_dfs = (
         hits_df
+        .with_columns(pl.col('peak_id').cast(pl.UInt32))
         .join(
             peaks_df.lazy(), on="peak_id", how="inner"
         )
