@@ -83,7 +83,7 @@ def seqlet_recall(hits_df, seqlets_df, seqlet_counts, scale_scores):
         )
         .with_columns(pl.col("seqlet_indicator").fill_null(strategy="zero"))
         .collect()
-        .partition_by("motif_name", dict=True)
+        .partition_by("motif_name", as_dict=True)
     )
 
     recalls = {}
