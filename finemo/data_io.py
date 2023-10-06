@@ -190,6 +190,8 @@ def load_hits(hits_path, lazy=False):
         .with_columns(pl.lit(1).alias("count"))
     )
 
+    print(hits_df.head().collect()) ####
+
     return hits_df if lazy else hits_df.collect()
 
 
@@ -247,6 +249,8 @@ def load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=False):
         )
         .with_columns(pl.lit(1).alias('seqlet_indicator'))
     )
+
+    print(seqlets_df.head().collect()) ####
 
     seqlets_df = seqlets_df if lazy else seqlets_df.collect()
 
