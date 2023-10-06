@@ -99,7 +99,7 @@ def load_regions_from_h5(peaks, h5_paths, half_width):
         end = start + 2 * half_width
         
         sequences = h5s[0]['raw/seq'][:,:,start:end] 
-        contribs = np.nanmean([f['shap/seq'][:,:,start:end] for f in enumerate(h5s)], axis=0)
+        contribs = np.nanmean([f['shap/seq'][:,:,start:end] for f in h5s], axis=0)
     
     finally:
         for f in h5s:
