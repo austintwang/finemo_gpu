@@ -191,7 +191,7 @@ def load_hits(hits_path, lazy=False, deduplicate=False):
     )
 
     if deduplicate:
-        hits_df = hits_df.unique()
+        hits_df = hits_df.unique(subset=["chr", "start", "motif_name", "strand"])
 
     # print(hits_df.head().collect()) ####
 
