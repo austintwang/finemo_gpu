@@ -232,7 +232,7 @@ def load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=False):
                 starts = pattern['seqlets/start'][:]
                 ends = pattern['seqlets/end'][:]
                 is_revcomps = pattern['seqlets/is_revcomp'][:]
-                peak_ids = pattern['seqlets/example_idx'][:]
+                peak_ids = pattern['seqlets/example_idx'][:].astype(np.uint32)
 
                 n_seqlets, = pattern['seqlets/n_seqlets'][:]
 
