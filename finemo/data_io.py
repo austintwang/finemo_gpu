@@ -1,5 +1,6 @@
 import json
 import os
+from contextlib import ExitStack
 
 import numpy as np
 import h5py
@@ -93,17 +94,14 @@ def load_regions_from_h5(peaks, h5_paths, half_width):
     sequences = np.zeros((num_peaks, 4, half_width * 2), dtype=np.int8)
     contribs = np.zeros((num_peaks, 4, half_width * 2), dtype=np.float16)
 
-    h5s = [h5py.File(i) for i in h5_paths]
-    try:
+    with ExitStack() as stack:
+        h5s = [stack.enter_context(h5py.File(i)) for i in h5_paths]
+
         start = h5s[0]['raw/seq'].shape[-1] // 2 - half_width
         end = start + 2 * half_width
         
         sequences = h5s[0]['raw/seq'][:,:,start:end] 
         contribs = np.nanmean([f['shap/seq'][:,:,start:end] for f in h5s], axis=0)
-    
-    finally:
-        for f in h5s:
-            f.close()
 
     return sequences, contribs
 
