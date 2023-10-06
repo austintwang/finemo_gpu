@@ -184,11 +184,14 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, use_hypothetical):
     return motifs_df, cwms
 
 
-def load_hits(hits_path, lazy=False):
+def load_hits(hits_path, lazy=False, deduplicate=False):
     hits_df = (
         pl.scan_csv(hits_path, separator='\t', quote_char=None)
         .with_columns(pl.lit(1).alias("count"))
     )
+
+    if deduplicate:
+        hits_df = hits_df.unique()
 
     # print(hits_df.head().collect()) ####
 
