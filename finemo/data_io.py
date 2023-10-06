@@ -94,32 +94,17 @@ def load_regions_from_h5(peaks, h5_paths, half_width):
     contribs = np.zeros((num_peaks, 4, half_width * 2), dtype=np.float16)
 
     h5s = [h5py.File(i) for i in h5_paths]
-    seq_buffer = np.zeros((len(h5_paths), 4, half_width * 2), dtype=np.int8)
-    contrib_buffer = np.zeros((len(h5_paths), 4, half_width * 2), dtype=np.float16)
-
     try:
-        for ind in trange(num_peaks):
-            for j, f in enumerate(h5s):
-                seq = f['raw']['seq'][ind,:,:]
-                contrib = f['shap']['seq'][ind,:,:]
-
-                start = seq.shape[-1] // 2 - half_width
-                end = start + 2 * half_width
-
-                seq_buffer[j,:,:] = seq[:,start:end]
-                contrib_buffer[j,:,:] = contrib[:,start:end]
-
-            if not (seq_buffer == seq_buffer[0:1,:,:]).all():
-                raise ValueError(f"Input sequences do not match at peak index {ind}")
-            
-            sequences[ind,:] = seq_buffer[0,:,:]
-
-            contribs[ind,:] = np.nanmean(contrib_buffer, axis=0)
+        start = h5s[0]['raw/seq'].shape[-1] // 2 - half_width
+        end = start + 2 * half_width
+        
+        sequences = h5s[0]['raw/seq'][:,:,start:end] 
+        contribs = np.nanmean([f['shap/seq'][:,:,start:end] for f in enumerate(h5s)], axis=0)
     
     finally:
         for f in h5s:
             f.close()
-    
+
     return sequences, contribs
 
 
