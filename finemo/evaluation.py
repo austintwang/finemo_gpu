@@ -72,7 +72,7 @@ def seqlet_recall(hits_df, seqlets_df, seqlet_counts, scale_scores):
             chr=pl.col("chr"),
             start_untrimmed=pl.col("start_untrimmed"),
             end_untrimmed=pl.col("end_untrimmed"),
-            is_revcomp=pl.col("strand") == '+',
+            is_revcomp=pl.col("strand") == '-',
             motif_name= pl.col("motif_name"),
             score=pl.col(score_col)
         )
