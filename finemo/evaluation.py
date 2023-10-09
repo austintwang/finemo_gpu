@@ -90,7 +90,7 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, scale_scores, modisco_half_widt
     seqlet_counts_df = seqlets_df.group_by("motif_name").agg(pl.count()).collect()
     seqlet_counts = {r["motif_name"]: r["count"] for r in seqlet_counts_df.iter_rows(named=True)}
     # print(seqlet_counts_df) ####
-    print(seqlet_counts) ####
+    # print(seqlet_counts) ####
     
     overlaps_df = (
         hits_filtered.join(
@@ -113,7 +113,7 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, scale_scores, modisco_half_widt
     
     overlaps_by_motif = overlaps_df.partition_by("motif_name", as_dict=True)
     recalls = {}
-    seqlet_counts = {}
+    # seqlet_counts = {}
     for k, v in overlaps_by_motif.items():
         # num_seqlets = v.height
         recall_data = (
