@@ -389,16 +389,15 @@ def plot_frac_peaks(occ_bin, motif_names, plot_path):
 def plot_modisco_recall(seqlet_recalls, plot_dir):
     os.makedirs(plot_dir, exist_ok=True)
 
-    labels = list(seqlet_recalls.keys())
+    labels = sorted(seqlet_recalls.keys(), key=lambda x: (x.split("_")[-1], x.split("_")[0] == "neg"))
     recalls = [seqlet_recalls[l][-1] for l in labels]
 
-    fig, ax = plt.subplots(figsize=(15, 20))
+    fig, ax = plt.subplots(figsize=(12, 8))
     ax.bar(labels, recalls)
 
     ax.set_title("Total Modisco seqlet recall")
-    plt.xticks(rotation=90)
 
-    plt.savefig(os.path.join(plot_dir, f"overall.png"))
+    plt.savefig(os.path.join(plot_dir, "overall.png"))
 
     plt.close(fig)
 
