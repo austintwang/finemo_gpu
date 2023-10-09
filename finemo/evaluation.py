@@ -66,7 +66,7 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, seqlet_counts, scale_scores, mo
     else:
         score_col = "hit_score_unscaled"
 
-    overlaps_dfs = (
+    hits_filtered = (
         hits_df
         .with_columns(pl.col('peak_id').cast(pl.UInt32))
         .join(
@@ -85,18 +85,30 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, seqlet_counts, scale_scores, mo
         .filter(
             (pl.col("start_offset") < modisco_half_width) & (pl.col("ends_offset") < modisco_half_width)
         )
-        .join(
+    )
+    
+    overlaps_df = (
+        hits_filtered.join(
             seqlets_df, 
             on=["chr", "start_untrimmed", "end_untrimmed", "is_revcomp", "motif_name"],
             how="left"
         )
         .with_columns(pl.col("seqlet_indicator").fill_null(strategy="zero"))
         .collect()
-        .partition_by("motif_name", as_dict=True)
     )
 
+    nonoverlaps_df = (
+        seqlets_df.join(
+            hits_filtered, 
+            on=["chr", "start_untrimmed", "end_untrimmed", "is_revcomp", "motif_name"],
+            how="anti"
+        )
+        .collect()
+    )
+    
+    overlaps_by_motif = overlaps_df.partition_by("motif_name", as_dict=True)
     recalls = {}
-    for k, v in overlaps_dfs.items():
+    for k, v in overlaps_by_motif.items():
         recall_data = (
             v.lazy()
             .sort("score", descending=True)
@@ -108,7 +120,7 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, seqlet_counts, scale_scores, mo
 
         recalls[k] = recall_data
 
-    return recalls
+    return recalls, overlaps_df, nonoverlaps_df
 
 
 # def cluster_matrix_indices(matrix):

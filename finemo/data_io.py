@@ -335,8 +335,11 @@ def write_coocc_mats(coocc_counts, coocc_sigs, motif_names, out_dir):
             f.write(f"{n}\n")
 
 
-def write_modisco_recall(seqlet_recalls, seqlet_counts, out_dir):
+def write_modisco_recall(seqlet_recalls, overlaps_df, nonoverlaps_df, seqlet_counts, out_dir):
     os.makedirs(out_dir, exist_ok=True)
+
+    overlaps_df.write_csv(os.path.join(out_dir, "overlaps.tsv"), separator="\t")
+    nonoverlaps_df.write_csv(os.path.join(out_dir, "non_overlaps.tsv"), separator="\t")
 
     with open(os.path.join(out_dir, "seqlet_counts.json"), "w") as f:
         json.dump(seqlet_counts, f, indent=4)
