@@ -60,7 +60,7 @@ def cooccurrence_sigs(coocc, num_peaks):
     return nlps, lors
 
 
-def seqlet_recall(hits_df, peaks_df, seqlets_df, seqlet_counts, scale_scores, modisco_half_width):
+def seqlet_recall(hits_df, peaks_df, seqlets_df, scale_scores, modisco_half_width):
     if scale_scores:
         score_col = "hit_score_scaled"
     else:
@@ -72,20 +72,30 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, seqlet_counts, scale_scores, mo
         .join(
             peaks_df.lazy(), on="peak_id", how="inner"
         )
+        .filter(
+            ((pl.col("start_untrimmed") - pl.col("peak_region_start")) >= 0) 
+            & ((pl.col("end_untrimmed") - pl.col("peak_region_start")) <= (2 * modisco_half_width))
+        )
         .select(
             chr=pl.col("chr"),
             start_untrimmed=pl.col("start_untrimmed"),
             end_untrimmed=pl.col("end_untrimmed"),
             is_revcomp=pl.col("strand") == '-',
-            motif_name= pl.col("motif_name"),
+            motif_name=pl.col("motif_name"),
             score=pl.col(score_col),
-            start_offset=(pl.col("start_untrimmed") - pl.col("peak_region_start") - modisco_half_width).abs(),
-            ends_offset=(pl.col("end_untrimmed") - pl.col("peak_region_start") - modisco_half_width).abs(),
+            # start_offset=(pl.col("start_untrimmed") - pl.col("peak_region_start") - modisco_half_width).abs(),
+            # ends_offset=(pl.col("end_untrimmed") - pl.col("peak_region_start") - modisco_half_width).abs(),
         )
-        .filter(
-            (pl.col("start_offset") < modisco_half_width) & (pl.col("ends_offset") < modisco_half_width)
-        )
+        .unique(subset=["chr", "start_untrimmed", "motif_name", "is_revcomp"])
+        # .filter(
+        #     (pl.col("start_offset") < modisco_half_width) & (pl.col("ends_offset") < modisco_half_width)
+        # )
     )
+
+    seqlet_counts_df = seqlets_df.group_by("motif_name").agg(pl.count()).collect()
+    seqlet_counts = {r["motif_name"]: r["count"] for r in seqlet_counts_df.iter_rows(named=True)}
+    # print(seqlet_counts_df) ####
+    # print(seqlet_counts) ####
     
     overlaps_df = (
         hits_filtered.join(
@@ -108,7 +118,9 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, seqlet_counts, scale_scores, mo
     
     overlaps_by_motif = overlaps_df.partition_by("motif_name", as_dict=True)
     recalls = {}
+    # seqlet_counts = {}
     for k, v in overlaps_by_motif.items():
+        # num_seqlets = v.height
         recall_data = (
             v.lazy()
             .sort("score", descending=True)
@@ -119,8 +131,9 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, seqlet_counts, scale_scores, mo
         )
 
         recalls[k] = recall_data
+        # seqlet_counts[k] = num_seqlets
 
-    return recalls, overlaps_df, nonoverlaps_df
+    return recalls, overlaps_df, nonoverlaps_df, seqlet_counts
 
 
 # def cluster_matrix_indices(matrix):
@@ -348,8 +361,47 @@ def plot_cooccurrence_sigs(coocc_nlp, motif_names, motif_order, plot_path):
     plt.close(fig)
 
 
+def plot_frac_peaks(occ_bin, motif_names, plot_path):
+    """
+    Adapted from https://github.com/kundajelab/FiNeMo/blob/fa7d70974c5ea6a4f83898ce01e9f97ed2273a33/run_finemo.py#L267-L280
+    """
+    num_peaks, num_motifs = occ_bin.shape
+    frac_peaks_with_motif = occ_bin.mean(axis=0) 
+
+    labels = np.array(motif_names)
+    sorted_inds = np.flip(np.argsort(frac_peaks_with_motif))
+    frac_peaks_with_motif = frac_peaks_with_motif[sorted_inds]
+    labels = labels[sorted_inds]
+    
+    fig, ax = plt.subplots(figsize=(15, 20))
+    ax.bar(np.arange(num_motifs), frac_peaks_with_motif)
+
+    ax.set_title("Fraction of peaks with each motif")
+    ax.set_xticks(np.arange(len(labels)))
+    ax.set_xticklabels(labels)
+    plt.xticks(rotation=90)
+
+    plt.savefig(plot_path)
+
+    plt.close(fig)
+
+
 def plot_modisco_recall(seqlet_recalls, plot_dir):
     os.makedirs(plot_dir, exist_ok=True)
+
+    labels = sorted(seqlet_recalls.keys(), 
+                    key=lambda x: (x.split("_")[0] == "neg", int(x.split("_")[-1])), reverse=True)
+    recalls = [seqlet_recalls[l][-1] for l in labels]
+
+    fig, ax = plt.subplots(figsize=(12, 8))
+    ax.barh(labels, recalls)
+
+    ax.set_title("Total Modisco seqlet recall")
+
+    plt.savefig(os.path.join(plot_dir, "overall.png"))
+
+    plt.close(fig)
+
     for k, v in seqlet_recalls.items():
         x = np.arange(v.shape[0])
         
@@ -358,6 +410,7 @@ def plot_modisco_recall(seqlet_recalls, plot_dir):
         plt.xlabel("Hit rank")
         plt.ylabel("Recall")
         
+        plt.tight_layout()
         output_path = os.path.join(plot_dir, f"{k}.png")
         plt.savefig(output_path, dpi=300)
 

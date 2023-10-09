@@ -184,14 +184,14 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, use_hypothetical):
     return motifs_df, cwms
 
 
-def load_hits(hits_path, lazy=False, deduplicate=False):
+def load_hits(hits_path, lazy=False):
     hits_df = (
         pl.scan_csv(hits_path, separator='\t', quote_char=None)
         .with_columns(pl.lit(1).alias("count"))
     )
 
-    if deduplicate:
-        hits_df = hits_df.unique(subset=["chr", "start", "motif_name", "strand"])
+    # if deduplicate:
+    #     hits_df = hits_df.unique(subset=["chr", "start", "motif_name", "strand"])
 
     # print(hits_df.head().collect()) ####
 
@@ -206,7 +206,7 @@ def load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=False):
     peak_id_lst = []
     pattern_tags = []
 
-    seqlet_counts = {}
+    # seqlet_counts = {}
     with h5py.File(modisco_h5_path, 'r') as modisco_results:
         for name in MODISCO_PATTERN_GROUPS:
             if name not in modisco_results.keys():
@@ -230,7 +230,7 @@ def load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=False):
                 peak_id_lst.append(peak_ids)
                 pattern_tags.extend([pattern_tag for _ in range(n_seqlets)])
 
-                seqlet_counts[pattern_tag] = n_seqlets
+                # seqlet_counts[pattern_tag] = n_seqlets
 
     df_data = {
         "seqlet_start": np.concatenate(start_lst),
@@ -250,6 +250,7 @@ def load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=False):
             is_revcomp=pl.col("is_revcomp"),
             motif_name= pl.col("motif_name")
         )
+        .unique()
         .with_columns(pl.lit(1).alias('seqlet_indicator'))
     )
 
@@ -257,7 +258,7 @@ def load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=False):
 
     seqlets_df = seqlets_df if lazy else seqlets_df.collect()
 
-    return seqlets_df, seqlet_counts
+    return seqlets_df
 
 
 def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, half_width, motif_width):

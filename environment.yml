@@ -8,7 +8,7 @@ dependencies:
   - conda-forge::scipy=1.10.1
   - conda-forge::pytorch=2.0.0
   # - conda-forge::pandas=2.0.2
-  - conda-forge::polars=0.18.15
+  - conda-forge::polars=0.19.7
   - conda-forge::matplotlib=3.7.1
   - conda-forge::scikit-learn=1.2.2
   - conda-forge::h5py=3.8.0
