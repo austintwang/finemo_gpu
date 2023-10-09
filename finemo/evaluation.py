@@ -77,7 +77,7 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, scale_scores, modisco_half_widt
             start_untrimmed=pl.col("start_untrimmed"),
             end_untrimmed=pl.col("end_untrimmed"),
             is_revcomp=pl.col("strand") == '-',
-            motif_name= pl.col("motif_name"),
+            motif_name=pl.col("motif_name"),
             score=pl.col(score_col),
             start_offset=(pl.col("start_untrimmed") - pl.col("peak_region_start") - modisco_half_width).abs(),
             ends_offset=(pl.col("end_untrimmed") - pl.col("peak_region_start") - modisco_half_width).abs(),
@@ -86,6 +86,9 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, scale_scores, modisco_half_widt
             (pl.col("start_offset") < modisco_half_width) & (pl.col("ends_offset") < modisco_half_width)
         )
     )
+
+    seqlet_counts_df = hits_filtered.group_by("motif_name").agg(pl.count()).collect()
+    seqlet_counts = {r["motif_name"]: r["count"] for r in seqlet_counts_df.iter_rows(named=True)}
     
     overlaps_df = (
         hits_filtered.join(
@@ -110,18 +113,18 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, scale_scores, modisco_half_widt
     recalls = {}
     seqlet_counts = {}
     for k, v in overlaps_by_motif.items():
-        num_seqlets = v.height
+        # num_seqlets = v.height
         recall_data = (
             v.lazy()
             .sort("score", descending=True)
             .select(seqlet_recall=pl.cumsum("seqlet_indicator"))
             .collect()
             .get_column("seqlet_recall")
-            .to_numpy() / num_seqlets
+            .to_numpy() / seqlet_counts[k]
         )
 
         recalls[k] = recall_data
-        seqlet_counts[k] = num_seqlets
+        # seqlet_counts[k] = num_seqlets
 
     return recalls, overlaps_df, nonoverlaps_df, seqlet_counts
 
