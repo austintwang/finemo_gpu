@@ -110,7 +110,7 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, scale_scores, modisco_half_widt
     recalls = {}
     seqlet_counts = {}
     for k, v in overlaps_by_motif.items():
-        num_seqlets = v.count()
+        num_seqlets = v.height
         recall_data = (
             v.lazy()
             .sort("score", descending=True)
