@@ -79,11 +79,15 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, scale_scores, modisco_half_widt
             is_revcomp=pl.col("strand") == '-',
             motif_name=pl.col("motif_name"),
             score=pl.col(score_col),
-            start_offset=(pl.col("start_untrimmed") - pl.col("peak_region_start") - modisco_half_width).abs(),
-            ends_offset=(pl.col("end_untrimmed") - pl.col("peak_region_start") - modisco_half_width).abs(),
+            # start_offset=(pl.col("start_untrimmed") - pl.col("peak_region_start") - modisco_half_width).abs(),
+            # ends_offset=(pl.col("end_untrimmed") - pl.col("peak_region_start") - modisco_half_width).abs(),
         )
+        # .filter(
+        #     (pl.col("start_offset") < modisco_half_width) & (pl.col("ends_offset") < modisco_half_width)
+        # )
         .filter(
-            (pl.col("start_offset") < modisco_half_width) & (pl.col("ends_offset") < modisco_half_width)
+            ((pl.col("start_untrimmed") - pl.col("peak_region_start")) >= 0) 
+            & ((pl.col("end_untrimmed") - pl.col("peak_region_start")) <= (2 * modisco_half_width))
         )
     )
 
