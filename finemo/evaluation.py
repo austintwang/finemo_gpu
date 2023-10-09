@@ -72,6 +72,10 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, scale_scores, modisco_half_widt
         .join(
             peaks_df.lazy(), on="peak_id", how="inner"
         )
+        .filter(
+            ((pl.col("start_untrimmed") - pl.col("peak_region_start")) >= 0) 
+            & ((pl.col("end_untrimmed") - pl.col("peak_region_start")) <= (2 * modisco_half_width))
+        )
         .select(
             chr=pl.col("chr"),
             start_untrimmed=pl.col("start_untrimmed"),
@@ -85,10 +89,6 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, scale_scores, modisco_half_widt
         # .filter(
         #     (pl.col("start_offset") < modisco_half_width) & (pl.col("ends_offset") < modisco_half_width)
         # )
-        .filter(
-            ((pl.col("start_untrimmed") - pl.col("peak_region_start")) >= 0) 
-            & ((pl.col("end_untrimmed") - pl.col("peak_region_start")) <= (2 * modisco_half_width))
-        )
     )
 
     seqlet_counts_df = seqlets_df.group_by("motif_name").agg(pl.count()).collect()
