@@ -393,7 +393,7 @@ def plot_modisco_recall(seqlet_recalls, plot_dir):
     recalls = [seqlet_recalls[l][-1] for l in labels]
 
     fig, ax = plt.subplots(figsize=(12, 8))
-    ax.hbar(labels, recalls)
+    ax.barh(labels, recalls)
 
     ax.set_title("Total Modisco seqlet recall")
 
