@@ -87,7 +87,7 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, scale_scores, modisco_half_widt
         )
     )
 
-    seqlet_counts_df = hits_filtered.group_by("motif_name").agg(pl.count()).collect()
+    seqlet_counts_df = hits_filtered.groupby("motif_name").agg(pl.count()).collect()
     seqlet_counts = {r["motif_name"]: r["count"] for r in seqlet_counts_df.iter_rows(named=True)}
     
     overlaps_df = (
