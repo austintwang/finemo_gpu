@@ -155,7 +155,7 @@ def modisco_recall(hits_path, modisco_h5_path, peaks_path, out_dir, modisco_regi
                                                                                           scale_hits, modisco_half_width)
     
     recall_dir = os.path.join(out_dir, "modisco_recall_data")
-    data_io.write_modisco_recall(seqlet_recalls, overlaps_df, nonoverlaps_df, recall_dir)
+    data_io.write_modisco_recall(seqlet_recalls, overlaps_df, nonoverlaps_df, seqlet_counts, recall_dir)
 
     plot_dir = os.path.join(out_dir, "modisco_recall_plots")
     evaluation.plot_modisco_recall(seqlet_recalls, plot_dir)
