@@ -86,6 +86,7 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, scale_scores, modisco_half_widt
             # start_offset=(pl.col("start_untrimmed") - pl.col("peak_region_start") - modisco_half_width).abs(),
             # ends_offset=(pl.col("end_untrimmed") - pl.col("peak_region_start") - modisco_half_width).abs(),
         )
+        .unique(subset=["chr", "start_untrimmed", "motif_name", "is_revcomp"])
         # .filter(
         #     (pl.col("start_offset") < modisco_half_width) & (pl.col("ends_offset") < modisco_half_width)
         # )

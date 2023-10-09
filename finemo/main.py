@@ -148,7 +148,7 @@ def modisco_recall(hits_path, modisco_h5_path, peaks_path, out_dir, modisco_regi
 
     modisco_half_width = modisco_region_width // 2
     peaks_df = data_io.load_peaks(peaks_path, modisco_half_width)
-    hits_df = data_io.load_hits(hits_path, lazy=True, deduplicate=True)
+    hits_df = data_io.load_hits(hits_path, lazy=True)
     seqlets_df = data_io.load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=True)
 
     seqlet_recalls, overlaps_df, nonoverlaps_df, seqlet_counts = evaluation.seqlet_recall(hits_df, peaks_df, seqlets_df, 
