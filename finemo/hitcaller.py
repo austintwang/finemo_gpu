@@ -226,7 +226,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
                 if not use_hypothetical:
                     seqs_buf[converged,:,:] = seqs_batch
 
-                importance_scale_buf[converged,:,:] = importance_scale_batch[:,None,:]
+                importance_scale_buf[converged,:,:] = importance_scale_batch
                 
                 inds_buf[converged] = inds_batch
                 # scale_buf[converged] = scale_batch
