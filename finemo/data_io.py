@@ -261,7 +261,7 @@ def load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=False):
     return seqlets_df
 
 
-def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, motif_width):
+def write_hits(hits_df, peaks_df, motifs_df, out_path_tsv, out_path_bed, motif_width):
 
     data_all = (
         hits_df
