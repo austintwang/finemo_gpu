@@ -12,21 +12,24 @@ from .torch_utils import compile_if_possible
 
 
 # @compile_if_possible(fullgraph=True)
-def prox_grad_step(coefficients, cwms_t, contribs, pred_mask, 
+def prox_grad_step(coefficients, importance_scale, cwms_t, contribs, pred_mask, 
                    a_const, b_const, st_thresh, shrink_factor, step_sizes):
     """
     coefficients: (b, m, l + 2w - 2)
+    importance_scale: (b, 1, l + 2w - 2)
     cwms_t: (m, 4, w)
     contribs: (b, 4, l + w - 1)
     pred_mask: (b, 4, l + w - 1)
 
     # https://stanford.edu/~boyd/papers/pdf/l1_ls.pdf, Section III
     """
-    pred_unmasked = F.conv1d(coefficients, cwms_t) # (b, 4, l + w - 1)
+    coef_adj = coefficients * importance_scale
+
+    pred_unmasked = F.conv1d(coef_adj, cwms_t) # (b, 4, l + w - 1)
     pred = pred_unmasked * pred_mask # (b, 4, l + w - 1)
 
     residuals = contribs - pred # (b, 4, l + w - 1)
-    ngrad = F.conv_transpose1d(residuals, cwms_t) # (b, m, l + 2w - 2)
+    ngrad = F.conv_transpose1d(residuals, cwms_t) * importance_scale # (b, m, l + 2w - 2)
     # print(ngrad) ####
 
     ll = (residuals**2).sum(dim=(1,2)) # (b)
@@ -56,21 +59,22 @@ def optimizer(cwms_t, l, a_const, b_const):
     cwms_t: (m, 4, w)
     """
 
-    contribs, sequences, c_a, c_b, i, step_sizes = yield
+    contribs, importance_scale, sequences, c_a, c_b, i, step_sizes = yield
 
     while True:
         st_thresh = a_const * step_sizes
         shrink_factor = 1 + b_const * step_sizes
 
         c_b_prev = c_b
-        c_b, gap, ll = prox_grad_step(c_a, cwms_t, contribs, sequences, a_const, b_const, st_thresh, shrink_factor, step_sizes)
+        c_b, gap, ll = prox_grad_step(c_a, importance_scale, cwms_t, contribs, sequences, 
+                                      a_const, b_const, st_thresh, shrink_factor, step_sizes)
         gap = gap / l
         ll = ll / (2 * l)
 
         mom_term = i / (i + 3.)
         c_a = (1 + mom_term) * c_b - mom_term * c_b_prev
 
-        contribs, sequences, c_a, c_b, i, step_sizes = yield c_a, c_b, gap, ll
+        contribs, importance_scale, sequences, c_a, c_b, i, step_sizes = yield c_a, c_b, gap, ll
 
         # mom_term = i / (i + 3.)
         # c_a = (1 + mom_term) * c_b - mom_term * c_b_prev
@@ -89,10 +93,15 @@ def _load_batch_compact_fmt(contribs, sequences, start, end, motif_width, l, dev
     sequences_batch = F.pad(sequences[start:end,:,:], pad_lens).to(device=device) # (b, 4, l + w - 1)
     contribs_batch = contribs_compact * sequences_batch
 
-    scale = ((contribs_compact**2).sum(dim=(1,2), keepdim=True) / l).sqrt()
-    contribs_batch = (contribs_compact / scale) * sequences_batch # (b, 4, l + w - 1)
+    # scale = ((contribs_compact**2).sum(dim=(1,2), keepdim=True) / l).sqrt()
+    # contribs_batch = (contribs_compact / scale) * sequences_batch # (b, 4, l + w - 1)
 
-    return contribs_batch, sequences_batch, inds, scale.squeeze()
+    sum_filter = torch.ones((1, 1, motif_width), dtype=torch.float32, device=device)
+    importance_scale = F.conv_transpose1d(contribs_compact**2, sum_filter).sqrt()
+
+    contribs_batch = contribs_compact * sequences_batch # (b, 4, l + w - 1)
+
+    return contribs_batch, sequences_batch, inds, importance_scale
 
 
 def _load_batch_non_hyp(contribs, sequences, start, end, motif_width, l, device):
@@ -108,10 +117,13 @@ def _load_batch_non_hyp(contribs, sequences, start, end, motif_width, l, device)
     sequences_batch = F.pad(sequences[start:end,:,:], pad_lens).to(device=device) # (b, 4, l + w - 1)
     contribs_batch = contribs_hyp * sequences_batch
 
-    scale = ((contribs_batch**2).sum(dim=(1,2), keepdim=True) / l).sqrt()
-    contribs_batch /= scale
+    # scale = ((contribs_batch**2).sum(dim=(1,2), keepdim=True) / l).sqrt()
+    # contribs_batch /= scale
 
-    return contribs_batch, sequences_batch, inds, scale.squeeze()
+    sum_filter = torch.ones((4, 1, motif_width), dtype=torch.float32, device=device)
+    importance_scale = F.conv_transpose1d(contribs_batch**2, sum_filter).sqrt()
+
+    return contribs_batch, sequences_batch, inds, importance_scale
 
 
 def _load_batch_hyp(contribs, sequences, start, end, motif_width, l, device):
@@ -125,10 +137,13 @@ def _load_batch_hyp(contribs, sequences, start, end, motif_width, l, device):
 
     contribs_batch = F.pad(contribs[start:end,:,:], pad_lens).float().to(device=device) 
 
-    scale = ((contribs_batch**2).sum(dim=(1,2), keepdim=True) / l).sqrt()
-    contribs_batch /= scale
+    # scale = ((contribs_batch**2).sum(dim=(1,2), keepdim=True) / l).sqrt()
+    # contribs_batch /= scale
 
-    return contribs_batch, 1, inds, scale.squeeze()
+    sum_filter = torch.ones((4, 1, motif_width), dtype=torch.float32, device=device)
+    importance_scale = F.conv_transpose1d(contribs_batch**2, sum_filter).sqrt()
+
+    return contribs_batch, 1, inds, importance_scale
 
 
 def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, step_size_max, 
@@ -171,8 +186,9 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
     clip_mask = clip_mask.to(device=device)
 
     hit_idxs_lst = []
-    scores_lst = []
-    qc_lsts = {"log_likelihood": [], "dual_gap": [], "num_steps": [], "contrib_scale": [], "step_size": []}
+    scores_unweighted_lst = []
+    scores_weighted_lst = []
+    qc_lsts = {"log_likelihood": [], "dual_gap": [], "num_steps": [], "step_size": []}
 
     opt_iter = optimizer(cwms_t, l, a_const, b_const)
     opt_iter.send(None)
@@ -191,8 +207,9 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
         seqs_buf = 1
     else:
         seqs_buf = torch.zeros((b, 4, l + w - 1), dtype=torch.int8, device=device)
+    importance_scale_buf = torch.zeros((b, 1, l + 2 * w - 2), dtype=torch.float32, device=device)
     inds_buf = torch.zeros((b,), dtype=torch.int, device=device)
-    scale_buf = torch.zeros((b,), dtype=torch.float, device=device)
+    # scale_buf = torch.zeros((b,), dtype=torch.float, device=device)
 
     with tqdm(disable=None, unit="regions", total=n) as pbar:
         num_complete = 0
@@ -203,20 +220,22 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
                 load_end = load_start + num_load
                 next_ind = min(load_end, contribs.shape[0])
 
-                contribs_batch, seqs_batch, inds_batch, scale_batch = load_batch_fn(contribs, sequences, load_start, 
+                contribs_batch, seqs_batch, inds_batch, importance_scale_batch = load_batch_fn(contribs, sequences, load_start, 
                                                                                     load_end, w, l, device)
                 contribs_buf[converged,:,:] = contribs_batch
                 if not use_hypothetical:
                     seqs_buf[converged,:,:] = seqs_batch
 
+                importance_scale_buf[converged,:,:] = importance_scale_batch[:,None,:]
+                
                 inds_buf[converged] = inds_batch
-                scale_buf[converged] = scale_batch
+                # scale_buf[converged] = scale_batch
 
                 c_a[converged,:,:] *= 0
                 c_b[converged,:,:] *= 0
                 i[converged] *= 0
 
-            c_a, c_b, gap, ll = opt_iter.send((contribs_buf, seqs_buf, c_a, c_b, i, step_sizes),)
+            c_a, c_b, gap, ll = opt_iter.send((contribs_buf, importance_scale_buf, seqs_buf, c_a, c_b, i, step_sizes),)
             i += 1
 
             active = inds_buf >= 0
@@ -237,7 +256,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
 
             if num_load > 0:
                 inds_out = inds_buf[converged]
-                scale_out = scale_buf[converged]
+                # scale_out = scale_buf[converged]
 
                 # coef_out = (c_a[converged,:,:] * clip_mask).to_sparse()
                 coef_out = (c_b[converged,:,:] * clip_mask).to_sparse()
@@ -248,7 +267,10 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
                 hit_idxs_out[0,:] = F.embedding(hit_idxs_out[0,:], inds_out[:,None]).squeeze()
                 hit_idxs_out[2,:] -= w - 1
 
-                scores_out = coef_out.values()
+                importance_scale_out = importance_scale_buf[coef_out.indices()[0,:],0,coef_out.indices()[2,:]]
+
+                scores_out_unweighted = coef_out.values()
+                scores_out_weighted = coef_out.values() * importance_scale_out
 
                 gap_out = gap[converged]
                 ll_out = ll[converged]
@@ -256,25 +278,28 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
                 step_sizes_out = step_sizes[converged,0,0]
 
                 hit_idxs_lst.append(hit_idxs_out.numpy(force=True).T)
-                scores_lst.append(scores_out.numpy(force=True))
+                scores_unweighted_lst.append(scores_out_unweighted.numpy(force=True))
+                scores_weighted_lst.append(scores_out_weighted.numpy(force=True))
 
                 qc_lsts["log_likelihood"].append(ll_out.numpy(force=True))
                 qc_lsts["dual_gap"].append(gap_out.numpy(force=True))
                 qc_lsts["num_steps"].append(step_out.numpy(force=True))
-                qc_lsts["contrib_scale"].append(scale_out.numpy(force=True))
+                # qc_lsts["contrib_scale"].append(scale_out.numpy(force=True))
                 qc_lsts["step_size"].append(step_sizes_out.numpy(force=True))
 
                 num_complete += num_load
                 pbar.update(num_load)
 
     hit_idxs = np.concatenate(hit_idxs_lst, axis=0)
-    scores = np.concatenate(scores_lst, axis=0)
+    scores_unweighted = np.concatenate(scores_unweighted_lst, axis=0)
+    scores_weighted = np.concatenate(scores_weighted_lst, axis=0)
 
     hits = {
         "peak_id": hit_idxs[:,0].astype(np.uint32),
         "motif_id": hit_idxs[:,1].astype(np.uint32),
         "hit_start": hit_idxs[:,2],
-        "hit_score": scores
+        "hit_score_unweighted": scores_unweighted,
+        "hit_score_weighted": scores_weighted
     }
 
     qc = {k: np.concatenate(v, axis=0) for k, v in qc_lsts.items()}

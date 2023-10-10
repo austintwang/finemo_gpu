@@ -63,7 +63,7 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_thres
     out_path_bed = os.path.join(out_dir, "hits.bed")
     out_path_qc = os.path.join(out_dir, "peaks_qc.tsv")
     data_io.write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, 
-                       out_path_bed, half_width, motif_width)
+                       out_path_bed, motif_width)
     data_io.write_qc(qc_df, peaks_df, out_path_qc)
 
     params |= {
@@ -72,32 +72,7 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_thres
         "untrimmed_motif_width": motif_width,
         "num_motifs": num_motifs,
     }
-    # params = {
-    #     "inputs": {
-    #         "regions_path": regions_path,
-    #         "peaks_path": peaks_path,
-    #         "modisco_h5_path": modisco_h5_path,
-    #     },
-    #     "outputs": {
-    #         "out_dir": out_dir,
-    #     },
-    #     "provided_params": {
-    #         "cwm_trim_threshold": cwm_trim_threshold,
-    #         "alpha": alpha,
-    #         "l1_ratio": l1_ratio,
-    #         "step_size": step_size,
-    #         "convergence_tol": convergence_tol,
-    #         "max_steps": max_steps,
-    #         "batch_size": batch_size,
-    #         "device": device,
-    #     },
-    #     "inferred_params": {
-    #         "region_width": region_width,
-    #         "num_regions": num_regions,
-    #         "untrimmed_motif_width": motif_width,
-    #         "num_motifs": num_motifs,
-    #     }
-    # }
+
     out_path_params = os.path.join(out_dir, "parameters.json")
     data_io.write_params(params, out_path_params)
 

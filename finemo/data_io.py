@@ -261,13 +261,13 @@ def load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=False):
     return seqlets_df
 
 
-def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, half_width, motif_width):
+def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, motif_width):
 
     data_all = (
         hits_df
         .lazy()
         .join(peaks_df.lazy(), on="peak_id", how="inner")
-        .join(qc_df.lazy(), on="peak_id", how="inner")
+        # .join(qc_df.lazy(), on="peak_id", how="inner")
         .join(motifs_df.lazy(), on="motif_id", how="inner")
         .select(
             chr_id=pl.col("chr_id"),
@@ -277,8 +277,8 @@ def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, 
             start_untrimmed=pl.col("peak_region_start") + pl.col("hit_start"),
             end_untrimmed=pl.col("peak_region_start") + pl.col("hit_start") + motif_width,
             motif_name=pl.col("motif_name"),
-            hit_score_scaled=pl.col("hit_score"),
-            hit_score_unscaled=pl.col("hit_score") * pl.col("contrib_scale") * pl.col("motif_scale"),
+            hit_score_unweighted=pl.col("hit_score_unweighted"),
+            hit_score_weighted=pl.col("hit_score_weighted"),
             strand=pl.col("motif_strand"),
             peak_name=pl.col("peak_name"),
             peak_id=pl.col("peak_id"),
