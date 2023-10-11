@@ -99,7 +99,8 @@ def _load_batch_compact_fmt(contribs, sequences, start, end, motif_width, l, dev
     sum_filter = torch.ones((1, 1, motif_width), dtype=torch.float32, device=device)
     importance_scale = (F.conv_transpose1d(contribs_compact**2, sum_filter) + 1e-8)**(-0.5)
 
-    contribs_batch = contribs_compact * sequences_batch # (b, 4, l + w - 1)
+    # contribs_batch = contribs_compact * sequences_batch # (b, 4, l + w - 1)
+    contribs_batch = (contribs_compact / gap_scale) * sequences_batch # (b, 4, l + w - 1)
 
     return contribs_batch, sequences_batch, inds, importance_scale, gap_scale
 
@@ -118,7 +119,7 @@ def _load_batch_non_hyp(contribs, sequences, start, end, motif_width, l, device)
     contribs_batch = contribs_hyp * sequences_batch
 
     gap_scale = ((contribs_batch**2).sum(dim=(1,2)) / l).sqrt()
-    # contribs_batch /= scale
+    contribs_batch /= gap_scale
 
     sum_filter = torch.ones((4, 1, motif_width), dtype=torch.float32, device=device)
     importance_scale = (F.conv_transpose1d(contribs_batch**2, sum_filter) + 1e-8)**(-0.5)
@@ -138,7 +139,7 @@ def _load_batch_hyp(contribs, sequences, start, end, motif_width, l, device):
     contribs_batch = F.pad(contribs[start:end,:,:], pad_lens).float().to(device=device) 
 
     gap_scale = ((contribs_batch**2).sum(dim=(1,2)) / l).sqrt()
-    # contribs_batch /= scale
+    contribs_batch /= gap_scale
 
     sum_filter = torch.ones((4, 1, motif_width), dtype=torch.float32, device=device)
     importance_scale = (F.conv_transpose1d(contribs_batch**2, sum_filter) + 1e-8)**(-0.5)
@@ -255,7 +256,8 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
             if timeouts.sum().item() > 0:
                 warnings.warn(f"Not all regions have converged within max_steps={max_steps} iterations.", RuntimeWarning)
 
-            converged = ((gap <= (convergence_tol * gap_scale_buf)) | timeouts) & active
+            # converged = ((gap <= (convergence_tol * gap_scale_buf)) | timeouts) & active
+            converged = ((gap <= convergence_tol) | timeouts) & active
             num_load = converged.sum().item()
             # print(num_load) ####
 
