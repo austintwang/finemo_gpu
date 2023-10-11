@@ -222,6 +222,8 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
 
                 batch_data = load_batch_fn(contribs, sequences, load_start, load_end, w, l, device)
                 contribs_batch, seqs_batch, inds_batch, importance_scale_batch, gap_scale_batch = batch_data
+                print(importance_scale_batch) ####
+                print(gap_scale_batch) ####
 
                 contribs_buf[converged,:,:] = contribs_batch
                 if not use_hypothetical:
@@ -238,8 +240,8 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
 
             c_a, c_b, gap, ll = opt_iter.send((contribs_buf, importance_scale_buf, seqs_buf, c_a, c_b, i, step_sizes),)
             i += 1
-            print(gap) ####
-            print(step_sizes) ####
+            # print(gap) ####
+            # print(step_sizes) ####
 
             active = inds_buf >= 0
 
