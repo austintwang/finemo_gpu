@@ -36,8 +36,8 @@ def prox_grad_step(coefficients, importance_scale, cwms_t, contribs, pred_mask,
     
     # dual_norm = (ngrad - b_const * coefficients).abs().amax(dim=(1,2)) # (b)
     dual_norm = (ngrad - b_const * coefficients).amax(dim=(1,2)) # (b)
-    gap_scale = (torch.clamp(a_const / dual_norm, max=1.)**2 + 1) / 2 # (b)
-    ll_scaled = ll * gap_scale # (b)
+    dual_scale = (torch.clamp(a_const / dual_norm, max=1.)**2 + 1) / 2 # (b)
+    ll_scaled = ll * dual_scale # (b)
 
     dual_diff = (residuals * contribs).sum(dim=(1,2)) # (b)
 
@@ -93,7 +93,7 @@ def _load_batch_compact_fmt(contribs, sequences, start, end, motif_width, l, dev
     sequences_batch = F.pad(sequences[start:end,:,:], pad_lens).to(device=device) # (b, 4, l + w - 1)
     contribs_batch = contribs_compact * sequences_batch
 
-    gap_scale = ((contribs_compact**2).sum(dim=(1,2), keepdim=True) / l).sqrt()
+    gap_scale = ((contribs_compact**2).sum(dim=(1,2)) / l).sqrt()
     # contribs_batch = (contribs_compact / scale) * sequences_batch # (b, 4, l + w - 1)
 
     sum_filter = torch.ones((1, 1, motif_width), dtype=torch.float32, device=device)
@@ -117,7 +117,7 @@ def _load_batch_non_hyp(contribs, sequences, start, end, motif_width, l, device)
     sequences_batch = F.pad(sequences[start:end,:,:], pad_lens).to(device=device) # (b, 4, l + w - 1)
     contribs_batch = contribs_hyp * sequences_batch
 
-    gap_scale = ((contribs_batch**2).sum(dim=(1,2), keepdim=True) / l).sqrt()
+    gap_scale = ((contribs_batch**2).sum(dim=(1,2)) / l).sqrt()
     # contribs_batch /= scale
 
     sum_filter = torch.ones((4, 1, motif_width), dtype=torch.float32, device=device)
@@ -137,7 +137,7 @@ def _load_batch_hyp(contribs, sequences, start, end, motif_width, l, device):
 
     contribs_batch = F.pad(contribs[start:end,:,:], pad_lens).float().to(device=device) 
 
-    gap_scale = ((contribs_batch**2).sum(dim=(1,2), keepdim=True) / l).sqrt()
+    gap_scale = ((contribs_batch**2).sum(dim=(1,2)) / l).sqrt()
     # contribs_batch /= scale
 
     sum_filter = torch.ones((4, 1, motif_width), dtype=torch.float32, device=device)
