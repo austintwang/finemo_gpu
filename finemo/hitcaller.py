@@ -97,7 +97,7 @@ def _load_batch_compact_fmt(contribs, sequences, start, end, motif_width, l, dev
     # contribs_batch = (contribs_compact / scale) * sequences_batch # (b, 4, l + w - 1)
 
     sum_filter = torch.ones((1, 1, motif_width), dtype=torch.float32, device=device)
-    importance_scale = F.conv_transpose1d(contribs_compact**2, sum_filter)**(-0.5)
+    importance_scale = (F.conv_transpose1d(contribs_compact**2, sum_filter) + 1e-8)**(-0.5)
 
     contribs_batch = contribs_compact * sequences_batch # (b, 4, l + w - 1)
 
@@ -121,7 +121,7 @@ def _load_batch_non_hyp(contribs, sequences, start, end, motif_width, l, device)
     # contribs_batch /= scale
 
     sum_filter = torch.ones((4, 1, motif_width), dtype=torch.float32, device=device)
-    importance_scale = F.conv_transpose1d(contribs_batch**2, sum_filter)**(-0.5)
+    importance_scale = (F.conv_transpose1d(contribs_batch**2, sum_filter) + 1e-8)**(-0.5)
 
     return contribs_batch, sequences_batch, inds, importance_scale, gap_scale
 
@@ -141,7 +141,7 @@ def _load_batch_hyp(contribs, sequences, start, end, motif_width, l, device):
     # contribs_batch /= scale
 
     sum_filter = torch.ones((4, 1, motif_width), dtype=torch.float32, device=device)
-    importance_scale = F.conv_transpose1d(contribs_batch**2, sum_filter)**(-0.5)
+    importance_scale = (F.conv_transpose1d(contribs_batch**2, sum_filter) + 1e-8)**(-0.5)
 
     return contribs_batch, 1, inds, importance_scale, gap_scale
 
