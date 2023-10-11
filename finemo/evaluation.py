@@ -60,11 +60,13 @@ def cooccurrence_sigs(coocc, num_peaks):
     return nlps, lors
 
 
-def seqlet_recall(hits_df, peaks_df, seqlets_df, scale_scores, modisco_half_width):
-    if scale_scores:
-        score_col = "hit_score_scaled"
-    else:
-        score_col = "hit_score_unscaled"
+def seqlet_recall(hits_df, peaks_df, seqlets_df, score_type, modisco_half_width):
+    # if scale_scores:
+    #     score_col = "hit_score_scaled"
+    # else:
+    #     score_col = "hit_score_unscaled"
+
+    score_col = f"hit_score_{score_type}"
 
     hits_filtered = (
         hits_df
@@ -386,7 +388,7 @@ def plot_frac_peaks(occ_bin, motif_names, plot_path):
     plt.close(fig)
 
 
-def plot_modisco_recall(seqlet_recalls, plot_dir):
+def plot_modisco_recall(seqlet_recalls, seqlet_counts, plot_dir):
     os.makedirs(plot_dir, exist_ok=True)
 
     labels = sorted(seqlet_recalls.keys(), 
@@ -403,9 +405,16 @@ def plot_modisco_recall(seqlet_recalls, plot_dir):
     plt.close(fig)
 
     for k, v in seqlet_recalls.items():
-        x = np.arange(v.shape[0])
+        num_hits = v.shape[0]
+        x = np.arange(num_hits)
+
+        num_seqlets = seqlet_counts[k]
+        bound = np.full(num_hits, num_seqlets)
+        ramp_max = min(num_seqlets, num_hits)
+        bound[:ramp_max] = np.arange(1, ramp_max + 1)
         
         plt.plot(x, v)
+        plt.plot(x, bound)
         plt.title(f"{k} Modisco seqlet recall")
         plt.xlabel("Hit rank")
         plt.ylabel("Recall")

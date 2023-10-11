@@ -118,7 +118,7 @@ def visualize(hits_path, out_dir):
     evaluation.plot_cooccurrence_lors(coocc_lor, motif_names, motif_order, coocc_ors_path)
 
 
-def modisco_recall(hits_path, modisco_h5_path, peaks_path, out_dir, modisco_region_width, scale_hits):
+def modisco_recall(hits_path, modisco_h5_path, peaks_path, out_dir, modisco_region_width, score_type):
     from . import evaluation
 
     modisco_half_width = modisco_region_width // 2
@@ -127,13 +127,13 @@ def modisco_recall(hits_path, modisco_h5_path, peaks_path, out_dir, modisco_regi
     seqlets_df = data_io.load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=True)
 
     seqlet_recalls, overlaps_df, nonoverlaps_df, seqlet_counts = evaluation.seqlet_recall(hits_df, peaks_df, seqlets_df, 
-                                                                                          scale_hits, modisco_half_width)
+                                                                                          score_type, modisco_half_width)
     
     recall_dir = os.path.join(out_dir, "modisco_recall_data")
     data_io.write_modisco_recall(seqlet_recalls, overlaps_df, nonoverlaps_df, seqlet_counts, recall_dir)
 
     plot_dir = os.path.join(out_dir, "modisco_recall_plots")
-    evaluation.plot_modisco_recall(seqlet_recalls, plot_dir)
+    evaluation.plot_modisco_recall(seqlet_recalls, seqlet_counts, plot_dir)
 
 
 def cli():
@@ -234,8 +234,11 @@ def cli():
     modisco_recall_parser.add_argument("-W", "--modisco-region-width", type=int, default=400,
         help="The width of the region extracted around each peak summit used by TFMoDisCo.")
     
-    modisco_recall_parser.add_argument("-n", "--scale-hits", action="store_true", default=False,
-        help="Use scaled hit scores (normalized for overall contribution strength of region).")
+    # modisco_recall_parser.add_argument("-n", "--scale-hits", action="store_true", default=False,
+    #     help="Use scaled hit scores (normalized for overall contribution strength of region).")
+    
+    modisco_recall_parser.add_argument("-T", "--hit-score-type", type=str, default="scaled", choices=("raw", "unscaled", "scaled"),
+        help="Type of hit score to use.")
 
     
     args = parser.parse_args()
@@ -255,4 +258,4 @@ def cli():
         visualize(args.hits, args.out_dir)
 
     elif args.cmd == "modisco-recall":
-        modisco_recall(args.hits, args.modisco_h5, args.peaks, args.out_dir, args.modisco_region_width, args.scale_hits)
+        modisco_recall(args.hits, args.modisco_h5, args.peaks, args.out_dir, args.modisco_region_width, args.hit_score_type)
