@@ -412,6 +412,7 @@ def plot_modisco_recall(seqlet_recalls, seqlet_counts, plot_dir):
         bound = np.full(num_hits, num_seqlets)
         ramp_max = min(num_seqlets, num_hits)
         bound[:ramp_max] = np.arange(1, ramp_max + 1)
+        bound /= num_seqlets
         
         plt.plot(x, v)
         plt.plot(x, bound)
