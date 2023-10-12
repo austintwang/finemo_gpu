@@ -299,12 +299,13 @@ def load_chip_importances(fa_path, bw_path, hits_df, motif_fwd, motif_rev, motif
         .unique()
         .collect()
     )
+    num_hits = hits_motif.height
 
-    chip_importance = np.zeros(hits_motif.height)
+    chip_importance = np.zeros(num_hits)
     genome = pyfaidx.Fasta(fa_path, one_based_attributes=False)
     try:
         bw = pyBigWig.open(bw_path)
-        for i, r in tqdm(enumerate(hits_motif.iter_rows(named=True)), disable=None, unit="hits"):
+        for i, r in tqdm(enumerate(hits_motif.iter_rows(named=True)), disable=None, unit="hits", total=num_hits):
             chrom = r["chr"]
             start = r["start"]
             end = r["end"]
