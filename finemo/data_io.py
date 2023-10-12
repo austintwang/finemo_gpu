@@ -305,7 +305,7 @@ def load_chip_importances(fa_path, bw_path, hits_df, motif_fwd, motif_rev, motif
     try:
         bw = pyBigWig.open(bw_path)
         for i, r in tqdm(enumerate(hits_motif.iter_rows(named=True)), disable=None, unit="hits"):
-            chrom = r["chrom"]
+            chrom = r["chr"]
             start = r["start"]
             end = r["end"]
             strand = r["strand"]
