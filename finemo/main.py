@@ -270,6 +270,32 @@ def cli():
     
     modisco_recall_parser.add_argument("-T", "--hit-score-type", type=str, default="scaled", choices=("raw", "unscaled", "scaled"),
         help="Type of hit score to use.")
+    
+   
+    chip_importance_parser = subparsers.add_parser("chip-importance", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
+        help="Assess ChIP-Seq contribution score concordance from called hits of a given motif.")
+    
+    chip_importance_parser.add_argument("-H", "--hits", type=str, required=True,
+        help="The `hits.tsv` output file from `call-hits`.")
+    chip_importance_parser.add_argument("-m", "--modisco-h5", type=str, required=True,
+        help="A tfmodisco-lite output H5 file of motif patterns.")
+    chip_importance_parser.add_argument("-f", "--fasta", type=str, required=True,
+        help="A genome FASTA file. An .fai index file will be built in the same directory as the fasta file if one does not already exist.")
+    chip_importance_parser.add_argument("-b", "--chip-bigwigs", type=str, required=True,
+        help="A bigwig file of ChIP-Seq contribution scores.")
+    
+    chip_importance_parser.add_argument("-o", "--out-dir", type=str, required=True,
+        help="The path to the output directory.")
+    
+    chip_importance_parser.add_argument("-M", "--motif-name", type=str, required=True,
+        help="Name of TFMoDisCo motif to use.")
+    
+    chip_importance_parser.add_argument("-T", "--hit-score-type", type=str, default="scaled", choices=("raw", "unscaled", "scaled"),
+        help="Type of hit score to use.")
+    
+    chip_importance_parser.add_argument("-t", "--cwm-trim-threshold", type=float, default=0.3,
+        help="Trim treshold for determining motif start and end positions within the full input motif CWM's. This must match the thershold used for calling hits")
+    
 
     
     args = parser.parse_args()
@@ -290,3 +316,7 @@ def cli():
 
     elif args.cmd == "modisco-recall":
         modisco_recall(args.hits, args.modisco_h5, args.peaks, args.out_dir, args.modisco_region_width, args.hit_score_type)
+
+    elif args.cmd == "chip-importance":
+        chip_importance(args.hits, args.modisco_h5, args.fasta, args.chip_bw, args.out_dir, 
+                        args.hit_score_type, args.motif_name, args.cwm_trim_threshold)
