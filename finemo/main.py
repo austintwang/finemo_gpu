@@ -149,11 +149,11 @@ def chip_importance(hits_path, modisco_h5_path, fa_path, chip_bw_path, out_dir,
 
     fwd_row = motifs_df.filter((pl.col("motif_name") == motif_name) & (pl.col("motif_strand") == "+"))
     fwd_data = fwd_row.row(0, named=True)
-    motif_fwd = motifs[fwd_data["motif_id"],:,fwd_data["motif_start"]:fwd_data["motif_end"]]
+    motif_fwd = motifs[:,fwd_data["motif_id"],fwd_data["motif_start"]:fwd_data["motif_end"]]
 
     rev_row = motifs_df.filter((pl.col("motif_name") == motif_name) & (pl.col("motif_strand") == "-"))
     rev_data = rev_row.row(0, named=True)
-    motif_rev = motifs[rev_data["motif_id"],:,rev_data["motif_start"]:rev_data["motif_end"]]
+    motif_rev = motifs[:,rev_data["motif_id"],rev_data["motif_start"]:rev_data["motif_end"]]
     
     hits_df = data_io.load_hits(hits_path, lazy=True)
     importance_df = data_io.load_chip_importances(fa_path, chip_bw_path, hits_df, motif_fwd, motif_rev, motif_name)
