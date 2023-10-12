@@ -311,7 +311,7 @@ def load_chip_importances(fa_path, bw_path, hits_df, motif_fwd, motif_rev, motif
             strand = r["strand"]
 
             sequence = str(genome[chrom][start:end])
-            one_hot = one_hot_encode([sequence])
+            one_hot = one_hot_encode(sequence)
             contribs = np.nan_to_num(bw.values(chrom, start, end))
             if strand == "+":
                 val_bp = np.mean((contribs * np.sum(motif_fwd * one_hot, axis=0)))
