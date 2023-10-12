@@ -261,6 +261,46 @@ def load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=False):
     return seqlets_df
 
 
+def load_chip_importances(fa_path, bw_path, hits_df, cwm_fwd, cwm_rev, motif_name):
+    hits_motif = (
+        hits_df
+        .filter(pl.col("motif_name") == motif_name)
+        .select(
+            ["chr", "start", "end", "strand", "hit_score_raw", 
+             "hit_score_unscaled", "hit_score_scaled"]
+        )
+        .unique()
+        .collect()
+    )
+
+    chip_importance = np.zeros(hits_motif.length)
+    genome = pyfaidx.Fasta(fa_path, one_based_attributes=False)
+    try:
+        bw = pyBigWig.open(bw_path)
+        for i, r in tqdm(enumerate(hits_motif.iter_rows(named=True)), disable=None, unit="hits"):
+            chrom = r["chrom"]
+            start = r["start"]
+            end = r["end"]
+            strand = r["strand"]
+
+            sequence = str(genome[chrom][start:end])
+            one_hot = one_hot_encode([sequence])
+            contribs = np.nan_to_num(bw.values(chrom, start, end))
+            if strand == "+":
+                val_bp = np.mean((contribs * np.sum(cwm_fwd * one_hot, axis=0)))
+            else:
+                val_bp = np.mean((contribs * np.sum(cwm_rev * one_hot, axis=0)))
+
+            chip_importance[i] = val_bp
+
+    finally:
+        bw.close()
+
+    df = hits_motif.with_column(pl.Series(name="chip_importance", values=chip_importance)) 
+
+
+
+
 def write_hits(hits_df, peaks_df, motifs_df, out_path_tsv, out_path_bed, motif_width):
 
     data_all = (
