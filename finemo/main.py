@@ -281,7 +281,7 @@ def cli():
         help="A tfmodisco-lite output H5 file of motif patterns.")
     chip_importance_parser.add_argument("-f", "--fasta", type=str, required=True,
         help="A genome FASTA file. An .fai index file will be built in the same directory as the fasta file if one does not already exist.")
-    chip_importance_parser.add_argument("-b", "--chip-bigwigs", type=str, required=True,
+    chip_importance_parser.add_argument("-b", "--chip-bigwig", type=str, required=True,
         help="A bigwig file of ChIP-Seq contribution scores.")
     
     chip_importance_parser.add_argument("-o", "--out-dir", type=str, required=True,
@@ -318,5 +318,5 @@ def cli():
         modisco_recall(args.hits, args.modisco_h5, args.peaks, args.out_dir, args.modisco_region_width, args.hit_score_type)
 
     elif args.cmd == "chip-importance":
-        chip_importance(args.hits, args.modisco_h5, args.fasta, args.chip_bw, args.out_dir, 
+        chip_importance(args.hits, args.modisco_h5, args.fasta, args.chip_bigwig, args.out_dir, 
                         args.hit_score_type, args.motif_name, args.cwm_trim_threshold)
