@@ -300,7 +300,7 @@ def load_chip_importances(fa_path, bw_path, hits_df, motif_fwd, motif_rev, motif
         .collect()
     )
 
-    chip_importance = np.zeros(hits_motif.length)
+    chip_importance = np.zeros(hits_motif.height)
     genome = pyfaidx.Fasta(fa_path, one_based_attributes=False)
     try:
         bw = pyBigWig.open(bw_path)
