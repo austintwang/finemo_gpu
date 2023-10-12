@@ -49,7 +49,12 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_thres
                          f"input contributions of shape {contribs.shape} "
                          f"are not compatible with region count of {num_regions}" )
 
-    motifs_df, cwms = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, use_hypothetical)
+    if use_hypothetical:
+        motif_type = "hcwm"
+    else:
+        motif_type = "cwm"
+    
+    motifs_df, cwms = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, motif_type)
     num_motifs = cwms.shape[1]
     motif_width = cwms.shape[2]
 
@@ -134,6 +139,32 @@ def modisco_recall(hits_path, modisco_h5_path, peaks_path, out_dir, modisco_regi
 
     plot_dir = os.path.join(out_dir, "modisco_recall_plots")
     evaluation.plot_modisco_recall(seqlet_recalls, seqlet_counts, plot_dir)
+
+
+def chip_importance(hits_path, modisco_h5_path, fa_path, chip_bw_path, out_dir, 
+                    score_type, motif_name, cwm_trim_threshold):
+    from . import evaluation
+
+    motifs_df, motifs = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, "pfm_softmax")
+
+    fwd_row = motifs_df.filter((pl.col("motif_name") == motif_name) & (pl.col("motif_strand") == "+"))
+    fwd_data = fwd_row.row(0, named=True)
+    motif_fwd = motifs[fwd_data["motif_id"],:,fwd_data["motif_start"]:fwd_data["motif_end"]]
+
+    rev_row = motifs_df.filter((pl.col("motif_name") == motif_name) & (pl.col("motif_strand") == "-"))
+    rev_data = rev_row.row(0, named=True)
+    motif_rev = motifs[rev_data["motif_id"],:,rev_data["motif_start"]:rev_data["motif_end"]]
+    
+    hits_df = data_io.load_hits(hits_path, lazy=True)
+    importance_df = data_io.load_chip_importances(fa_path, chip_bw_path, hits_df, motif_fwd, motif_rev, motif_name)
+
+    cumulative_importance = evaluation.chip_cumlative_importance(importance_df, score_type)
+
+    os.makedirs(out_dir, exist_ok=True)
+
+    data_io.write_chip_importance(importance_df, cumulative_importance, out_dir)
+
+    evaluation.plot_chip_importance(cumulative_importance, os.path.join(out_dir, "importance_curve.png"))
 
 
 def cli():

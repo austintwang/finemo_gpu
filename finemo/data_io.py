@@ -129,20 +129,21 @@ def trim_motif(cwm, trim_threshold):
     return start, end
 
 
+def softmax(x, temp=100):
+    norm_x = x - np.mean(x, axis=1, keepdims=True)
+    exp = np.exp(temp * norm_x)
+    return exp / np.sum(exp, axis=0, keepdims=True)
+
+
 MODISCO_PATTERN_GROUPS = ['pos_patterns', 'neg_patterns']
 
-def load_modisco_motifs(modisco_h5_path, trim_threshold, use_hypothetical):
+def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type):
     """
     Adapted from https://github.com/jmschrei/tfmodisco-lite/blob/570535ee5ccf43d670e898d92d63af43d68c38c5/modiscolite/report.py#L252-L272
     """
     motif_data_lsts = {"motif_name": [], "motif_strand": [], 
                        "motif_start": [], "motif_end": [], "motif_scale": []}
-    cwm_lst = [] 
-
-    if use_hypothetical:
-        cwm_key = 'hypothetical_contribs'
-    else:
-        cwm_key = 'contrib_scores'
+    motif_lst = [] 
 
     with h5py.File(modisco_h5_path, 'r') as modisco_results:
         for name in MODISCO_PATTERN_GROUPS:
@@ -154,7 +155,7 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, use_hypothetical):
             for ind, (pattern_name, pattern) in enumerate(sorted(metacluster.items(), key=key)):
                 pattern_tag = f'{name}.{pattern_name}'
 
-                cwm_raw = pattern[cwm_key][:].T
+                cwm_raw = pattern['contrib_scores'][:].T
                 cwm_norm = np.sqrt((cwm_raw**2).sum())
 
                 cwm_fwd = cwm_raw / cwm_norm
@@ -162,24 +163,50 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, use_hypothetical):
                 start_fwd, end_fwd = trim_motif(cwm_fwd, trim_threshold)
                 start_rev, end_rev = trim_motif(cwm_rev, trim_threshold)
 
+                if motif_type == "cwm":
+                    motif_fwd = cwm_fwd
+                    motif_rev = cwm_rev
+                    motif_norm = cwm_norm
+
+                elif motif_type == "hcwm":
+                    motif_raw = pattern['hypothetical_contribs'][:].T
+                    motif_norm = np.sqrt((motif_raw**2).sum())
+
+                    motif_fwd = motif_raw / motif_norm
+                    motif_rev = motif_fwd[::-1,::-1]
+
+                elif motif_type == "pfm":
+                    motif_raw = pattern['sequence'][:].T
+                    motif_norm = 1
+
+                    motif_fwd = motif_raw / np.sum(motif_raw, axis=0, keepdims=True)
+                    motif_rev = motif_fwd[::-1,::-1]
+
+                elif motif_type == "pfm_softmax":
+                    motif_raw = pattern['sequence'][:].T
+                    motif_norm = 1
+
+                    motif_fwd = softmax(motif_raw)
+                    motif_rev = motif_fwd[::-1,::-1]
+
                 # motif_data_lsts["motif_id"].append(2 * ind)
                 motif_data_lsts["motif_name"].append(pattern_tag)
                 motif_data_lsts["motif_strand"].append('+')
                 motif_data_lsts["motif_start"].append(start_fwd)
                 motif_data_lsts["motif_end"].append(end_fwd)
-                motif_data_lsts["motif_scale"].append(cwm_norm)
+                motif_data_lsts["motif_scale"].append(motif_norm)
 
                 # motif_data_lsts["motif_id"].append(2 * ind + 1)
                 motif_data_lsts["motif_name"].append(pattern_tag)
                 motif_data_lsts["motif_strand"].append('-')
                 motif_data_lsts["motif_start"].append(start_rev)
                 motif_data_lsts["motif_end"].append(end_rev)
-                motif_data_lsts["motif_scale"].append(cwm_norm)
+                motif_data_lsts["motif_scale"].append(motif_norm)
 
-                cwm_lst.extend([cwm_fwd, cwm_rev])
+                motif_lst.extend([motif_fwd, motif_rev])
 
     motifs_df = pl.DataFrame(motif_data_lsts).with_row_count(name="motif_id")
-    cwms = np.stack(cwm_lst, dtype=np.float16, axis=1)
+    cwms = np.stack(motif_lst, dtype=np.float16, axis=1)
 
     return motifs_df, cwms
 
@@ -261,7 +288,7 @@ def load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=False):
     return seqlets_df
 
 
-def load_chip_importances(fa_path, bw_path, hits_df, cwm_fwd, cwm_rev, motif_name):
+def load_chip_importances(fa_path, bw_path, hits_df, motif_fwd, motif_rev, motif_name):
     hits_motif = (
         hits_df
         .filter(pl.col("motif_name") == motif_name)
@@ -287,18 +314,18 @@ def load_chip_importances(fa_path, bw_path, hits_df, cwm_fwd, cwm_rev, motif_nam
             one_hot = one_hot_encode([sequence])
             contribs = np.nan_to_num(bw.values(chrom, start, end))
             if strand == "+":
-                val_bp = np.mean((contribs * np.sum(cwm_fwd * one_hot, axis=0)))
+                val_bp = np.mean((contribs * np.sum(motif_fwd * one_hot, axis=0)))
             else:
-                val_bp = np.mean((contribs * np.sum(cwm_rev * one_hot, axis=0)))
+                val_bp = np.mean((contribs * np.sum(motif_rev * one_hot, axis=0)))
 
             chip_importance[i] = val_bp
 
     finally:
         bw.close()
 
-    df = hits_motif.with_column(pl.Series(name="chip_importance", values=chip_importance)) 
+    df = hits_motif.with_columns(pl.Series(name="chip_importance", values=chip_importance)) 
 
-
+    return df
 
 
 def write_hits(hits_df, peaks_df, motifs_df, out_path_tsv, out_path_bed, motif_width):
@@ -388,3 +415,11 @@ def write_modisco_recall(seqlet_recalls, overlaps_df, nonoverlaps_df, seqlet_cou
 
     for k, v in seqlet_recalls.items():
         np.savetxt(os.path.join(out_dir, f'{k}.txt.gz'), v)
+
+
+def write_chip_importance(importance_df, cumulative_importance, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
+    
+    importance_df.write_csv(os.path.join(out_dir, "hit_importances.tsv"), separator="\t")
+
+    np.savetxt(os.path.join(out_dir, "cumulative_importance.txt.gz"), cumulative_importance)

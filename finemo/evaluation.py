@@ -138,6 +138,19 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, score_type, modisco_half_width)
     return recalls, overlaps_df, nonoverlaps_df, seqlet_counts
 
 
+def chip_cumlative_importance(importance_df, score_type):
+    score_col = f"hit_score_{score_type}"
+    cumulative_importance = (
+        importance_df.lazy()
+        .sort(score_col, descending=True)
+        .select(cumulative_importance=pl.cumsum("chip_importance"))
+        .collect()
+        .get_column("cumulative_importance")
+    )
+
+    return cumulative_importance
+
+
 # def cluster_matrix_indices(matrix):
 #     """
 #     Clusters matrix using k-means. Always clusters on the first
@@ -425,3 +438,17 @@ def plot_modisco_recall(seqlet_recalls, seqlet_counts, plot_dir):
         plt.savefig(output_path, dpi=300)
 
         plt.close()
+
+
+def plot_chip_importance(cumulative_importance, plot_path):
+    num_hits = cumulative_importance.shape[0]
+    x = np.arange(num_hits)
+
+    plt.plot(x, cumulative_importance)
+    plt.xlabel("Hit rank")
+    plt.ylabel("Cumulative ChIP-seq importance scores")
+    
+    plt.tight_layout()
+    plt.savefig(plot_path, dpi=300)
+
+    plt.close()
