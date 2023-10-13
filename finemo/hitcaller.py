@@ -185,7 +185,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
     opt_iter = optimizer(cwms_t, l, a_const, b_const)
     opt_iter.send(None)
 
-    sum_filter = torch.ones((1, 1, w), dtype=torch.float32, device=device)
+    sum_filter = torch.ones((4, 1, w), dtype=torch.float32, device=device)
 
     c_a = torch.zeros((b, m, l + 2 * w - 2), dtype=torch.float32, device=device) # (b, m, l + 2w - 2)
     c_b = torch.zeros_like(c_a)
