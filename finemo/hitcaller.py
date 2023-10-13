@@ -99,10 +99,10 @@ def _load_batch_compact_fmt(contribs, sequences, start, end, motif_width, l, dev
     # contribs_batch = contribs_compact * sequences_batch # (b, 4, l + w - 1)
     contribs_batch = (contribs_compact / gap_scale[:,None,None]) * sequences_batch # (b, 4, l + w - 1)
 
-    sum_filter = torch.ones((1, 1, motif_width), dtype=torch.float32, device=device)
-    importance_scale = (F.conv_transpose1d(contribs_compact**2, sum_filter) + 1)**(-0.5)
+    # sum_filter = torch.ones((1, 1, motif_width), dtype=torch.float32, device=device)
+    # importance_scale = (F.conv_transpose1d(contribs_compact**2, sum_filter) + 1)**(-0.5)
 
-    return contribs_batch, sequences_batch, inds, importance_scale, gap_scale
+    return contribs_batch, sequences_batch, inds, gap_scale
 
 
 def _load_batch_non_hyp(contribs, sequences, start, end, motif_width, l, device):
@@ -121,10 +121,10 @@ def _load_batch_non_hyp(contribs, sequences, start, end, motif_width, l, device)
     gap_scale = ((contribs_batch**2).sum(dim=(1,2)) / l).sqrt()
     contribs_batch /= gap_scale[:,None,None]
 
-    sum_filter = torch.ones((4, 1, motif_width), dtype=torch.float32, device=device)
-    importance_scale = (F.conv_transpose1d(contribs_batch**2, sum_filter) + 1)**(-0.5)
+    # sum_filter = torch.ones((4, 1, motif_width), dtype=torch.float32, device=device)
+    # importance_scale = (F.conv_transpose1d(contribs_batch**2, sum_filter) + 1)**(-0.5)
 
-    return contribs_batch, sequences_batch, inds, importance_scale, gap_scale
+    return contribs_batch, sequences_batch, inds, gap_scale
 
 
 def _load_batch_hyp(contribs, sequences, start, end, motif_width, l, device):
@@ -141,14 +141,14 @@ def _load_batch_hyp(contribs, sequences, start, end, motif_width, l, device):
     gap_scale = ((contribs_batch**2).sum(dim=(1,2)) / l).sqrt()
     contribs_batch /= gap_scale[:,None,None]
 
-    sum_filter = torch.ones((4, 1, motif_width), dtype=torch.float32, device=device)
-    importance_scale = (F.conv_transpose1d(contribs_batch**2, sum_filter) + 1)**(-0.5)
+    # sum_filter = torch.ones((4, 1, motif_width), dtype=torch.float32, device=device)
+    # importance_scale = (F.conv_transpose1d(contribs_batch**2, sum_filter) + 1)**(-0.5)
 
-    return contribs_batch, 1, inds, importance_scale, gap_scale
+    return contribs_batch, 1, inds, gap_scale
 
 
 def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, step_size_max, 
-                 convergence_tol, max_steps, buffer_size, step_adjust, device):
+                 convergence_tol, max_steps, buffer_size, step_adjust, flank_size, device):
     """
     cwms: (4, m, w)
     contribs: (n, 4, l) or (n, l)  
@@ -186,6 +186,9 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
     clip_mask = (seq_inds >= (w - 1)) & (seq_inds < (l - w - 1)) # (l + 2w - 2)
     clip_mask = clip_mask.to(device=device)
 
+    sum_filter = torch.zeros((4, 1, w), dtype=torch.float32, device=device)
+    sum_filter[:,:,w+flank_size:w-flank_size] += 1
+
     hit_idxs_lst = []
     scores_raw_lst = []
     scores_unscaled_lst = []
@@ -222,9 +225,11 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
                 next_ind = min(load_end, contribs.shape[0])
 
                 batch_data = load_batch_fn(contribs, sequences, load_start, load_end, w, l, device)
-                contribs_batch, seqs_batch, inds_batch, importance_scale_batch, gap_scale_batch = batch_data
+                contribs_batch, seqs_batch, inds_batch, gap_scale_batch = batch_data
                 # print(importance_scale_batch) ####
                 # print(gap_scale_batch) ####
+
+                importance_scale_batch = (F.conv_transpose1d(contribs_batch**2, sum_filter) + 1)**(-0.5)
 
                 contribs_buf[converged,:,:] = contribs_batch
                 if not use_hypothetical:
