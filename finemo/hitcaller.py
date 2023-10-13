@@ -187,7 +187,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
     clip_mask = clip_mask.to(device=device)
 
     sum_filter = torch.zeros((4, 1, w), dtype=torch.float32, device=device)
-    sum_filter[:,:,w+flank_size:w-flank_size] += 1
+    sum_filter[:,:,flank_size:w-flank_size] += 1
 
     hit_idxs_lst = []
     scores_raw_lst = []
