@@ -99,10 +99,7 @@ def _load_batch_compact_fmt(contribs, sequences, start, end, motif_width, l, dev
     # contribs_batch = contribs_compact * sequences_batch # (b, 4, l + w - 1)
     contribs_batch = (contribs_compact / gap_scale[:,None,None]) * sequences_batch # (b, 4, l + w - 1)
 
-    sum_filter = torch.ones((1, 1, motif_width), dtype=torch.float32, device=device)
-    importance_scale = (F.conv_transpose1d(contribs_compact**2, sum_filter) + 1)**(-0.5)
-
-    return contribs_batch, sequences_batch, inds, importance_scale, gap_scale
+    return contribs_batch, sequences_batch, inds, gap_scale
 
 
 def _load_batch_non_hyp(contribs, sequences, start, end, motif_width, l, device):
@@ -121,10 +118,7 @@ def _load_batch_non_hyp(contribs, sequences, start, end, motif_width, l, device)
     gap_scale = ((contribs_batch**2).sum(dim=(1,2)) / l).sqrt()
     contribs_batch /= gap_scale[:,None,None]
 
-    sum_filter = torch.ones((4, 1, motif_width), dtype=torch.float32, device=device)
-    importance_scale = (F.conv_transpose1d(contribs_batch**2, sum_filter) + 1)**(-0.5)
-
-    return contribs_batch, sequences_batch, inds, importance_scale, gap_scale
+    return contribs_batch, sequences_batch, inds, gap_scale
 
 
 def _load_batch_hyp(contribs, sequences, start, end, motif_width, l, device):
@@ -141,10 +135,7 @@ def _load_batch_hyp(contribs, sequences, start, end, motif_width, l, device):
     gap_scale = ((contribs_batch**2).sum(dim=(1,2)) / l).sqrt()
     contribs_batch /= gap_scale[:,None,None]
 
-    sum_filter = torch.ones((4, 1, motif_width), dtype=torch.float32, device=device)
-    importance_scale = (F.conv_transpose1d(contribs_batch**2, sum_filter) + 1)**(-0.5)
-
-    return contribs_batch, 1, inds, importance_scale, gap_scale
+    return contribs_batch, 1, inds, gap_scale
 
 
 def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, step_size_max, 
@@ -194,6 +185,8 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
     opt_iter = optimizer(cwms_t, l, a_const, b_const)
     opt_iter.send(None)
 
+    sum_filter = torch.ones((1, 1, w), dtype=torch.float32, device=device)
+
     c_a = torch.zeros((b, m, l + 2 * w - 2), dtype=torch.float32, device=device) # (b, m, l + 2w - 2)
     c_b = torch.zeros_like(c_a)
     i = torch.zeros((b, 1, 1), dtype=torch.int, device=device)
@@ -222,9 +215,11 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
                 next_ind = min(load_end, contribs.shape[0])
 
                 batch_data = load_batch_fn(contribs, sequences, load_start, load_end, w, l, device)
-                contribs_batch, seqs_batch, inds_batch, importance_scale_batch, gap_scale_batch = batch_data
+                contribs_batch, seqs_batch, inds_batch, gap_scale_batch = batch_data
                 # print(importance_scale_batch) ####
                 # print(gap_scale_batch) ####
+
+                importance_scale_batch = (F.conv_transpose1d(contribs_batch**2, sum_filter) + 1)**(-0.5)
 
                 contribs_buf[converged,:,:] = contribs_batch
                 if not use_hypothetical:
@@ -274,7 +269,8 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
                 hit_idxs_out[0,:] = F.embedding(hit_idxs_out[0,:], inds_out[:,None]).squeeze()
                 hit_idxs_out[2,:] -= w - 1
 
-                importance_scale_out = importance_scale_buf[coef_out.indices()[0,:],0,coef_out.indices()[2,:]]
+                importance_scale_out_dense = importance_scale_buf[converged,:]
+                importance_scale_out = importance_scale_out_dense[coef_out.indices()[0,:],0,coef_out.indices()[2,:]]
 
                 scores_out_raw = coef_out.values()
                 scores_out_unscaled = coef_out.values() * importance_scale_out
