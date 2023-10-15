@@ -296,7 +296,7 @@ def load_chip_importances(fa_path, bw_path, hits_df, motif_fwd, motif_rev, motif
             ["chr", "start", "end", "strand", "hit_score_raw", 
              "hit_score_unscaled", "hit_score_scaled"]
         )
-        .unique()
+        .unique(subset=["chr", "start", "strand"])
         .collect()
     )
     num_hits = hits_motif.height
