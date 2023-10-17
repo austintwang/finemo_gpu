@@ -206,7 +206,7 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type):
                 motif_lst.extend([motif_fwd, motif_rev])
 
     motifs_df = pl.DataFrame(motif_data_lsts).with_row_count(name="motif_id")
-    cwms = np.stack(motif_lst, dtype=np.float16, axis=1)
+    cwms = np.stack(motif_lst, dtype=np.float16, axis=0)
 
     return motifs_df, cwms
 
@@ -329,13 +329,13 @@ def load_chip_importances(fa_path, bw_path, hits_df, motif_fwd, motif_rev, motif
     return df
 
 
-def write_hits(hits_df, peaks_df, motifs_df, out_path_tsv, out_path_bed, motif_width):
+def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, motif_width):
 
     data_all = (
         hits_df
         .lazy()
         .join(peaks_df.lazy(), on="peak_id", how="inner")
-        # .join(qc_df.lazy(), on="peak_id", how="inner")
+        .join(qc_df.lazy(), on="peak_id", how="inner")
         .join(motifs_df.lazy(), on="motif_id", how="inner")
         .select(
             chr_id=pl.col("chr_id"),
@@ -347,7 +347,7 @@ def write_hits(hits_df, peaks_df, motifs_df, out_path_tsv, out_path_bed, motif_w
             motif_name=pl.col("motif_name"),
             hit_score_raw=pl.col("hit_score_raw"),
             hit_score_unscaled=pl.col("hit_score_unscaled"),
-            hit_score_scaled=pl.col("hit_score_unscaled")**2 / pl.col("hit_score_raw"),
+            hit_score_scaled=pl.col("hit_score_part_scaled") * pl.col("global_scale"),
             strand=pl.col("motif_strand"),
             peak_name=pl.col("peak_name"),
             peak_id=pl.col("peak_id"),
@@ -362,8 +362,15 @@ def write_hits(hits_df, peaks_df, motifs_df, out_path_tsv, out_path_bed, motif_w
 
     data_bed = (
         data_all
-        .with_columns(pl.lit(0).alias('dummy_score'))
-        .select(["chr", "start", "end", "motif_name", "dummy_score", "strand"])        
+        # .with_columns(pl.lit(0).alias('dummy_score'))
+        .select(
+            chr=pl.col("chr"),
+            start=pl.col("start"),
+            end=pl.col("end"),
+            motif_name=pl.col("motif_name"),
+            score=pl.col("hit_score_unscaled") * 1000,
+            strand=pl.col("strand")
+        )
         .unique(maintain_order=True)
         .collect()
     )

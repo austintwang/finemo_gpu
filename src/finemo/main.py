@@ -67,7 +67,7 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_thres
     out_path_tsv = os.path.join(out_dir, "hits.tsv")
     out_path_bed = os.path.join(out_dir, "hits.bed")
     out_path_qc = os.path.join(out_dir, "peaks_qc.tsv")
-    data_io.write_hits(hits_df, peaks_df, motifs_df, out_path_tsv, 
+    data_io.write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, 
                        out_path_bed, motif_width)
     data_io.write_qc(qc_df, peaks_df, out_path_qc)
 
@@ -149,11 +149,11 @@ def chip_importance(hits_path, modisco_h5_path, fa_path, chip_bw_path, out_dir,
 
     fwd_row = motifs_df.filter((pl.col("motif_name") == motif_name) & (pl.col("motif_strand") == "+"))
     fwd_data = fwd_row.row(0, named=True)
-    motif_fwd = motifs[:,fwd_data["motif_id"],fwd_data["motif_start"]:fwd_data["motif_end"]]
+    motif_fwd = motifs[fwd_data["motif_id"],:,fwd_data["motif_start"]:fwd_data["motif_end"]]
 
     rev_row = motifs_df.filter((pl.col("motif_name") == motif_name) & (pl.col("motif_strand") == "-"))
     rev_data = rev_row.row(0, named=True)
-    motif_rev = motifs[:,rev_data["motif_id"],rev_data["motif_start"]:rev_data["motif_end"]]
+    motif_rev = motifs[rev_data["motif_id"],:,rev_data["motif_start"]:rev_data["motif_end"]]
     
     hits_df = data_io.load_hits(hits_path, lazy=True)
     importance_df = data_io.load_chip_importances(fa_path, chip_bw_path, hits_df, motif_fwd, motif_rev, motif_name)
@@ -193,7 +193,7 @@ def cli():
         help="Total regularization weight.")
     call_hits_parser.add_argument("-l", "--l1-ratio", type=float, default=0.99,
         help="Elastic net mixing parameter. This specifies the fraction of `alpha` used for L1 regularization.")
-    call_hits_parser.add_argument("-s", "--step-size", type=float, default=0.02,
+    call_hits_parser.add_argument("-s", "--step-size", type=float, default=1.,
         help="Maximum optimizer step size.")
     call_hits_parser.add_argument("-A", "--step-adjust", type=float, default=0.7,
         help="Optimizer step size adjustment factor. If the optimizer diverges, the step size is multiplicatively adjusted by this factor")
