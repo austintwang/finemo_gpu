@@ -371,7 +371,7 @@ def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, 
             score=pl.col("hit_score_unscaled") * 1000,
             strand=pl.col("strand")
         )
-        .unique(maintain_order=True)
+        .unique(subset=["chr", "start", "motif_name", "strand"], maintain_order=True)
         .collect()
     )
     data_bed.write_csv(out_path_bed, has_header=False, separator="\t")
