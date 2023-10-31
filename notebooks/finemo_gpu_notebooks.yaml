@@ -15,6 +15,7 @@ dependencies:
   - conda-forge::nodejs==18.16.1
   - conda-forge::pip=23.2
   - conda-forge::ipykernel=6.24.0
+  - conda-forge::polars=0.19.7
   - bioconda::logomaker=0.8
   - bioconda::pybigwig=0.3.22
   - bioconda::pyfaidx=0.7.2.1

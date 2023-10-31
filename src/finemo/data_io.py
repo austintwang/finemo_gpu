@@ -88,17 +88,17 @@ def load_regions_from_bw(peaks, fa_path, bw_paths, half_width):
     return sequences, contribs
 
 
-def load_regions_from_h5(peaks, h5_paths, half_width):
-    num_peaks = peaks.height
-
-    sequences = np.zeros((num_peaks, 4, half_width * 2), dtype=np.int8)
-    contribs = np.zeros((num_peaks, 4, half_width * 2), dtype=np.float16)
-
+def load_regions_from_h5(h5_paths, half_width):
     with ExitStack() as stack:
         h5s = [stack.enter_context(h5py.File(i)) for i in h5_paths]
 
+        num_peaks = h5s[0]['raw/seq'].shape[0]
+
         start = h5s[0]['raw/seq'].shape[-1] // 2 - half_width
         end = start + 2 * half_width
+
+        sequences = np.zeros((num_peaks, 4, half_width * 2), dtype=np.int8)
+        contribs = np.zeros((num_peaks, 4, half_width * 2), dtype=np.float16)
         
         sequences = h5s[0]['raw/seq'][:,:,start:end] 
         contribs = np.nanmean([f['shap/seq'][:,:,start:end] for f in h5s], axis=0)
@@ -329,7 +329,11 @@ def load_chip_importances(fa_path, bw_path, hits_df, motif_fwd, motif_rev, motif
     return df
 
 
-def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, motif_width):
+def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_dir, motif_width):
+    os.makedirs(out_dir, exist_ok=True)
+    out_path_tsv = os.path.join(out_dir, "hits.tsv")
+    out_path_tsv_unique = os.path.join(out_dir, "hits_unique.tsv")
+    out_path_bed = os.path.join(out_dir, "hits.bed")
 
     data_all = (
         hits_df
@@ -345,9 +349,9 @@ def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, 
             start_untrimmed=pl.col("peak_region_start") + pl.col("hit_start"),
             end_untrimmed=pl.col("peak_region_start") + pl.col("hit_start") + motif_width,
             motif_name=pl.col("motif_name"),
-            hit_score_raw=pl.col("hit_score_raw"),
-            hit_score_unscaled=pl.col("hit_score_unscaled"),
-            hit_score_scaled=pl.col("hit_score_part_scaled"),
+            hit_coefficient=pl.col("hit_coefficient"),
+            hit_correlation=pl.col("hit_correlation"),
+            hit_importance=pl.col("hit_importance") * pl.col("global_scale"),
             strand=pl.col("motif_strand"),
             peak_name=pl.col("peak_name"),
             peak_id=pl.col("peak_id"),
@@ -357,24 +361,62 @@ def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, 
         .drop("chr_id")
     )
 
-    data_tsv = data_all.collect()
-    data_tsv.write_csv(out_path_tsv, separator="\t")
+    data_unique = (
+        data_all
+        .unique(subset=["chr", "start", "motif_name", "strand"], maintain_order=True)
+    )
 
     data_bed = (
-        data_all
-        # .with_columns(pl.lit(0).alias('dummy_score'))
+        data_unique
         .select(
             chr=pl.col("chr"),
             start=pl.col("start"),
             end=pl.col("end"),
             motif_name=pl.col("motif_name"),
-            score=pl.col("hit_score_unscaled") * 1000,
+            score=pl.col("hit_correlation") * 1000,
             strand=pl.col("strand")
         )
-        .unique(subset=["chr", "start", "motif_name", "strand"], maintain_order=True)
-        .collect()
     )
-    data_bed.write_csv(out_path_bed, has_header=False, separator="\t")
+
+    data_all.collect().write_csv(out_path_tsv, separator="\t")
+    data_unique.collect().write_csv(out_path_tsv_unique, separator="\t")
+    data_bed.collect().write_csv(out_path_bed, has_header=False, separator="\t")
+
+
+def write_hits_no_peaks(hits_df, motifs_df, qc_df, out_dir, motif_width):
+    os.makedirs(out_dir, exist_ok=True)
+    out_path_tsv = os.path.join(out_dir, "hits.tsv")
+    out_path_tsv_unique = os.path.join(out_dir, "hits_unique.tsv")
+
+    data_all = (
+        hits_df
+        .lazy()
+        .join(qc_df.lazy(), on="peak_id", how="inner")
+        .join(motifs_df.lazy(), on="motif_id", how="inner")
+        .select(
+            chr=pl.lit("NA"),
+            start=pl.col("hit_start") + pl.col("motif_start"),
+            end=pl.col("hit_start") + pl.col("motif_end"),
+            start_untrimmed=pl.col("hit_start"),
+            end_untrimmed=pl.col("hit_start") + motif_width,
+            motif_name=pl.col("motif_name"),
+            hit_coefficient=pl.col("hit_coefficient"),
+            hit_correlation=pl.col("hit_correlation"),
+            hit_importance=pl.col("hit_importance") * pl.col("global_scale"),
+            strand=pl.col("motif_strand"),
+            peak_name=pl.lit("NA"),
+            peak_id=pl.col("peak_id"),
+        )
+        .sort(["peak_id", "start"])
+    )
+
+    data_unique = (
+        data_all
+        .unique(subset=["peak_id", "start", "motif_name", "strand"], maintain_order=True)
+    )
+
+    data_all.collect().write_csv(out_path_tsv, separator="\t")
+    data_unique.collect().write_csv(out_path_tsv_unique, separator="\t")
 
 
 def write_qc(qc_df, peaks_df, out_path):
@@ -384,6 +426,16 @@ def write_qc(qc_df, peaks_df, out_path):
         .join(peaks_df.lazy(), on="peak_id", how="inner")
         .sort(["chr_id", "peak_region_start"])
         .drop("chr_id")
+        .collect()
+    )
+    df.write_csv(out_path, separator="\t")
+
+
+def write_qc_no_peaks(qc_df, out_path):
+    df = (
+        qc_df
+        .lazy()
+        .sort("peak_id")
         .collect()
     )
     df.write_csv(out_path, separator="\t")

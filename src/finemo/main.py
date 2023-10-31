@@ -15,11 +15,10 @@ def extract_regions_bw(peaks_path, fa_path, bw_paths, out_path, region_width):
     data_io.write_regions_npz(sequences, contribs, out_path)
 
 
-def extract_regions_h5(peaks_path, h5_paths, out_path, region_width):
+def extract_regions_h5(h5_paths, out_path, region_width):
     half_width = region_width // 2
 
-    peaks_df = data_io.load_peaks(peaks_path, half_width)
-    sequences, contribs = data_io.load_regions_from_h5(peaks_df, h5_paths, half_width)
+    sequences, contribs = data_io.load_regions_from_h5(h5_paths, half_width)
 
     data_io.write_regions_npz(sequences, contribs, out_path)
 
@@ -42,12 +41,15 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_thres
     
     half_width = region_width // 2
 
-    peaks_df = data_io.load_peaks(peaks_path, half_width)
-    num_regions = peaks_df.height
-    if (num_regions != sequences.shape[0]) or (num_regions != contribs.shape[0]):
-        raise ValueError(f"Input sequences of shape {sequences.shape} and/or " 
-                         f"input contributions of shape {contribs.shape} "
-                         f"are not compatible with region count of {num_regions}" )
+    if peaks_path is not None:
+        peaks_df = data_io.load_peaks(peaks_path, half_width)
+        num_regions = peaks_df.height
+        if (num_regions != sequences.shape[0]) or (num_regions != contribs.shape[0]):
+            raise ValueError(f"Input sequences of shape {sequences.shape} and/or " 
+                            f"input contributions of shape {contribs.shape} "
+                            f"are not compatible with region count of {num_regions}" )
+    else:
+        num_regions = contribs.shape[0]
 
     if use_hypothetical:
         motif_type = "hcwm"
@@ -64,12 +66,13 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_thres
     qc_df = pl.DataFrame(qc).with_row_count(name="peak_id")
 
     os.makedirs(out_dir, exist_ok=True)
-    out_path_tsv = os.path.join(out_dir, "hits.tsv")
-    out_path_bed = os.path.join(out_dir, "hits.bed")
     out_path_qc = os.path.join(out_dir, "peaks_qc.tsv")
-    data_io.write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, 
-                       out_path_bed, motif_width)
-    data_io.write_qc(qc_df, peaks_df, out_path_qc)
+    if peaks_path is not None:
+        data_io.write_hits(hits_df, peaks_df, motifs_df, qc_df, out_dir, motif_width)
+        data_io.write_qc(qc_df, peaks_df, out_path_qc)
+    else:
+        data_io.write_hits_no_peaks(hits_df, motifs_df, qc_df, out_dir, motif_width)
+        data_io.write_qc_no_peaks(qc_df, out_path_qc)
 
     params |= {
         "region_width": region_width,
@@ -179,10 +182,11 @@ def cli():
 
     call_hits_parser.add_argument("-r", "--regions", type=str, required=True,
         help="A .npz file of input sequences and contributions. Can be generated using `finemo extract_regions`.")
-    call_hits_parser.add_argument("-p", "--peaks", type=str, required=True,
-        help="A sorted peak regions file in ENCODE NarrowPeak format. These should exactly match the regions in `--regions`.")
     call_hits_parser.add_argument("-m", "--modisco-h5", type=str, required=True,
         help="A tfmodisco-lite output H5 file of motif patterns.")
+    
+    call_hits_parser.add_argument("-p", "--peaks", type=str, default=None,
+        help="A sorted peak regions file in ENCODE NarrowPeak format. These should exactly match the regions in `--regions`. If omitted, called hits will not have absolute genomic coordinates")
     
     call_hits_parser.add_argument("-o", "--out-dir", type=str, required=True,
         help="The path to the output directory.")
@@ -227,8 +231,6 @@ def cli():
     extract_regions_h5_parser = subparsers.add_parser("extract-regions-h5", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
         help="Extract sequences and contributions from chromBPNet contributions h5 files.")
     
-    extract_regions_h5_parser.add_argument("-p", "--peaks", type=str, required=True,
-        help="A sorted peak regions file in ENCODE NarrowPeak format.")
     extract_regions_h5_parser.add_argument("-c", "--h5s", type=str, required=True, nargs='+',
         help="One or more H5 files of contribution scores, with paths delimited by whitespace. Scores are averaged across files.")
     
@@ -268,7 +270,7 @@ def cli():
     # modisco_recall_parser.add_argument("-n", "--scale-hits", action="store_true", default=False,
     #     help="Use scaled hit scores (normalized for overall contribution strength of region).")
     
-    modisco_recall_parser.add_argument("-T", "--hit-score-type", type=str, default="scaled", choices=("raw", "unscaled", "scaled"),
+    modisco_recall_parser.add_argument("-T", "--hit-score-type", type=str, default="coefficient", choices=("coefficient", "correlation", "importance"),
         help="Type of hit score to use.")
     
    
@@ -290,7 +292,7 @@ def cli():
     chip_importance_parser.add_argument("-M", "--motif-name", type=str, required=True,
         help="Name of TFMoDisCo motif to use.")
     
-    chip_importance_parser.add_argument("-T", "--hit-score-type", type=str, default="scaled", choices=("raw", "unscaled", "scaled"),
+    chip_importance_parser.add_argument("-T", "--hit-score-type", type=str, default="coefficient", choices=("coefficient", "correlation", "importance"),
         help="Type of hit score to use.")
     
     chip_importance_parser.add_argument("-t", "--cwm-trim-threshold", type=float, default=0.3,
@@ -309,7 +311,7 @@ def cli():
         extract_regions_bw(args.peaks, args.fasta, args.bigwigs, args.out_path, args.region_width)
 
     elif args.cmd == "extract-regions-h5":
-        extract_regions_h5(args.peaks, args.h5s, args.out_path, args.region_width)
+        extract_regions_h5(args.h5s, args.out_path, args.region_width)
 
     elif args.cmd == "visualize":
         visualize(args.hits, args.out_dir)

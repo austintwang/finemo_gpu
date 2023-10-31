@@ -102,7 +102,7 @@ def _load_batch_compact_fmt(contribs, sequences, start, end, motif_width, l, dev
     return contribs_batch, sequences_batch, inds, global_scale
 
 
-def _load_batch_non_hyp(contribs, sequences, start, end, motif_width, l, device):
+def _load_batch_proj(contribs, sequences, start, end, motif_width, l, device):
     n = end - start
     end = min(end, contribs.shape[0])
     overhang = n - (end - start)
@@ -154,7 +154,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
         if use_hypothetical:
             load_batch_fn = _load_batch_hyp
         else:
-            load_batch_fn = _load_batch_non_hyp
+            load_batch_fn = _load_batch_proj
     elif len(contribs.shape) == 2:
         if use_hypothetical:
             raise ValueError("Input regions do not contain hypothetical contribution scores")
@@ -180,9 +180,10 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
     # clip_mask = clip_mask.to(device=device)
 
     hit_idxs_lst = []
-    scores_raw_lst = []
-    scores_unscaled_lst = []
-    scores_part_scaled_lst = []
+    coefficients_lst = []
+    correlation_lst = []
+    # scores_part_scaled_lst = []
+    importance_lst = []
     qc_lsts = {"log_likelihood": [], "dual_gap": [], "num_steps": [], "step_size": [], "global_scale": []}
 
     opt_iter = optimizer(cwms, l, a_const, b_const)
@@ -238,6 +239,8 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
                 c_b[converged,:,:] *= 0
                 i[converged] *= 0
 
+                step_sizes[converged] = step_size_max
+
             c_a, c_b, gap, ll = opt_iter.send((contribs_buf, importance_scale_buf, seqs_buf, c_a, c_b, i, step_sizes),)
             i += 1
             # print(gap) ####
@@ -275,13 +278,13 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
 
                 importance_scale_out_dense = importance_scale_buf[converged,:]
                 xcor_scale = (importance_scale_out_dense**(-2) - 1).sqrt()
-                # importance_scale_out = importance_scale_out_dense[coef_out.indices()[0,:],0,coef_out.indices()[2,:]]
+                importance_out = xcor_scale[coef_out.indices()[0,:],0,coef_out.indices()[2,:]]
 
                 xcov_out_dense = F.conv1d(contribs_buf[converged,:,:], cwms) 
                 xcor_out_dense = xcov_out_dense / xcor_scale
 
                 ind_tuple = torch.unbind(coef_out.indices())
-                xcov_out = xcov_out_dense[ind_tuple]
+                # xcov_out = xcov_out_dense[ind_tuple]
                 xcor_out = xcor_out_dense[ind_tuple]
 
                 scores_out_raw = coef_out.values()
@@ -293,9 +296,9 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
                 step_sizes_out = step_sizes[converged,0,0]
 
                 hit_idxs_lst.append(hit_idxs_out.numpy(force=True).T)
-                scores_raw_lst.append(scores_out_raw.numpy(force=True))
-                scores_unscaled_lst.append(xcor_out.numpy(force=True))
-                scores_part_scaled_lst.append(xcov_out.numpy(force=True))
+                coefficients_lst.append(scores_out_raw.numpy(force=True))
+                correlation_lst.append(xcor_out.numpy(force=True))
+                importance_lst.append(importance_out.numpy(force=True))
 
                 qc_lsts["log_likelihood"].append(ll_out.numpy(force=True))
                 qc_lsts["dual_gap"].append(gap_out.numpy(force=True))
@@ -307,17 +310,17 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
                 pbar.update(num_load)
 
     hit_idxs = np.concatenate(hit_idxs_lst, axis=0)
-    scores_raw = np.concatenate(scores_raw_lst, axis=0)
-    scores_unscaled = np.concatenate(scores_unscaled_lst, axis=0)
-    scores_part_scaled = np.concatenate(scores_part_scaled_lst, axis=0)
+    scores_coefficient = np.concatenate(coefficients_lst, axis=0)
+    scores_correlation = np.concatenate(correlation_lst, axis=0)
+    scores_importance = np.concatenate(importance_lst, axis=0)
 
     hits = {
         "peak_id": hit_idxs[:,0].astype(np.uint32),
         "motif_id": hit_idxs[:,1].astype(np.uint32),
         "hit_start": hit_idxs[:,2],
-        "hit_score_raw": scores_raw,
-        "hit_score_unscaled": scores_unscaled,
-        "hit_score_part_scaled": scores_part_scaled
+        "hit_coefficient": scores_coefficient,
+        "hit_correlation": scores_correlation,
+        "hit_importance": scores_importance
     }
 
     qc = {k: np.concatenate(v, axis=0) for k, v in qc_lsts.items()}
@@ -405,7 +408,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
 #         if use_hypothetical:
 #             load_batch_fn = _load_batch_hyp
 #         else:
-#             load_batch_fn = _load_batch_non_hyp
+#             load_batch_fn = _load_batch_proj
 #     elif len(contribs.shape) == 2:
 #         if use_hypothetical:
 #             raise ValueError("Input regions do not contain hypothetical contribution scores")
