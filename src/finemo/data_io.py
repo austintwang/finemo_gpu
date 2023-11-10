@@ -88,17 +88,17 @@ def load_regions_from_bw(peaks, fa_path, bw_paths, half_width):
     return sequences, contribs
 
 
-def load_regions_from_h5(peaks, h5_paths, half_width):
-    num_peaks = peaks.height
-
-    sequences = np.zeros((num_peaks, 4, half_width * 2), dtype=np.int8)
-    contribs = np.zeros((num_peaks, 4, half_width * 2), dtype=np.float16)
-
+def load_regions_from_h5(h5_paths, half_width):
     with ExitStack() as stack:
         h5s = [stack.enter_context(h5py.File(i)) for i in h5_paths]
 
+        num_peaks = h5s[0]['raw/seq'].shape[0]
+
         start = h5s[0]['raw/seq'].shape[-1] // 2 - half_width
         end = start + 2 * half_width
+
+        sequences = np.zeros((num_peaks, 4, half_width * 2), dtype=np.int8)
+        contribs = np.zeros((num_peaks, 4, half_width * 2), dtype=np.float16)
         
         sequences = h5s[0]['raw/seq'][:,:,start:end] 
         contribs = np.nanmean([f['shap/seq'][:,:,start:end] for f in h5s], axis=0)
@@ -129,20 +129,21 @@ def trim_motif(cwm, trim_threshold):
     return start, end
 
 
+def softmax(x, temp=100):
+    norm_x = x - np.mean(x, axis=1, keepdims=True)
+    exp = np.exp(temp * norm_x)
+    return exp / np.sum(exp, axis=0, keepdims=True)
+
+
 MODISCO_PATTERN_GROUPS = ['pos_patterns', 'neg_patterns']
 
-def load_modisco_motifs(modisco_h5_path, trim_threshold, use_hypothetical):
+def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type):
     """
     Adapted from https://github.com/jmschrei/tfmodisco-lite/blob/570535ee5ccf43d670e898d92d63af43d68c38c5/modiscolite/report.py#L252-L272
     """
     motif_data_lsts = {"motif_name": [], "motif_strand": [], 
                        "motif_start": [], "motif_end": [], "motif_scale": []}
-    cwm_lst = [] 
-
-    if use_hypothetical:
-        cwm_key = 'hypothetical_contribs'
-    else:
-        cwm_key = 'contrib_scores'
+    motif_lst = [] 
 
     with h5py.File(modisco_h5_path, 'r') as modisco_results:
         for name in MODISCO_PATTERN_GROUPS:
@@ -154,7 +155,7 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, use_hypothetical):
             for ind, (pattern_name, pattern) in enumerate(sorted(metacluster.items(), key=key)):
                 pattern_tag = f'{name}.{pattern_name}'
 
-                cwm_raw = pattern[cwm_key][:].T
+                cwm_raw = pattern['contrib_scores'][:].T
                 cwm_norm = np.sqrt((cwm_raw**2).sum())
 
                 cwm_fwd = cwm_raw / cwm_norm
@@ -162,24 +163,50 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, use_hypothetical):
                 start_fwd, end_fwd = trim_motif(cwm_fwd, trim_threshold)
                 start_rev, end_rev = trim_motif(cwm_rev, trim_threshold)
 
+                if motif_type == "cwm":
+                    motif_fwd = cwm_fwd
+                    motif_rev = cwm_rev
+                    motif_norm = cwm_norm
+
+                elif motif_type == "hcwm":
+                    motif_raw = pattern['hypothetical_contribs'][:].T
+                    motif_norm = np.sqrt((motif_raw**2).sum())
+
+                    motif_fwd = motif_raw / motif_norm
+                    motif_rev = motif_fwd[::-1,::-1]
+
+                elif motif_type == "pfm":
+                    motif_raw = pattern['sequence'][:].T
+                    motif_norm = 1
+
+                    motif_fwd = motif_raw / np.sum(motif_raw, axis=0, keepdims=True)
+                    motif_rev = motif_fwd[::-1,::-1]
+
+                elif motif_type == "pfm_softmax":
+                    motif_raw = pattern['sequence'][:].T
+                    motif_norm = 1
+
+                    motif_fwd = softmax(motif_raw)
+                    motif_rev = motif_fwd[::-1,::-1]
+
                 # motif_data_lsts["motif_id"].append(2 * ind)
                 motif_data_lsts["motif_name"].append(pattern_tag)
                 motif_data_lsts["motif_strand"].append('+')
                 motif_data_lsts["motif_start"].append(start_fwd)
                 motif_data_lsts["motif_end"].append(end_fwd)
-                motif_data_lsts["motif_scale"].append(cwm_norm)
+                motif_data_lsts["motif_scale"].append(motif_norm)
 
                 # motif_data_lsts["motif_id"].append(2 * ind + 1)
                 motif_data_lsts["motif_name"].append(pattern_tag)
                 motif_data_lsts["motif_strand"].append('-')
                 motif_data_lsts["motif_start"].append(start_rev)
                 motif_data_lsts["motif_end"].append(end_rev)
-                motif_data_lsts["motif_scale"].append(cwm_norm)
+                motif_data_lsts["motif_scale"].append(motif_norm)
 
-                cwm_lst.extend([cwm_fwd, cwm_rev])
+                motif_lst.extend([motif_fwd, motif_rev])
 
     motifs_df = pl.DataFrame(motif_data_lsts).with_row_count(name="motif_id")
-    cwms = np.stack(cwm_lst, dtype=np.float16, axis=1)
+    cwms = np.stack(motif_lst, dtype=np.float16, axis=0)
 
     return motifs_df, cwms
 
@@ -261,7 +288,52 @@ def load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=False):
     return seqlets_df
 
 
-def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, half_width, motif_width):
+def load_chip_importances(fa_path, bw_path, hits_df, motif_fwd, motif_rev, motif_name):
+    hits_motif = (
+        hits_df
+        .filter(pl.col("motif_name") == motif_name)
+        .select(
+            ["chr", "start", "end", "strand", "hit_score_raw", 
+             "hit_score_unscaled", "hit_score_scaled"]
+        )
+        .unique(subset=["chr", "start", "strand"])
+        .collect()
+    )
+    num_hits = hits_motif.height
+
+    chip_importance = np.zeros(num_hits)
+    genome = pyfaidx.Fasta(fa_path, one_based_attributes=False)
+    try:
+        bw = pyBigWig.open(bw_path)
+        for i, r in tqdm(enumerate(hits_motif.iter_rows(named=True)), disable=None, unit="hits", total=num_hits):
+            chrom = r["chr"]
+            start = r["start"]
+            end = r["end"]
+            strand = r["strand"]
+
+            sequence = str(genome[chrom][start:end])
+            one_hot = one_hot_encode(sequence)
+            contribs = np.nan_to_num(bw.values(chrom, start, end))
+            if strand == "+":
+                val_bp = np.mean(contribs * np.sum(motif_fwd * one_hot, axis=0))
+            else:
+                val_bp = np.mean(contribs * np.sum(motif_rev * one_hot, axis=0))
+
+            chip_importance[i] = val_bp
+
+    finally:
+        bw.close()
+
+    df = hits_motif.with_columns(pl.Series(name="chip_importance", values=chip_importance)) 
+
+    return df
+
+
+def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_dir, motif_width):
+    os.makedirs(out_dir, exist_ok=True)
+    out_path_tsv = os.path.join(out_dir, "hits.tsv")
+    out_path_tsv_unique = os.path.join(out_dir, "hits_unique.tsv")
+    out_path_bed = os.path.join(out_dir, "hits.bed")
 
     data_all = (
         hits_df
@@ -277,8 +349,9 @@ def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, 
             start_untrimmed=pl.col("peak_region_start") + pl.col("hit_start"),
             end_untrimmed=pl.col("peak_region_start") + pl.col("hit_start") + motif_width,
             motif_name=pl.col("motif_name"),
-            hit_score_scaled=pl.col("hit_score"),
-            hit_score_unscaled=pl.col("hit_score") * pl.col("contrib_scale") * pl.col("motif_scale"),
+            hit_coefficient=pl.col("hit_coefficient"),
+            hit_correlation=pl.col("hit_correlation"),
+            hit_importance=pl.col("hit_importance") * pl.col("global_scale"),
             strand=pl.col("motif_strand"),
             peak_name=pl.col("peak_name"),
             peak_id=pl.col("peak_id"),
@@ -288,17 +361,62 @@ def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_path_tsv, out_path_bed, 
         .drop("chr_id")
     )
 
-    data_tsv = data_all.collect()
-    data_tsv.write_csv(out_path_tsv, separator="\t")
+    data_unique = (
+        data_all
+        .unique(subset=["chr", "start", "motif_name", "strand"], maintain_order=True)
+    )
 
     data_bed = (
-        data_all
-        .with_columns(pl.lit(0).alias('dummy_score'))
-        .select(["chr", "start", "end", "motif_name", "dummy_score", "strand"])        
-        .unique(maintain_order=True)
-        .collect()
+        data_unique
+        .select(
+            chr=pl.col("chr"),
+            start=pl.col("start"),
+            end=pl.col("end"),
+            motif_name=pl.col("motif_name"),
+            score=pl.col("hit_correlation") * 1000,
+            strand=pl.col("strand")
+        )
     )
-    data_bed.write_csv(out_path_bed, has_header=False, separator="\t")
+
+    data_all.collect().write_csv(out_path_tsv, separator="\t")
+    data_unique.collect().write_csv(out_path_tsv_unique, separator="\t")
+    data_bed.collect().write_csv(out_path_bed, has_header=False, separator="\t")
+
+
+def write_hits_no_peaks(hits_df, motifs_df, qc_df, out_dir, motif_width):
+    os.makedirs(out_dir, exist_ok=True)
+    out_path_tsv = os.path.join(out_dir, "hits.tsv")
+    out_path_tsv_unique = os.path.join(out_dir, "hits_unique.tsv")
+
+    data_all = (
+        hits_df
+        .lazy()
+        .join(qc_df.lazy(), on="peak_id", how="inner")
+        .join(motifs_df.lazy(), on="motif_id", how="inner")
+        .select(
+            chr=pl.lit("NA"),
+            start=pl.col("hit_start") + pl.col("motif_start"),
+            end=pl.col("hit_start") + pl.col("motif_end"),
+            start_untrimmed=pl.col("hit_start"),
+            end_untrimmed=pl.col("hit_start") + motif_width,
+            motif_name=pl.col("motif_name"),
+            hit_coefficient=pl.col("hit_coefficient"),
+            hit_correlation=pl.col("hit_correlation"),
+            hit_importance=pl.col("hit_importance") * pl.col("global_scale"),
+            strand=pl.col("motif_strand"),
+            peak_name=pl.lit("NA"),
+            peak_id=pl.col("peak_id"),
+        )
+        .sort(["peak_id", "start"])
+    )
+
+    data_unique = (
+        data_all
+        .unique(subset=["peak_id", "start", "motif_name", "strand"], maintain_order=True)
+    )
+
+    data_all.collect().write_csv(out_path_tsv, separator="\t")
+    data_unique.collect().write_csv(out_path_tsv_unique, separator="\t")
 
 
 def write_qc(qc_df, peaks_df, out_path):
@@ -308,6 +426,16 @@ def write_qc(qc_df, peaks_df, out_path):
         .join(peaks_df.lazy(), on="peak_id", how="inner")
         .sort(["chr_id", "peak_region_start"])
         .drop("chr_id")
+        .collect()
+    )
+    df.write_csv(out_path, separator="\t")
+
+
+def write_qc_no_peaks(qc_df, out_path):
+    df = (
+        qc_df
+        .lazy()
+        .sort("peak_id")
         .collect()
     )
     df.write_csv(out_path, separator="\t")
@@ -347,3 +475,21 @@ def write_modisco_recall(seqlet_recalls, overlaps_df, nonoverlaps_df, seqlet_cou
 
     for k, v in seqlet_recalls.items():
         np.savetxt(os.path.join(out_dir, f'{k}.txt.gz'), v)
+
+
+def write_chip_importance(importance_df, cumulative_importance, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
+    
+    importance_df.write_csv(os.path.join(out_dir, "hit_importances.tsv"), separator="\t")
+
+    np.savetxt(os.path.join(out_dir, "cumulative_importance.txt.gz"), cumulative_importance)
+
+
+def write_calibration_distributions_npz(max_xcors, motif_names, out_path):
+    out_dict = {n: max_xcors[:,i] for i, n in enumerate(motif_names)}
+    np.savez(out_path, **out_dict) 
+
+
+# def write_calibration_quantiles_npz(max_xcor_quantiles, motif_names, out_path):
+#     out_dict = {n: max_xcor_quantiles[:,i] for i, n in enumerate(motif_names)}
+#     np.savez(out_path, **out_dict)

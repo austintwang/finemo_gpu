@@ -60,11 +60,13 @@ def cooccurrence_sigs(coocc, num_peaks):
     return nlps, lors
 
 
-def seqlet_recall(hits_df, peaks_df, seqlets_df, scale_scores, modisco_half_width):
-    if scale_scores:
-        score_col = "hit_score_scaled"
-    else:
-        score_col = "hit_score_unscaled"
+def seqlet_recall(hits_df, peaks_df, seqlets_df, score_type, modisco_half_width):
+    # if scale_scores:
+    #     score_col = "hit_score_scaled"
+    # else:
+    #     score_col = "hit_score_unscaled"
+
+    score_col = f"hit_{score_type}"
 
     hits_filtered = (
         hits_df
@@ -134,6 +136,19 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, scale_scores, modisco_half_widt
         # seqlet_counts[k] = num_seqlets
 
     return recalls, overlaps_df, nonoverlaps_df, seqlet_counts
+
+
+def chip_cumlative_importance(importance_df, score_type):
+    score_col = f"hit_score_{score_type}"
+    cumulative_importance = (
+        importance_df.lazy()
+        .sort(score_col, descending=True)
+        .select(cumulative_importance=pl.cumsum("chip_importance"))
+        .collect()
+        .get_column("cumulative_importance")
+    )
+
+    return cumulative_importance
 
 
 # def cluster_matrix_indices(matrix):
@@ -386,7 +401,7 @@ def plot_frac_peaks(occ_bin, motif_names, plot_path):
     plt.close(fig)
 
 
-def plot_modisco_recall(seqlet_recalls, plot_dir):
+def plot_modisco_recall(seqlet_recalls, seqlet_counts, plot_dir):
     os.makedirs(plot_dir, exist_ok=True)
 
     labels = sorted(seqlet_recalls.keys(), 
@@ -403,9 +418,17 @@ def plot_modisco_recall(seqlet_recalls, plot_dir):
     plt.close(fig)
 
     for k, v in seqlet_recalls.items():
-        x = np.arange(v.shape[0])
+        num_hits = v.shape[0]
+        x = np.arange(num_hits)
+
+        num_seqlets = seqlet_counts[k]
+        bound = np.full(num_hits, num_seqlets)
+        ramp_max = min(num_seqlets, num_hits)
+        bound[:ramp_max] = np.arange(1, ramp_max + 1)
+        bound = bound.astype(float) / float(num_seqlets)
         
         plt.plot(x, v)
+        plt.plot(x, bound)
         plt.title(f"{k} Modisco seqlet recall")
         plt.xlabel("Hit rank")
         plt.ylabel("Recall")
@@ -415,3 +438,63 @@ def plot_modisco_recall(seqlet_recalls, plot_dir):
         plt.savefig(output_path, dpi=300)
 
         plt.close()
+
+
+def plot_chip_importance(cumulative_importance, plot_path):
+    num_hits = cumulative_importance.shape[0]
+    x = np.arange(num_hits)
+
+    plt.plot(x, cumulative_importance)
+    plt.xlabel("Hit rank")
+    plt.ylabel("Cumulative ChIP-seq importance scores")
+    
+    plt.tight_layout()
+    plt.savefig(plot_path, dpi=300)
+
+    plt.close()
+
+
+def plot_xcor_distributions(max_xcors, motif_names, plot_dir):
+    os.makedirs(plot_dir, exist_ok=True)
+
+    for i, k in enumerate(motif_names):        
+        # plt.hist(max_xcors[:,i], bins="auto", range=(0, 1))
+        plt.hist(max_xcors[:,i], bins="auto", range=(0, 2))
+
+        plt.title(f"Distribution of maximum {k} cross-correlation per region")
+        plt.xlabel("Arctanh cross-correlation")
+        plt.ylabel("Frequency")
+
+        plt.show()
+
+        plt.tight_layout()
+        
+        output_path = os.path.join(plot_dir, f"{k}.png")
+        plt.savefig(output_path, dpi=300)
+
+        plt.close()
+
+
+# def plot_xcor_quantiles(max_xcor_quantiles, motif_names, plot_dir):
+#     os.makedirs(plot_dir, exist_ok=True)
+    
+#     num_bins = max_xcor_quantiles.shape[0]
+#     for i, k in enumerate(motif_names):
+#         x = np.arange(num_bins) / num_bins
+#         plt.plot(x, max_xcor_quantiles[:,i])
+
+#         plt.xlim(0, 1)
+#         plt.ylim(0, 1)
+
+#         plt.title(f"Quantiles of maximum {k} cross-correlation per region")
+#         plt.xlabel("Quantile")
+#         plt.ylabel("Cross-correlation")
+
+#         plt.show()
+
+#         plt.tight_layout()
+        
+#         output_path = os.path.join(plot_dir, f"{k}.png")
+#         plt.savefig(output_path, dpi=300)
+
+#         plt.close()
