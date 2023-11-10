@@ -66,7 +66,7 @@ def seqlet_recall(hits_df, peaks_df, seqlets_df, score_type, modisco_half_width)
     # else:
     #     score_col = "hit_score_unscaled"
 
-    score_col = f"hit_score_{score_type}"
+    score_col = f"hit_{score_type}"
 
     hits_filtered = (
         hits_df
@@ -452,3 +452,49 @@ def plot_chip_importance(cumulative_importance, plot_path):
     plt.savefig(plot_path, dpi=300)
 
     plt.close()
+
+
+def plot_xcor_distributions(max_xcors, motif_names, plot_dir):
+    os.makedirs(plot_dir, exist_ok=True)
+
+    for i, k in enumerate(motif_names):        
+        # plt.hist(max_xcors[:,i], bins="auto", range=(0, 1))
+        plt.hist(max_xcors[:,i], bins="auto", range=(0, 2))
+
+        plt.title(f"Distribution of maximum {k} cross-correlation per region")
+        plt.xlabel("Arctanh cross-correlation")
+        plt.ylabel("Frequency")
+
+        plt.show()
+
+        plt.tight_layout()
+        
+        output_path = os.path.join(plot_dir, f"{k}.png")
+        plt.savefig(output_path, dpi=300)
+
+        plt.close()
+
+
+# def plot_xcor_quantiles(max_xcor_quantiles, motif_names, plot_dir):
+#     os.makedirs(plot_dir, exist_ok=True)
+    
+#     num_bins = max_xcor_quantiles.shape[0]
+#     for i, k in enumerate(motif_names):
+#         x = np.arange(num_bins) / num_bins
+#         plt.plot(x, max_xcor_quantiles[:,i])
+
+#         plt.xlim(0, 1)
+#         plt.ylim(0, 1)
+
+#         plt.title(f"Quantiles of maximum {k} cross-correlation per region")
+#         plt.xlabel("Quantile")
+#         plt.ylabel("Cross-correlation")
+
+#         plt.show()
+
+#         plt.tight_layout()
+        
+#         output_path = os.path.join(plot_dir, f"{k}.png")
+#         plt.savefig(output_path, dpi=300)
+
+#         plt.close()

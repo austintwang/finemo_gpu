@@ -483,3 +483,13 @@ def write_chip_importance(importance_df, cumulative_importance, out_dir):
     importance_df.write_csv(os.path.join(out_dir, "hit_importances.tsv"), separator="\t")
 
     np.savetxt(os.path.join(out_dir, "cumulative_importance.txt.gz"), cumulative_importance)
+
+
+def write_calibration_distributions_npz(max_xcors, motif_names, out_path):
+    out_dict = {n: max_xcors[:,i] for i, n in enumerate(motif_names)}
+    np.savez(out_path, **out_dict) 
+
+
+# def write_calibration_quantiles_npz(max_xcor_quantiles, motif_names, out_path):
+#     out_dict = {n: max_xcor_quantiles[:,i] for i, n in enumerate(motif_names)}
+#     np.savez(out_path, **out_dict)
