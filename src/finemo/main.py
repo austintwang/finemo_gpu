@@ -85,7 +85,7 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, out_d
         use_hypothetical_contribs = True
     
     motifs_df, cwms = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, motif_type)
-    num_motifs = cwms.shape[1]
+    num_motifs = cwms.shape[0]
     motif_width = cwms.shape[2]
 
     hits, qc = hitcaller.fit_contribs(cwms, contribs, sequences, use_hypothetical_contribs, alpha, l1_ratio, step_size, 
