@@ -114,7 +114,8 @@ usage: finemo call-hits [-h] [-M MODE] -r REGIONS -m MODISCO_H5 [-p PEAKS] -o OU
 
 options:
   -h, --help            show help message and exit
-  -M MODE, --mode MODE  Type of attributions to use for input contribution scores and CWM's, respectively. 'h' for hypothetical and 'p' for projected. (default: pp)
+  -M {hh,pp,ph,hp}, --mode {hh,pp,ph,hp}
+                        Type of attributions to use for CWM's and input contribution scores, respectively. 'h' for hypothetical and 'p' for projected. (default: pp)
   -r REGIONS, --regions REGIONS
                         A .npz file of input sequences and contributions. Can be generated using `finemo extract-regions-bw` or `finemo extract-regions-h5`. (*Required*)
   -m MODISCO_H5, --modisco-h5 MODISCO_H5

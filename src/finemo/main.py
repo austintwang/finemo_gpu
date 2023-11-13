@@ -205,8 +205,8 @@ def cli():
     call_hits_parser = subparsers.add_parser("call-hits", formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         help="Call hits on provided sequences, contributions, and motif CWM's.")
     
-    call_hits_parser.add_argument("-M", "--mode", type=str, default="hp",
-        help="Type of attributions to use for input contribution scores and CWM's, respectively. 'h' for hypothetical and 'p' for projected.")
+    call_hits_parser.add_argument("-M", "--mode", type=str, default="pp", choices={"pp", "ph", "hp", "hh"},
+        help="Type of attributions to use for CWM's and input contribution scores, respectively. 'h' for hypothetical and 'p' for projected.")
 
     call_hits_parser.add_argument("-r", "--regions", type=str, required=True,
         help="A .npz file of input sequences and contributions. Can be generated using `finemo extract_regions`.")
