@@ -100,7 +100,7 @@ def _load_batch_compact_fmt(contribs, sequences, start, end, motif_width, l, dev
 
     contribs_compact = F.pad(contribs[start:end,None,:], pad_lens).float().to(device=device)
     sequences_batch = F.pad(sequences[start:end,:,:], pad_lens).to(device=device) # (b, 4, l)
-    contribs_batch = contribs_compact * sequences_batch
+    # contribs_batch = contribs_compact * sequences_batch
 
     global_scale = ((contribs_compact**2).sum(dim=(1,2)) / l).sqrt()
 
