@@ -16,7 +16,7 @@ NARROWPEAK_SCHEMA = ["chr", "peak_start", "peak_end", "peak_name", "peak_score",
 NARROWPEAK_DTYPES = [pl.Utf8, pl.UInt32, pl.UInt32, pl.Utf8, pl.UInt32, 
                      pl.Utf8, pl.Float32, pl.Float32, pl.Float32, pl.UInt32] 
 
-def load_peaks(peaks_path, half_width):
+def load_peaks(peaks_path, chrom_order_path, half_width):
     peaks = (
         pl.scan_csv(peaks_path, has_header=False, new_columns=NARROWPEAK_SCHEMA, 
                     separator='\t', quote_char=None, dtypes=NARROWPEAK_DTYPES)
@@ -29,7 +29,16 @@ def load_peaks(peaks_path, half_width):
         .collect()
     )
     
-    chrom_order = peaks.get_column("chr").unique(maintain_order=True)
+    chrom_order = []
+    if chrom_order_path is not None:
+        with open(chrom_order_path) as f:
+            for line in f:
+                chrom = line.rstrip("\n").split("\t")[0]
+                chrom_order.append(chrom)
+
+    chrom_order_set = set(chrom_order)
+    chrom_order_peaks = [i for i in peaks.get_column("chr").unique(maintain_order=True) if i not in chrom_order_set]
+    chrom_order.extend(chrom_order_peaks)
     chrom_ind_map = {val: ind for ind, val in enumerate(chrom_order)}
 
     peaks = peaks.with_columns(

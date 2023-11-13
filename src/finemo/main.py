@@ -47,8 +47,8 @@ def calibrate(bg_regions_path, modisco_h5_path, out_dir, cwm_trim_threshold, num
     # data_io.write_calibration_quantiles_npz(max_xcor_quantiles, motif_names, os.path.join(out_dir, "quantiles.npz"))
 
 
-def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_threshold, alpha, l1_ratio, 
-              step_size, convergence_tol, max_steps, buffer_size, step_adjust, device, mode):
+def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, out_dir, cwm_trim_threshold, 
+              alpha, l1_ratio, step_size, convergence_tol, max_steps, buffer_size, step_adjust, device, mode):
     
     params = locals()
     from . import hitcaller
@@ -62,7 +62,7 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, out_dir, cwm_trim_thres
     half_width = region_width // 2
 
     if peaks_path is not None:
-        peaks_df = data_io.load_peaks(peaks_path, half_width)
+        peaks_df = data_io.load_peaks(peaks_path, chrom_order_path, half_width)
         num_regions = peaks_df.height
         if (num_regions != sequences.shape[0]) or (num_regions != contribs.shape[0]):
             raise ValueError(f"Input sequences of shape {sequences.shape} and/or " 
@@ -214,7 +214,9 @@ def cli():
         help="A tfmodisco-lite output H5 file of motif patterns.")
     
     call_hits_parser.add_argument("-p", "--peaks", type=str, default=None,
-        help="A sorted peak regions file in ENCODE NarrowPeak format. These should exactly match the regions in `--regions`. If omitted, called hits will not have absolute genomic coordinates")
+        help="A peak regions file in ENCODE NarrowPeak format. These should exactly match the regions in `--regions`. If omitted, called hits will not have absolute genomic coordinates")
+    call_hits_parser.add_argument("-C", "--chrom-order", type=str, default=None,
+        help="A tab-delimited file with chromosome names in the first column to define sort order of chromosomes. For missing chromosomes, order is set by order of appearance in -p/--peaks.")
     
     call_hits_parser.add_argument("-o", "--out-dir", type=str, required=True,
         help="The path to the output directory.")
@@ -243,7 +245,7 @@ def cli():
         help="Extract sequences and contributions from FASTA and bigwig files.")
     
     extract_regions_bw_parser.add_argument("-p", "--peaks", type=str, required=True,
-        help="A sorted peak regions file in ENCODE NarrowPeak format.")
+        help="A peak regions file in ENCODE NarrowPeak format.")
     extract_regions_bw_parser.add_argument("-f", "--fasta", type=str, required=True,
         help="A genome FASTA file. An .fai index file will be built in the same directory as the fasta file if one does not already exist.")
     extract_regions_bw_parser.add_argument("-b", "--bigwigs", type=str, required=True, nargs='+',
@@ -355,9 +357,9 @@ def cli():
     args = parser.parse_args()
 
     if args.cmd == "call-hits":
-        call_hits(args.regions, args.peaks, args.modisco_h5, args.out_dir, args.cwm_trim_threshold, 
-                  args.alpha, args.l1_ratio, args.step_size, args.convergence_tol, args.max_steps, 
-                  args.buffer_size, args.step_adjust, args.device, args.mode)
+        call_hits(args.regions, args.peaks, args.modisco_h5, args.chrom_order, args.out_dir, 
+                  args.cwm_trim_threshold, args.alpha, args.l1_ratio, args.step_size, args.convergence_tol, 
+                  args.max_steps, args.buffer_size, args.step_adjust, args.device, args.mode)
     
     elif args.cmd == "extract-regions-bw":
         extract_regions_bw(args.peaks, args.fasta, args.bigwigs, args.out_path, args.region_width)

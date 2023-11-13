@@ -75,7 +75,7 @@ usage: finemo extract-regions-bw [-h] -p PEAKS -f FASTA -b BIGWIGS [BIGWIGS ...]
 options:
   -h, --help            show help message and exit
   -p PEAKS, --peaks PEAKS
-                        A sorted peak regions file in ENCODE NarrowPeak format. (*Required*)
+                        A peak regions file in ENCODE NarrowPeak format. (*Required*)
   -f FASTA, --fasta FASTA
                         A genome FASTA file. An .fai index file will be built in the same directory as the fasta file if one does not already exist. (*Required*)
   -b BIGWIGS [BIGWIGS ...], --bigwigs BIGWIGS [BIGWIGS ...]
@@ -120,7 +120,9 @@ options:
   -m MODISCO_H5, --modisco-h5 MODISCO_H5
                         A tfmodisco-lite output H5 file of motif patterns. (*Required*)
   -p PEAKS, --peaks PEAKS
-                        A sorted peak regions file in ENCODE NarrowPeak format. These should exactly match the regions in `--regions`. If omitted, called hits will not have absolute genomic coordinates
+                        A peak regions file in ENCODE NarrowPeak format. These should exactly match the regions in `--regions`. If omitted, called hits will not have absolute genomic coordinates. (Optional)
+  -C CHROM_ORDER, --chrom-order CHROM_ORDER
+                        A tab-delimited file with chromosome names in the first column to define sort order of chromosomes. For missing chromosomes, order is set by order of appearance in -p/--peaks. (Optional)
   -o OUT_DIR, --out-dir OUT_DIR
                         The path to the output directory. (*Required*)
   -t CWM_TRIM_THRESHOLD, --cwm-trim-threshold CWM_TRIM_THRESHOLD
