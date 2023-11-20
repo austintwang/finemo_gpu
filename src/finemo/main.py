@@ -9,7 +9,7 @@ import polars as pl
 def extract_regions_bw(peaks_path, fa_path, bw_paths, out_path, region_width):
     half_width = region_width // 2
 
-    peaks_df = data_io.load_peaks(peaks_path, half_width)
+    peaks_df = data_io.load_peaks(peaks_path, None, half_width)
     sequences, contribs = data_io.load_regions_from_bw(peaks_df, fa_path, bw_paths, half_width)
 
     data_io.write_regions_npz(sequences, contribs, out_path)
