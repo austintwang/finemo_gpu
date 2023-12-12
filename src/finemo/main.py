@@ -9,7 +9,7 @@ import polars as pl
 def extract_regions_bw(peaks_path, fa_path, bw_paths, out_path, region_width):
     half_width = region_width // 2
 
-    peaks_df = data_io.load_peaks(peaks_path, half_width)
+    peaks_df = data_io.load_peaks(peaks_path, None, half_width)
     sequences, contribs = data_io.load_regions_from_bw(peaks_df, fa_path, bw_paths, half_width)
 
     data_io.write_regions_npz(sequences, contribs, out_path)
@@ -19,6 +19,14 @@ def extract_regions_h5(h5_paths, out_path, region_width):
     half_width = region_width // 2
 
     sequences, contribs = data_io.load_regions_from_h5(h5_paths, half_width)
+
+    data_io.write_regions_npz(sequences, contribs, out_path)
+
+
+def extract_regions_modisco_fmt(shaps_paths, ohe_path, out_path, region_width):
+    half_width = region_width // 2
+
+    sequences, contribs = data_io.load_regions_from_modisco_fmt(shaps_paths, ohe_path, half_width)
 
     data_io.write_regions_npz(sequences, contribs, out_path)
 
@@ -271,6 +279,22 @@ def cli():
         help="The width of the region extracted around each peak summit.")
     
 
+    extract_regions_modisco_fmt_parser = subparsers.add_parser("extract-regions-modisco-fmt", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
+        help="Extract sequences and contributions from tfmodisco-lite input files.")
+    
+    extract_regions_modisco_fmt_parser.add_argument("-s", "--sequences", type=str, required=True,
+        help="A .npy or .npz file containing one-hot encoded sequences.")
+    
+    extract_regions_modisco_fmt_parser.add_argument("-a", "--attributions", type=str, required=True, nargs='+',
+        help="One or more .npy or .npz files of hypothetical contribution scores, with paths delimited by whitespace. Scores are averaged across files.")
+    
+    extract_regions_modisco_fmt_parser.add_argument("-o", "--out-path", type=str, required=True,
+        help="The path to the output .npz file.")
+    
+    extract_regions_modisco_fmt_parser.add_argument("-w", "--region-width", type=int, default=1000,
+        help="The width of the region extracted around each peak summit.")
+    
+
     # calibrate_parser = subparsers.add_parser("calibrate", formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     #     help="Call hits on provided sequences, contributions, and motif CWM's.")
     
@@ -366,6 +390,9 @@ def cli():
 
     elif args.cmd == "extract-regions-h5":
         extract_regions_h5(args.h5s, args.out_path, args.region_width)
+
+    elif args.cmd == "extract-regions-modisco-fmt":
+        extract_regions_modisco_fmt(args.attributions, args.sequences, args.out_path, args.region_width)
 
     elif args.cmd == "calibrate":
         calibrate(args.background_regions, args.modisco_h5, args.out_dir, args.cwm_trim_threshold, 
