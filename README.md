@@ -44,7 +44,7 @@ git pull
 Required:
 
 - Contribution scores for a set of peak sequences, either in bigWig format or [BPNet/ChromBPNet H5](https://github.com/kundajelab/chrombpnet/wiki/Generate-contribution-score-bigwigs#output-format) format.
-- Motif CWM's in [TFMoDISCo-lite H5](https://github.com/jmschrei/tfmodisco-lite/tree/main#running-tfmodisco-lite) format.
+- Motif CWM's in [tfmodisco-lite H5](https://github.com/jmschrei/tfmodisco-lite/tree/main#running-tfmodisco-lite) format.
 
 Recommended:
 
@@ -97,6 +97,25 @@ options:
   -h, --help            show help message and exit
   -c H5S [H5S ...], --h5s H5S [H5S ...]
                         One or more H5 files of contribution scores, with paths delimited by whitespace. Scores are averaged across files. (*Required*)
+  -o OUT_PATH, --out-path OUT_PATH
+                        The path to the output .npz file. (*Required*)
+  -w REGION_WIDTH, --region-width REGION_WIDTH
+                        The width of the region extracted around each peak summit. (default: 1000)
+```
+
+#### `finemo extract-regions-modisco-fmt`
+
+Extract sequences and contributions from tfmodisco-lite input `.npy`/`.npz` files.
+
+```console
+usage: finemo extract-regions-modisco-fmt [-h] -s SEQUENCES -a ATTRIBUTIONS [ATTRIBUTIONS ...] -o OUT_PATH [-w REGION_WIDTH]
+
+options:
+  -h, --help            show this help message and exit
+  -s SEQUENCES, --sequences SEQUENCES
+                        A .npy or .npz file containing one-hot encoded sequences. (*Required*)
+  -a ATTRIBUTIONS [ATTRIBUTIONS ...], --attributions ATTRIBUTIONS [ATTRIBUTIONS ...]
+                        One or more .npy or .npz files of hypothetical contribution scores, with paths delimited by whitespace. Scores are averaged across files. (*Required*)
   -o OUT_PATH, --out-path OUT_PATH
                         The path to the output .npz file. (*Required*)
   -w REGION_WIDTH, --region-width REGION_WIDTH

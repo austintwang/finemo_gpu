@@ -102,16 +102,34 @@ def load_regions_from_h5(h5_paths, half_width):
     with ExitStack() as stack:
         h5s = [stack.enter_context(h5py.File(i)) for i in h5_paths]
 
-        num_peaks = h5s[0]['raw/seq'].shape[0]
-
         start = h5s[0]['raw/seq'].shape[-1] // 2 - half_width
         end = start + 2 * half_width
-
-        sequences = np.zeros((num_peaks, 4, half_width * 2), dtype=np.int8)
-        contribs = np.zeros((num_peaks, 4, half_width * 2), dtype=np.float16)
         
-        sequences = h5s[0]['raw/seq'][:,:,start:end] 
-        contribs = np.nanmean([f['shap/seq'][:,:,start:end] for f in h5s], axis=0)
+        sequences = h5s[0]['raw/seq'][:,:,start:end].astype(np.int8) 
+        contribs = np.nanmean([f['shap/seq'][:,:,start:end] for f in h5s], axis=0, dtype=np.float16)
+
+    return sequences, contribs
+
+
+def load_npy_or_npz(path):
+    f = np.load(path)
+    if isinstance(f, np.ndarray):
+        arr = f
+    else:
+        arr = f['arr_0']
+
+    return arr
+
+def load_regions_from_modisco_fmt(shaps_paths, ohe_path, half_width):
+    sequences_raw = load_npy_or_npz(ohe_path)
+
+    start = sequences_raw.shape[-1] // 2 - half_width
+    end = start + 2 * half_width
+
+    sequences = sequences_raw[:,:,start:end].astype(np.int8)
+
+    shaps = [load_npy_or_npz(p)[:,:,start:end] for p in shaps_paths]
+    contribs = np.nanmean(shaps, axis=0, dtype=np.float16)
 
     return sequences, contribs
 
@@ -123,7 +141,7 @@ def load_regions_npz(npz_path):
 
 
 def write_regions_npz(sequences, contributions, out_path):
-    np.savez(out_path, sequences=sequences, contributions=contributions)
+    np.savez_compressed(out_path, sequences=sequences, contributions=contributions)
 
 
 def trim_motif(cwm, trim_threshold):
