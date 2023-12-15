@@ -15,5 +15,6 @@ dependencies:
   - conda-forge::h5py=3.10.0
   - conda-forge::hdf5plugin=4.2.0
   - conda-forge::tqdm=4.66.1
+  - conda-forge::jinja2=3.1.2
   - bioconda::pybigwig=0.3.22
   - bioconda::pyfaidx=0.7.2.1

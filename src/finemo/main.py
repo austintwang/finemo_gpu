@@ -31,28 +31,28 @@ def extract_regions_modisco_fmt(shaps_paths, ohe_path, out_path, region_width):
     data_io.write_regions_npz(sequences, contribs, out_path)
 
 
-def calibrate(bg_regions_path, modisco_h5_path, out_dir, cwm_trim_threshold, num_bins, batch_size, device, use_hypothetical):
-    from . import hitcaller, evaluation
+# def calibrate(bg_regions_path, modisco_h5_path, out_dir, cwm_trim_threshold, num_bins, batch_size, device, use_hypothetical):
+#     from . import hitcaller, evaluation
     
-    sequences, contribs = data_io.load_regions_npz(bg_regions_path)
+#     sequences, contribs = data_io.load_regions_npz(bg_regions_path)
 
-    if use_hypothetical:
-        motif_type = "hcwm"
-    else:
-        motif_type = "cwm"
+#     if use_hypothetical:
+#         motif_type = "hcwm"
+#     else:
+#         motif_type = "cwm"
     
-    motifs_df, cwms = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, motif_type)
-    motif_names = motifs_df.filter(pl.col("motif_strand") == "+").get_column("motif_name").to_numpy()
+#     motifs_df, cwms = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, motif_type)
+#     motif_names = motifs_df.filter(pl.col("motif_strand") == "+").get_column("motif_name").to_numpy()
 
-    max_xcors = hitcaller.calibrate_background(cwms, contribs, sequences, use_hypothetical, num_bins, batch_size, device)
+#     max_xcors = hitcaller.calibrate_background(cwms, contribs, sequences, use_hypothetical, num_bins, batch_size, device)
 
-    os.makedirs(out_dir, exist_ok=True)
+#     os.makedirs(out_dir, exist_ok=True)
 
-    evaluation.plot_xcor_distributions(max_xcors, motif_names, os.path.join(out_dir, "distribution_plots"))
-    # evaluation.plot_xcor_quantiles(max_xcor_quantiles, motif_names, os.path.join(out_dir, "quantile_plots"))
+#     evaluation.plot_xcor_distributions(max_xcors, motif_names, os.path.join(out_dir, "distribution_plots"))
+#     # evaluation.plot_xcor_quantiles(max_xcor_quantiles, motif_names, os.path.join(out_dir, "quantile_plots"))
 
-    data_io.write_calibration_distributions_npz(max_xcors, motif_names, os.path.join(out_dir, "distributions.npz"))
-    # data_io.write_calibration_quantiles_npz(max_xcor_quantiles, motif_names, os.path.join(out_dir, "quantiles.npz"))
+#     data_io.write_calibration_distributions_npz(max_xcors, motif_names, os.path.join(out_dir, "distributions.npz"))
+#     # data_io.write_calibration_quantiles_npz(max_xcor_quantiles, motif_names, os.path.join(out_dir, "quantiles.npz"))
 
 
 def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, out_dir, cwm_trim_threshold, 
@@ -121,89 +121,135 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, out_d
     data_io.write_params(params, out_path_params)
 
 
-def visualize(hits_path, out_dir):
+def report(regions_path, hits_path, modisco_h5_path, peaks_path, out_dir, modisco_region_width):
     from . import evaluation
 
-    hits_df = data_io.load_hits(hits_path)
-    num_peaks = hits_df.height
+    sequences, contribs = data_io.load_regions_npz(regions_path)
+    if len(contribs.shape) == 3:
+        regions = contribs * sequences
+    elif len(contribs.shape) == 2:
+        regions = contribs[:,None,:] * sequences
 
-    occ_df, occ_mat, occ_bin, coocc, motif_names = evaluation.get_motif_occurences(hits_df)
-    # peak_order = visualization.order_rows(occ_mat)
-    motif_order = evaluation.order_rows(occ_mat.T)
-    coocc_nlp, coocc_lor = evaluation.cooccurrence_sigs(coocc, num_peaks)
+    half_width = regions.shape[2] // 2
+    modisco_half_width = modisco_region_width // 2
+    peaks_df = data_io.load_peaks(peaks_path, None, half_width)
+    hits_df = data_io.load_hits(hits_path, lazy=True)
+    seqlets_df = data_io.load_modisco_seqlets(modisco_h5_path, peaks_df, half_width, modisco_half_width, lazy=True)
 
+    motifs_df, cwms_modisco = data_io.load_modisco_motifs(modisco_h5_path, 0, "cwm")
+    motif_names = motifs_df.filter(pl.col("motif_strand") == "+").get_column("motif_name").to_numpy()
+    motif_width = cwms_modisco.shape[2]
+
+    occ_df, coooc = evaluation.get_motif_occurences(hits_df, motif_names)
+
+    recall_data, recall_df, cwms = evaluation.seqlet_recall(regions, hits_df, peaks_df, seqlets_df, 
+                                                            motif_names, modisco_half_width, motif_width)
+    
     os.makedirs(out_dir, exist_ok=True)
-
+    
     occ_path = os.path.join(out_dir, "motif_occurrences.tsv")
     data_io.write_occ_df(occ_df, occ_path)
+
+    data_io.write_recall_data(recall_df, cwms, out_dir)
+
+    evaluation.plot_hit_distributions(occ_df, motif_names, out_dir)
+
+    coooc_path = os.path.join(out_dir, "motif_cooocurrence.png")
+    evaluation.plot_peak_motif_indicator_heatmap(coooc, motif_names, coooc_path)
+
+    plot_dir = os.path.join(out_dir, "CWMs")
+    evaluation.plot_cwms(cwms, plot_dir)
+
+    plot_path = os.path.join(out_dir, "hit_vs_seqlet_counts.png")
+    evaluation.plot_hit_vs_seqlet_counts(recall_data, plot_path)
+
+    report_path = os.path.join(out_dir, "report.html")
+    evaluation.write_report(recall_df, motif_names, report_path)
+
+
+# def visualize(hits_path, out_dir):
+#     from . import evaluation
+
+#     hits_df = data_io.load_hits(hits_path)
+#     num_peaks = hits_df.height
+
+#     occ_df, occ_mat, occ_bin, coocc, motif_names = evaluation.get_motif_occurences(hits_df)
+#     # peak_order = visualization.order_rows(occ_mat)
+#     motif_order = evaluation.order_rows(occ_mat.T)
+#     coocc_nlp, coocc_lor = evaluation.cooccurrence_sigs(coocc, num_peaks)
+
+#     os.makedirs(out_dir, exist_ok=True)
+
+#     occ_path = os.path.join(out_dir, "motif_occurrences.tsv")
+#     data_io.write_occ_df(occ_df, occ_path)
     
-    coocc_dir = os.path.join(out_dir, "motif_cooccurrence_matrices")
-    data_io.write_coocc_mats(coocc, coocc_nlp, motif_names, coocc_dir)
+#     coocc_dir = os.path.join(out_dir, "motif_cooccurrence_matrices")
+#     data_io.write_coocc_mats(coocc, coocc_nlp, motif_names, coocc_dir)
 
-    score_dist_dir = os.path.join(out_dir, "hit_score_distributions")
-    evaluation.plot_score_distributions(hits_df, score_dist_dir)
+#     score_dist_dir = os.path.join(out_dir, "hit_score_distributions")
+#     evaluation.plot_score_distributions(hits_df, score_dist_dir)
 
-    hits_cdf_dir = os.path.join(out_dir, "motif_peak_hit_cdfs")
-    evaluation.plot_homotypic_densities(occ_mat, motif_names, hits_cdf_dir)
+#     hits_cdf_dir = os.path.join(out_dir, "motif_peak_hit_cdfs")
+#     evaluation.plot_homotypic_densities(occ_mat, motif_names, hits_cdf_dir)
 
-    frac_peaks_path = os.path.join(out_dir, "frac_peaks_with_motif.png")
-    evaluation.plot_frac_peaks(occ_bin, motif_names, frac_peaks_path)
+#     frac_peaks_path = os.path.join(out_dir, "frac_peaks_with_motif.png")
+#     evaluation.plot_frac_peaks(occ_bin, motif_names, frac_peaks_path)
 
-    # occ_path = os.path.join(out_dir, "peak_motif_occurrences.png")
-    # visualization.plot_occurrence(occ_mat, motif_names, peak_order, motif_order, occ_path)
+#     # occ_path = os.path.join(out_dir, "peak_motif_occurrences.png")
+#     # visualization.plot_occurrence(occ_mat, motif_names, peak_order, motif_order, occ_path)
 
-    coocc_counts_path = os.path.join(out_dir, "motif_cooccurrence_counts.png")
-    evaluation.plot_cooccurrence_counts(coocc, motif_names, motif_order, coocc_counts_path)
+#     coocc_counts_path = os.path.join(out_dir, "motif_cooccurrence_counts.png")
+#     evaluation.plot_cooccurrence_counts(coocc, motif_names, motif_order, coocc_counts_path)
 
-    coocc_sigs_path = os.path.join(out_dir, "motif_cooccurrence_neg_log10p.png")
-    evaluation.plot_cooccurrence_sigs(coocc_nlp, motif_names, motif_order, coocc_sigs_path)
+#     coocc_sigs_path = os.path.join(out_dir, "motif_cooccurrence_neg_log10p.png")
+#     evaluation.plot_cooccurrence_sigs(coocc_nlp, motif_names, motif_order, coocc_sigs_path)
 
-    coocc_ors_path = os.path.join(out_dir, "motif_cooccurrence_odds_ratios.png")
-    evaluation.plot_cooccurrence_lors(coocc_lor, motif_names, motif_order, coocc_ors_path)
+#     coocc_ors_path = os.path.join(out_dir, "motif_cooccurrence_odds_ratios.png")
+#     evaluation.plot_cooccurrence_lors(coocc_lor, motif_names, motif_order, coocc_ors_path)
 
 
-def modisco_recall(hits_path, modisco_h5_path, peaks_path, out_dir, modisco_region_width, score_type):
-    from . import evaluation
+# def modisco_recall(hits_path, modisco_h5_path, peaks_path, out_dir, modisco_region_width, score_type):
+#     from . import evaluation
 
-    modisco_half_width = modisco_region_width // 2
-    peaks_df = data_io.load_peaks(peaks_path, modisco_half_width)
-    hits_df = data_io.load_hits(hits_path, lazy=True)
-    seqlets_df = data_io.load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=True)
+#     modisco_half_width = modisco_region_width // 2
+#     peaks_df = data_io.load_peaks(peaks_path, modisco_half_width)
+#     hits_df = data_io.load_hits(hits_path, lazy=True)
+#     seqlets_df = data_io.load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=True)
 
-    seqlet_recalls, overlaps_df, nonoverlaps_df, seqlet_counts = evaluation.seqlet_recall(hits_df, peaks_df, seqlets_df, 
-                                                                                          score_type, modisco_half_width)
+#     seqlet_recalls, overlaps_df, nonoverlaps_df, seqlet_counts = evaluation.seqlet_recall(hits_df, peaks_df, seqlets_df, 
+#                                                                                           score_type, modisco_half_width)
     
-    recall_dir = os.path.join(out_dir, "modisco_recall_data")
-    data_io.write_modisco_recall(seqlet_recalls, overlaps_df, nonoverlaps_df, seqlet_counts, recall_dir)
+#     recall_dir = os.path.join(out_dir, "modisco_recall_data")
+#     data_io.write_modisco_recall(seqlet_recalls, overlaps_df, nonoverlaps_df, seqlet_counts, recall_dir)
 
-    plot_dir = os.path.join(out_dir, "modisco_recall_plots")
-    evaluation.plot_modisco_recall(seqlet_recalls, seqlet_counts, plot_dir)
+#     plot_dir = os.path.join(out_dir, "modisco_recall_plots")
+#     evaluation.plot_modisco_recall(seqlet_recalls, seqlet_counts, plot_dir)
 
 
-def chip_importance(hits_path, modisco_h5_path, fa_path, chip_bw_path, out_dir, 
-                    score_type, motif_name, cwm_trim_threshold):
-    from . import evaluation
+# def chip_importance(hits_path, modisco_h5_path, fa_path, chip_bw_path, out_dir, 
+#                     score_type, motif_name, cwm_trim_threshold):
+#     from . import evaluation
 
-    motifs_df, motifs = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, "pfm_softmax")
+#     motifs_df, motifs = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, "pfm_softmax")
 
-    fwd_row = motifs_df.filter((pl.col("motif_name") == motif_name) & (pl.col("motif_strand") == "+"))
-    fwd_data = fwd_row.row(0, named=True)
-    motif_fwd = motifs[fwd_data["motif_id"],:,fwd_data["motif_start"]:fwd_data["motif_end"]]
+#     fwd_row = motifs_df.filter((pl.col("motif_name") == motif_name) & (pl.col("motif_strand") == "+"))
+#     fwd_data = fwd_row.row(0, named=True)
+#     motif_fwd = motifs[fwd_data["motif_id"],:,fwd_data["motif_start"]:fwd_data["motif_end"]]
 
-    rev_row = motifs_df.filter((pl.col("motif_name") == motif_name) & (pl.col("motif_strand") == "-"))
-    rev_data = rev_row.row(0, named=True)
-    motif_rev = motifs[rev_data["motif_id"],:,rev_data["motif_start"]:rev_data["motif_end"]]
+#     rev_row = motifs_df.filter((pl.col("motif_name") == motif_name) & (pl.col("motif_strand") == "-"))
+#     rev_data = rev_row.row(0, named=True)
+#     motif_rev = motifs[rev_data["motif_id"],:,rev_data["motif_start"]:rev_data["motif_end"]]
     
-    hits_df = data_io.load_hits(hits_path, lazy=True)
-    importance_df = data_io.load_chip_importances(fa_path, chip_bw_path, hits_df, motif_fwd, motif_rev, motif_name)
+#     hits_df = data_io.load_hits(hits_path, lazy=True)
+#     importance_df = data_io.load_chip_importances(fa_path, chip_bw_path, hits_df, motif_fwd, motif_rev, motif_name)
 
-    cumulative_importance = evaluation.chip_cumlative_importance(importance_df, score_type)
+#     cumulative_importance = evaluation.chip_cumlative_importance(importance_df, score_type)
 
-    os.makedirs(out_dir, exist_ok=True)
+#     os.makedirs(out_dir, exist_ok=True)
 
-    data_io.write_chip_importance(importance_df, cumulative_importance, out_dir)
+#     data_io.write_chip_importance(importance_df, cumulative_importance, out_dir)
 
-    evaluation.plot_chip_importance(cumulative_importance, os.path.join(out_dir, "importance_curve.png"))
+#     evaluation.plot_chip_importance(cumulative_importance, os.path.join(out_dir, "importance_curve.png"))
 
 
 def cli():
@@ -217,7 +263,7 @@ def cli():
         help="Type of attributions to use for CWM's and input contribution scores, respectively. 'h' for hypothetical and 'p' for projected.")
 
     call_hits_parser.add_argument("-r", "--regions", type=str, required=True,
-        help="A .npz file of input sequences and contributions. Can be generated using `finemo extract_regions`.")
+        help="A .npz file of input sequences and contributions. Can be generated using `finemo extract-regions-*` subcommands.")
     call_hits_parser.add_argument("-m", "--modisco-h5", type=str, required=True,
         help="A tfmodisco-lite output H5 file of motif patterns.")
     
@@ -293,6 +339,25 @@ def cli():
     
     extract_regions_modisco_fmt_parser.add_argument("-w", "--region-width", type=int, default=1000,
         help="The width of the region extracted around each peak summit.")
+    
+
+    report_parser = subparsers.add_parser("report", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
+        help="Generate QC outputs from hits and tfmodisco-lite motif data.")
+    
+    report_parser.add_argument("-r", "--regions", type=str, required=True,
+        help="A .npz file of input sequences and contributions. Must be identical to the data used for hit calling and tfmodisco motif calling.")
+    report_parser.add_argument("-H", "--hits", type=str, required=True,
+        help="The `hits.tsv` output file from `finemo call-hits`.")
+    report_parser.add_argument("-p", "--peaks", type=str, required=True,
+        help="A sorted peak regions file in ENCODE NarrowPeak format. These should exactly match the regions in `--regions`.")
+    report_parser.add_argument("-m", "--modisco-h5", type=str, required=True,
+        help="A tfmodisco-lite output H5 file of motif patterns.")
+    
+    report_parser.add_argument("-o", "--out-dir", type=str, required=True,
+        help="The path to the output directory.")
+    
+    report_parser.add_argument("-W", "--modisco-region-width", type=int, default=400,
+        help="The width of the region extracted around each peak summit used by tfmodisco-lite.")
     
 
     # calibrate_parser = subparsers.add_parser("calibrate", formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -377,7 +442,6 @@ def cli():
     #     help="Trim treshold for determining motif start and end positions within the full input motif CWM's. This must match the thershold used for calling hits")
     
 
-    
     args = parser.parse_args()
 
     if args.cmd == "call-hits":
@@ -394,16 +458,20 @@ def cli():
     elif args.cmd == "extract-regions-modisco-fmt":
         extract_regions_modisco_fmt(args.attributions, args.sequences, args.out_path, args.region_width)
 
-    elif args.cmd == "calibrate":
-        calibrate(args.background_regions, args.modisco_h5, args.out_dir, args.cwm_trim_threshold, 
-                  args.num_bins, args.batch_size, args.device, args.hypothetical)
+    elif args.cmd == "report":
+        report(args.regions, args.hits, args.modisco_h5, args.peaks, 
+               args.out_dir, args.modisco_region_width)
 
-    elif args.cmd == "visualize":
-        visualize(args.hits, args.out_dir)
+    # elif args.cmd == "calibrate":
+    #     calibrate(args.background_regions, args.modisco_h5, args.out_dir, args.cwm_trim_threshold, 
+    #               args.num_bins, args.batch_size, args.device, args.hypothetical)
 
-    elif args.cmd == "modisco-recall":
-        modisco_recall(args.hits, args.modisco_h5, args.peaks, args.out_dir, args.modisco_region_width, args.hit_score_type)
+    # elif args.cmd == "visualize":
+    #     visualize(args.hits, args.out_dir)
 
-    elif args.cmd == "chip-importance":
-        chip_importance(args.hits, args.modisco_h5, args.fasta, args.chip_bigwig, args.out_dir, 
-                        args.hit_score_type, args.motif_name, args.cwm_trim_threshold)
+    # elif args.cmd == "modisco-recall":
+    #     modisco_recall(args.hits, args.modisco_h5, args.peaks, args.out_dir, args.modisco_region_width, args.hit_score_type)
+
+    # elif args.cmd == "chip-importance":
+    #     chip_importance(args.hits, args.modisco_h5, args.fasta, args.chip_bigwig, args.out_dir, 
+    #                     args.hit_score_type, args.motif_name, args.cwm_trim_threshold)

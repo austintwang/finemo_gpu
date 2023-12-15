@@ -253,7 +253,7 @@ def load_hits(hits_path, lazy=False):
     return hits_df if lazy else hits_df.collect()
 
 
-def load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=False):
+def load_modisco_seqlets(modisco_h5_path, peaks_df, half_width, modisco_half_width, lazy=False):
     
     start_lst = []
     end_lst = []
@@ -295,18 +295,22 @@ def load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=False):
         "motif_name": pattern_tags,
     }
     
+    offset = half_width - modisco_half_width
+
     seqlets_df = (
         pl.LazyFrame(df_data)
         .join(peaks_df.lazy(), on="peak_id", how="inner")
         .select(
             chr=pl.col("chr"),
-            start_untrimmed=pl.col("peak_region_start") + pl.col("seqlet_start"),
-            end_untrimmed=pl.col("peak_region_start") + pl.col("seqlet_end"),
+            start_untrimmed=pl.col("peak_region_start") + pl.col("seqlet_start") + offset,
+            end_untrimmed=pl.col("peak_region_start") + pl.col("seqlet_end") + offset,
             is_revcomp=pl.col("is_revcomp"),
-            motif_name= pl.col("motif_name")
+            motif_name=pl.col("motif_name"),
+            peak_id=pl.col("peak_id"),
+            peak_region_start=pl.col("peak_region_start")
         )
-        .unique()
-        .with_columns(pl.lit(1).alias('seqlet_indicator'))
+        .unique(subset=["chr", "start_untrimmed", "motif_name", "is_revcomp"])
+        # .with_columns(pl.lit(1).alias('seqlet_indicator'))
     )
 
     # print(seqlets_df.head().collect()) ####
@@ -316,45 +320,45 @@ def load_modisco_seqlets(modisco_h5_path, peaks_df, lazy=False):
     return seqlets_df
 
 
-def load_chip_importances(fa_path, bw_path, hits_df, motif_fwd, motif_rev, motif_name):
-    hits_motif = (
-        hits_df
-        .filter(pl.col("motif_name") == motif_name)
-        .select(
-            ["chr", "start", "end", "strand", "hit_score_raw", 
-             "hit_score_unscaled", "hit_score_scaled"]
-        )
-        .unique(subset=["chr", "start", "strand"])
-        .collect()
-    )
-    num_hits = hits_motif.height
+# def load_chip_importances(fa_path, bw_path, hits_df, motif_fwd, motif_rev, motif_name):
+#     hits_motif = (
+#         hits_df
+#         .filter(pl.col("motif_name") == motif_name)
+#         .select(
+#             ["chr", "start", "end", "strand", "hit_score_raw", 
+#              "hit_score_unscaled", "hit_score_scaled"]
+#         )
+#         .unique(subset=["chr", "start", "strand"])
+#         .collect()
+#     )
+#     num_hits = hits_motif.height
 
-    chip_importance = np.zeros(num_hits)
-    genome = pyfaidx.Fasta(fa_path, one_based_attributes=False)
-    try:
-        bw = pyBigWig.open(bw_path)
-        for i, r in tqdm(enumerate(hits_motif.iter_rows(named=True)), disable=None, unit="hits", total=num_hits):
-            chrom = r["chr"]
-            start = r["start"]
-            end = r["end"]
-            strand = r["strand"]
+#     chip_importance = np.zeros(num_hits)
+#     genome = pyfaidx.Fasta(fa_path, one_based_attributes=False)
+#     try:
+#         bw = pyBigWig.open(bw_path)
+#         for i, r in tqdm(enumerate(hits_motif.iter_rows(named=True)), disable=None, unit="hits", total=num_hits):
+#             chrom = r["chr"]
+#             start = r["start"]
+#             end = r["end"]
+#             strand = r["strand"]
 
-            sequence = str(genome[chrom][start:end])
-            one_hot = one_hot_encode(sequence)
-            contribs = np.nan_to_num(bw.values(chrom, start, end))
-            if strand == "+":
-                val_bp = np.mean(contribs * np.sum(motif_fwd * one_hot, axis=0))
-            else:
-                val_bp = np.mean(contribs * np.sum(motif_rev * one_hot, axis=0))
+#             sequence = str(genome[chrom][start:end])
+#             one_hot = one_hot_encode(sequence)
+#             contribs = np.nan_to_num(bw.values(chrom, start, end))
+#             if strand == "+":
+#                 val_bp = np.mean(contribs * np.sum(motif_fwd * one_hot, axis=0))
+#             else:
+#                 val_bp = np.mean(contribs * np.sum(motif_rev * one_hot, axis=0))
 
-            chip_importance[i] = val_bp
+#             chip_importance[i] = val_bp
 
-    finally:
-        bw.close()
+#     finally:
+#         bw.close()
 
-    df = hits_motif.with_columns(pl.Series(name="chip_importance", values=chip_importance)) 
+#     df = hits_motif.with_columns(pl.Series(name="chip_importance", values=chip_importance)) 
 
-    return df
+#     return df
 
 
 def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_dir, motif_width):
@@ -478,44 +482,57 @@ def write_occ_df(occ_df, out_path):
     occ_df.write_csv(out_path, separator="\t")
 
 
-def write_coocc_mats(coocc_counts, coocc_sigs, motif_names, out_dir):
-    os.makedirs(out_dir, exist_ok=True)
-    counts_path = os.path.join(out_dir, "cooccurrence_counts.txt")
-    sigs_path = os.path.join(out_dir, "cooccurrence_neg_log10p.txt")
-    names_path = os.path.join(out_dir, "motif_name.txt")
+# def write_coocc_mats(coocc_counts, coocc_sigs, motif_names, out_dir):
+#     os.makedirs(out_dir, exist_ok=True)
+#     counts_path = os.path.join(out_dir, "cooccurrence_counts.txt")
+#     sigs_path = os.path.join(out_dir, "cooccurrence_neg_log10p.txt")
+#     names_path = os.path.join(out_dir, "motif_name.txt")
 
-    np.savetxt(counts_path, coocc_counts, delimiter="\t")
-    np.savetxt(sigs_path, coocc_sigs, delimiter="\t")
+#     np.savetxt(counts_path, coocc_counts, delimiter="\t")
+#     np.savetxt(sigs_path, coocc_sigs, delimiter="\t")
     
-    with open(names_path, "w") as f:
-        for n in motif_names:
-            f.write(f"{n}\n")
+#     with open(names_path, "w") as f:
+#         for n in motif_names:
+#             f.write(f"{n}\n")
 
 
-def write_modisco_recall(seqlet_recalls, overlaps_df, nonoverlaps_df, seqlet_counts, out_dir):
-    os.makedirs(out_dir, exist_ok=True)
+def write_recall_data(recall_df, cwms, out_dir):
+    cwms_dir = os.path.join(out_dir, "CWMs")
+    os.makedirs(cwms_dir, exist_ok=True)
 
-    overlaps_df.write_csv(os.path.join(out_dir, "overlaps.tsv"), separator="\t")
-    nonoverlaps_df.write_csv(os.path.join(out_dir, "non_overlaps.tsv"), separator="\t")
+    for m, v in cwms.items():
+        motif_dir = os.path.join(cwms_dir, m)
+        os.makedirs(motif_dir, exist_ok=True)
+        for cwm_type, cwm in v.items():
+            np.savetxt(os.path.join(motif_dir, f"{cwm_type}.txt"), cwm)
 
-    with open(os.path.join(out_dir, "seqlet_counts.json"), "w") as f:
-        json.dump(seqlet_counts, f, indent=4)
-
-    for k, v in seqlet_recalls.items():
-        np.savetxt(os.path.join(out_dir, f'{k}.txt.gz'), v)
+    recall_df.write_csv(os.path.join(out_dir, "seqlet_recall.tsv"), separator="\t")
 
 
-def write_chip_importance(importance_df, cumulative_importance, out_dir):
-    os.makedirs(out_dir, exist_ok=True)
+# def write_modisco_recall(seqlet_recalls, overlaps_df, nonoverlaps_df, seqlet_counts, out_dir):
+#     os.makedirs(out_dir, exist_ok=True)
+
+#     overlaps_df.write_csv(os.path.join(out_dir, "overlaps.tsv"), separator="\t")
+#     nonoverlaps_df.write_csv(os.path.join(out_dir, "non_overlaps.tsv"), separator="\t")
+
+#     with open(os.path.join(out_dir, "seqlet_counts.json"), "w") as f:
+#         json.dump(seqlet_counts, f, indent=4)
+
+#     for k, v in seqlet_recalls.items():
+#         np.savetxt(os.path.join(out_dir, f'{k}.txt.gz'), v)
+
+
+# def write_chip_importance(importance_df, cumulative_importance, out_dir):
+#     os.makedirs(out_dir, exist_ok=True)
     
-    importance_df.write_csv(os.path.join(out_dir, "hit_importances.tsv"), separator="\t")
+#     importance_df.write_csv(os.path.join(out_dir, "hit_importances.tsv"), separator="\t")
 
-    np.savetxt(os.path.join(out_dir, "cumulative_importance.txt.gz"), cumulative_importance)
+#     np.savetxt(os.path.join(out_dir, "cumulative_importance.txt.gz"), cumulative_importance)
 
 
-def write_calibration_distributions_npz(max_xcors, motif_names, out_path):
-    out_dict = {n: max_xcors[:,i] for i, n in enumerate(motif_names)}
-    np.savez(out_path, **out_dict) 
+# def write_calibration_distributions_npz(max_xcors, motif_names, out_path):
+#     out_dict = {n: max_xcors[:,i] for i, n in enumerate(motif_names)}
+#     np.savez(out_path, **out_dict) 
 
 
 # def write_calibration_quantiles_npz(max_xcor_quantiles, motif_names, out_path):
