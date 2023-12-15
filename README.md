@@ -136,7 +136,7 @@ options:
   -M {hh,pp,ph,hp}, --mode {hh,pp,ph,hp}
                         Type of attributions to use for CWM's and input contribution scores, respectively. 'h' for hypothetical and 'p' for projected. (default: pp)
   -r REGIONS, --regions REGIONS
-                        A .npz file of input sequences and contributions. Can be generated using `finemo extract-regions-bw` or `finemo extract-regions-h5`. (*Required*)
+                        A .npz file of input sequences and contributions. Can be generated using `finemo extract-regions-*` subcommands. (*Required*)
   -m MODISCO_H5, --modisco-h5 MODISCO_H5
                         A tfmodisco-lite output H5 file of motif patterns. (*Required*)
   -p PEAKS, --peaks PEAKS
@@ -209,8 +209,33 @@ options:
 
 #### Additional notes
 
-- `-a/--alpha` is the primary hyperparameter to tune, with higher values giving fewer hits. Typically, values around 0.5-0.7 serve as a good starting point. This hyperparameter can be interpreted as the maximum expected cross-correlation between a CWM and a background/uninformative track.
-- `-b/--buffer-size` should be set to the highest value that fits in GPU memory.
+- `-a/--alpha` is the primary hyperparameter to tune, with higher values giving fewer but more accurate hits. Typically, values around 0.4-0.7 serve as a good starting point. This hyperparameter can be interpreted as the maximum expected cross-correlation between a CWM and a background/uninformative track.
+- `-b/--buffer-size` should be set to the highest value that fits in GPU memory. **If you encounter GPU out-of-memory errors, try reducing this value.**
 - `-s/--step-size` does not substantively affect results, but should be tuned to maximize performance.
 - Legacy TFMoDISCo H5's can be converted to TFMoDISCo-lite format using `modisco convert` in the [`modisco-lite`](https://github.com/jmschrei/tfmodisco-lite/tree/main) package.
-- Hit calling uses only untrimmed CWM's. Trimmed CWM's are used for calculating hit start and end offsets, but not for determining hits.
+- Hit calling uses only untrimmed CWM's. Trimmed CWM's are used only for calculating hit start and end offsets.
+
+### Output reporting
+
+#### `finemo report`
+
+Generate an HTML report (`report.html`) with TF-MoDISCo seqlet recall and hit distribution visualizations.
+The input regions must have genomic coordinates and be identical to those used for TF-MoDISCo motif construction.
+
+```console
+usage: finemo report [-h] -r REGIONS -H HITS -p PEAKS -m MODISCO_H5 -o OUT_DIR [-W MODISCO_REGION_WIDTH]
+
+options:
+  -h, --help            show this help message and exit
+  -r REGIONS, --regions REGIONS
+                        A .npz file of input sequences and contributions. Must be identical to the data used for hit calling and tfmodisco motif calling. (*Required*)
+  -H HITS, --hits HITS  The `hits.tsv` output file from `finemo call-hits`. (*Required*)
+  -p PEAKS, --peaks PEAKS
+                        A sorted peak regions file in ENCODE NarrowPeak format. These should exactly match the regions in `--regions`. (*Required*)
+  -m MODISCO_H5, --modisco-h5 MODISCO_H5
+                        A tfmodisco-lite output H5 file of motif patterns. (*Required*)
+  -o OUT_DIR, --out-dir OUT_DIR
+                        The path to the output directory. (*Required*)
+  -W MODISCO_REGION_WIDTH, --modisco-region-width MODISCO_REGION_WIDTH
+                        The width of the region extracted around each peak summit used by tfmodisco-lite. (default: 400)
+```
