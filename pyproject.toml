@@ -16,7 +16,7 @@ dependencies = [
     "tqdm",
     "pyBigWig",
     "pyfaidx",
-    "jinja2
+    "jinja2"
 ]
 
 [project.scripts]
