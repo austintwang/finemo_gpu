@@ -87,9 +87,9 @@ def load_regions_from_bw(peaks, fa_path, bw_paths, half_width):
                 sequences[ind,:,a:b] = one_hot_encode(sequence)
 
                 for j, bw in enumerate(bws):
-                    contrib_buffer[j,:] = bw.values(chrom, start_adj, end_adj, numpy=True)
+                    contrib_buffer[j,:] = np.nan_to_num(bw.values(chrom, start_adj, end_adj, numpy=True))
 
-                contribs[ind,a:b] = np.nanmean(contrib_buffer, axis=0)
+                contribs[ind,a:b] = np.mean(contrib_buffer, axis=0)
     
     finally:
         for bw in bws:
@@ -106,7 +106,7 @@ def load_regions_from_h5(h5_paths, half_width):
         end = start + 2 * half_width
         
         sequences = h5s[0]['raw/seq'][:,:,start:end].astype(np.int8) 
-        contribs = np.nanmean([f['shap/seq'][:,:,start:end] for f in h5s], axis=0, dtype=np.float16)
+        contribs = np.mean([np.nan_to_num(f['shap/seq'][:,:,start:end]) for f in h5s], axis=0, dtype=np.float16)
 
     return sequences, contribs
 
@@ -128,8 +128,8 @@ def load_regions_from_modisco_fmt(shaps_paths, ohe_path, half_width):
 
     sequences = sequences_raw[:,:,start:end].astype(np.int8)
 
-    shaps = [load_npy_or_npz(p)[:,:,start:end] for p in shaps_paths]
-    contribs = np.nanmean(shaps, axis=0, dtype=np.float16)
+    shaps = [np.nan_to_num(load_npy_or_npz(p)[:,:,start:end]) for p in shaps_paths]
+    contribs = np.mean(shaps, axis=0, dtype=np.float16)
 
     return sequences, contribs
 
