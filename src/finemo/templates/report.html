@@ -213,7 +213,11 @@
 </p>
 <p>
     CWMs (contribution weight matrices) are average contribution scores over a set of regions.
-    Shown are CWMs constructed from all hits (forward and reverse complement), all seqlets, missed seqlets, and additional restricted hits. 
+    The report displays CWMs constructed from all hits (forward and reverse complement), all seqlets, missed seqlets, and additional restricted hits. 
+</p>
+<p>
+    The hit-seqlet correlation is the Pearson correlation between the additional-restricted-hits CWM and the seqlet CWM. 
+    This statistic measures the similarity between hits that were missed by TF-MoDISco and the seqlets used to construct the motif.
 </p>
 
 <table class="wide_table">
@@ -221,6 +225,7 @@
         <tr>
             <th>Motif Name</th>
             <th class="num_col">Seqlet Recall</th>
+            <th class="num_col">Hit-Seqlet Correlation</th>
             <th class="num_col">Hits</th>
             <th class="num_col">Restricted Hits</th>
             <th class="num_col">Seqlets</th>
@@ -239,6 +244,7 @@
         <tr>
             <td><code>{{ item.motif_name }}</code></td>
             <td class="num_col">{{ '%0.3f'| format(item.seqlet_recall|float) }}</td>
+            <td class="num_col">{{ '%0.3f'| format(item.cwm_correlation|float) }}</td>
             <td class="num_col">{{ item.num_hits_total }}</td>
             <td class="num_col">{{ item.num_hits_restricted }}</td>
             <td class="num_col">{{ item.num_seqlets }}</td>
