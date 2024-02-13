@@ -197,24 +197,35 @@
     For each motif, this table examines the consistency between hits and TF-MoDISco seqlets. 
 </p>
 <p>
-    Here, the seqlet recall is defined as the fraction of seqlets that are called as hits. 
-    Note that palindromic motifs may have lower recall due to disagreements on orientation.
-    Seqlets not called as hits are referred to as missed seqlets.
-    If seqlet recall is near zero for all motifs, the <code>-W/--modisco-region-width</code> argument is likely incorrect.
+    The following statistics report the number of hits, seqlets, and their relationships: 
 </p>
+<ul>
+    <li><strong>Hits</strong>: The number of hits called by FiNeMo</li>
+    <li><strong>Restricted Hits</strong>: The number of FiNeMo hits within the TF-MoDISco input regions</li>
+    <li><strong>Seqlets</strong>: The number of unique TF-MoDISco seqlets</li>
+    <li><strong>Hit/Seqlet Overlaps</strong>: The number of hits that coincide with TF-MoDISco seqlets</li>
+    <li><strong>Missed Seqlets</strong>: The number of TF-MoDISco seqlets not called as hits</li>
+    <li><strong>Additional Restricted Hits</strong>: The number of hits within the TF-MoDISco input regions that were not identified as seqlets by TF-MoDISco</li>
+    <li><strong>Seqlet Recall</strong>: The fraction of seqlets that are called as hits</li>
+    <li><strong>Hit-Seqlet Correlation</strong>: The Pearson correlation between the additional-restricted-hits CWM and the seqlet CWM</li>
+</ul>
 <p>
-    Note that the seqlet counts here may be lower than those shown in the tfmodisco-lite report.
-    This is because peaks regions may overlap, resulting in seqlets being double-counted. 
+    Note that the seqlet counts here may be lower than those shown in the tfmodisco-lite report due to double-counting in overlapping regions.
     The seqlet counts shown here are after de-duplication, while the counts in the tfmodisco-lite report are not de-duplicated.
 </p>
 <p>
-    Restricted hits are the subset of hits that are within the TF-MoDISco input regions.
-    Additional restricted hits are restricted hits missed (not identified as seqlets) by TF-MoDISco.
+    Note that palindromic motifs may have lower recall due to disagreements on orientation.
+    If seqlet recall is near zero for all motifs, the <code>-W/--modisco-region-width</code> argument is likely incorrect.
 </p>
 <p>
-    CWMs (contribution weight matrices) are average contribution scores over a set of regions.
-    The report displays CWMs constructed from all hits (forward and reverse complement), all seqlets, missed seqlets, and additional restricted hits. 
+    CWMs (contribution weight matrices) are average contribution scores over a set of regions. The CWMs shown here are:
 </p>
+<ul>
+    <li><strong>Hit CWM (FC)</strong>: The forward-strand CWM of all hits</li>
+    <li><strong>Hit CWM (RC)</strong>: The reverse-strand CWM of all hits</li>
+    <li><strong>Seqlet CWM</strong>: The CWM of all TF-MoDISco seqlets</li>
+    <li><strong>Missed-Seqlet-Only CWM</strong>: The CWM of all TF-MoDISco seqlets that were not called as hits</li>
+    <li><strong>Additional-Restricted-Hit CWM</strong>: The CWM of all hits within the TF-MoDISco input regions that were not identified as seqlets by TF-MoDISco</li>
 <p>
     The hit-seqlet correlation is the Pearson correlation between the additional-restricted-hits CWM and the seqlet CWM. 
     This statistic measures the similarity between hits that were missed by TF-MoDISco and the seqlets used to construct the motif.
@@ -296,9 +307,9 @@
 
 <h3>Motif co-occurrence</h3>
 <p>
-    This heatmap shows the pairwise co-occurrence of motifs in peaks.
-    Here, motif occurrence is a binary indicator of the presence one or more motif hits in a peak.
-    Co-occurrence is defined as the Pearson correlation of motif ocurrences across peaks. 
+    This heatmap shows the co-occurrence of motifs across peaks.
+    The color intensity here represents the pearson correlation between the motifs' occurrence across peaks,
+    where occurence is defined as the presence of a hit for a motif in a peak.
 </p>
 <img src="motif_cooocurrence.png" width="780">
 
