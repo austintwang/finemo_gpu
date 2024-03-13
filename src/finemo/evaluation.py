@@ -310,7 +310,6 @@ def seqlet_recall(regions, hits_df, peaks_df, seqlets_df, motif_names, modisco_h
     seqlets_only_by_motif = seqlets_only_df.partition_by("motif_name", as_dict=True)
     hits_only_filtered_by_motif = hits_only_filtered_df.partition_by("motif_name", as_dict=True)
 
-
     recall_data = {}
     cwms = {}
     dummy_df = overlaps_df.clear()
@@ -323,15 +322,30 @@ def seqlet_recall(regions, hits_df, peaks_df, seqlets_df, motif_names, modisco_h
         hits_only_filtered = hits_only_filtered_by_motif.get(m, dummy_df)
         # hits_only = hits_only_by_motif[m]
 
-        recall_data[m] = {
-            "seqlet_recall": overlaps.height / seqlets.height,
-            "num_hits_total": hits.height,
-            "num_hits_restricted": hits_filtered.height,
-            "num_seqlets": seqlets.height,
-            "num_overlaps": overlaps.height,
-            "num_seqlets_only": seqlets_only.height,
-            "num_hits_restricted_only": hits_only_filtered.height
-        }
+        if seqlets.height > 0:
+            recall_data[m] = {
+                "seqlet_recall": overlaps.height / seqlets.height,
+                "num_hits_total": hits.height,
+                "num_hits_restricted": hits_filtered.height,
+                "num_seqlets": seqlets.height,
+                "num_overlaps": overlaps.height,
+                "num_seqlets_only": seqlets_only.height,
+                "num_hits_restricted_only": hits_only_filtered.height
+            }
+
+        else:
+            # print()
+            # print(m)
+            # print()
+            recall_data[m] = {
+                "seqlet_recall": 0,
+                "num_hits_total": hits.height,
+                "num_hits_restricted": hits_filtered.height,
+                "num_seqlets": seqlets.height,
+                "num_overlaps": overlaps.height,
+                "num_seqlets_only": seqlets_only.height,
+                "num_hits_restricted_only": hits_only_filtered.height
+            }
 
         cwms[m] = {
             "hits_fc": get_cwms(regions, hits, motif_width),
@@ -343,7 +357,7 @@ def seqlet_recall(regions, hits_df, peaks_df, seqlets_df, motif_names, modisco_h
         # cwms[m]["seqlets_rc"] = cwms[m]["seqlets_fc"][::-1,::-1]
 
     records = [{"motif_name": k} | v for k, v in recall_data.items()]
-    recall_df = pl.from_dicts(records)        
+    recall_df = pl.from_dicts(records)
 
     return recall_data, recall_df, cwms
 
