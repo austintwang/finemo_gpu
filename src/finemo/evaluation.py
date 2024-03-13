@@ -334,9 +334,6 @@ def seqlet_recall(regions, hits_df, peaks_df, seqlets_df, motif_names, modisco_h
             }
 
         else:
-            # print()
-            # print(m)
-            # print()
             recall_data[m] = {
                 "seqlet_recall": 0,
                 "num_hits_total": hits.height,
