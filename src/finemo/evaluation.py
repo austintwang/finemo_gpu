@@ -310,7 +310,6 @@ def seqlet_recall(regions, hits_df, peaks_df, seqlets_df, motif_names, modisco_h
     seqlets_only_by_motif = seqlets_only_df.partition_by("motif_name", as_dict=True)
     hits_only_filtered_by_motif = hits_only_filtered_df.partition_by("motif_name", as_dict=True)
 
-
     recall_data = {}
     cwms = {}
     dummy_df = overlaps_df.clear()
@@ -324,7 +323,7 @@ def seqlet_recall(regions, hits_df, peaks_df, seqlets_df, motif_names, modisco_h
         # hits_only = hits_only_by_motif[m]
 
         recall_data[m] = {
-            "seqlet_recall": overlaps.height / seqlets.height,
+            "seqlet_recall": np.float64(overlaps.height) / seqlets.height,
             "num_hits_total": hits.height,
             "num_hits_restricted": hits_filtered.height,
             "num_seqlets": seqlets.height,
@@ -351,7 +350,7 @@ def seqlet_recall(regions, hits_df, peaks_df, seqlets_df, motif_names, modisco_h
         recall_data[m]["cwm_correlation"] = cwm_cor
 
     records = [{"motif_name": k} | v for k, v in recall_data.items()]
-    recall_df = pl.from_dicts(records)        
+    recall_df = pl.from_dicts(records)
 
     return recall_data, recall_df, cwms
 
