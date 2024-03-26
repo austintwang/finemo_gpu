@@ -322,27 +322,15 @@ def seqlet_recall(regions, hits_df, peaks_df, seqlets_df, motif_names, modisco_h
         hits_only_filtered = hits_only_filtered_by_motif.get(m, dummy_df)
         # hits_only = hits_only_by_motif[m]
 
-        if seqlets.height > 0:
-            recall_data[m] = {
-                "seqlet_recall": overlaps.height / seqlets.height,
-                "num_hits_total": hits.height,
-                "num_hits_restricted": hits_filtered.height,
-                "num_seqlets": seqlets.height,
-                "num_overlaps": overlaps.height,
-                "num_seqlets_only": seqlets_only.height,
-                "num_hits_restricted_only": hits_only_filtered.height
-            }
-
-        else:
-            recall_data[m] = {
-                "seqlet_recall": 0,
-                "num_hits_total": hits.height,
-                "num_hits_restricted": hits_filtered.height,
-                "num_seqlets": seqlets.height,
-                "num_overlaps": overlaps.height,
-                "num_seqlets_only": seqlets_only.height,
-                "num_hits_restricted_only": hits_only_filtered.height
-            }
+        recall_data[m] = {
+            "seqlet_recall": np.float64(overlaps.height) / seqlets.height,
+            "num_hits_total": hits.height,
+            "num_hits_restricted": hits_filtered.height,
+            "num_seqlets": seqlets.height,
+            "num_overlaps": overlaps.height,
+            "num_seqlets_only": seqlets_only.height,
+            "num_hits_restricted_only": hits_only_filtered.height
+        }
 
         cwms[m] = {
             "hits_fc": get_cwms(regions, hits, motif_width),
