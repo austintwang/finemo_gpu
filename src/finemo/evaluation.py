@@ -340,6 +340,14 @@ def seqlet_recall(regions, hits_df, peaks_df, seqlets_df, motif_names, modisco_h
         }
         cwms[m]["hits_rc"] = cwms[m]["hits_fc"][::-1,::-1]
         # cwms[m]["seqlets_rc"] = cwms[m]["seqlets_fc"][::-1,::-1]
+        
+        hits_only_cwm = cwms[m]["hits_restricted_only"]
+        seqlets_cwm = cwms[m]["seqlets_fc"]
+        hnorm = np.sqrt((hits_only_cwm**2).sum())
+        snorm = np.sqrt((seqlets_cwm**2).sum())
+        cwm_cor = (hits_only_cwm * seqlets_cwm).sum() / (hnorm * snorm)
+
+        recall_data[m]["cwm_correlation"] = cwm_cor
 
     records = [{"motif_name": k} | v for k, v in recall_data.items()]
     recall_df = pl.from_dicts(records)
