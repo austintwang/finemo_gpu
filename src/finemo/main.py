@@ -32,7 +32,7 @@ def extract_regions_modisco_fmt(shaps_paths, ohe_path, out_path, region_width):
 
 
 def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, out_dir, cwm_trim_threshold, 
-              alpha, step_size, convergence_tol, max_steps, buffer_size, step_adjust, device, mode):
+              alpha, step_size, convergence_tol, max_steps, buffer_size, step_adjust, device, mode, no_post_filter):
     
     params = locals()
     from . import hitcaller
@@ -73,7 +73,7 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, out_d
     motif_width = cwms.shape[2]
 
     hits, qc = hitcaller.fit_contribs(cwms, contribs, sequences, use_hypothetical_contribs, alpha, step_size, 
-                                      convergence_tol, max_steps, buffer_size, step_adjust, device)
+                                      convergence_tol, max_steps, buffer_size, step_adjust, not no_post_filter, device)
     hits_df = pl.DataFrame(hits)
     qc_df = pl.DataFrame(qc).with_row_count(name="peak_id")
 
@@ -170,6 +170,8 @@ def cli():
         help="Trim treshold for determining motif start and end positions within the full input motif CWM's.")
     call_hits_parser.add_argument("-a", "--alpha", type=float, default=0.6,
         help="Total regularization weight.")
+    call_hits_parser.add_argument("-f", "--no-post-filter", action='store_true',
+        help="Do not perform post-hit-calling filtering. By default, hits are filtered to a minimum correlation of `alpha` with the input contributions.")
     call_hits_parser.add_argument("-s", "--step-size", type=float, default=3.,
         help="Maximum optimizer step size.")
     call_hits_parser.add_argument("-A", "--step-adjust", type=float, default=0.7,
@@ -254,7 +256,8 @@ def cli():
     if args.cmd == "call-hits":
         call_hits(args.regions, args.peaks, args.modisco_h5, args.chrom_order, args.out_dir, 
                   args.cwm_trim_threshold, args.alpha, args.step_size, args.convergence_tol, 
-                  args.max_steps, args.buffer_size, args.step_adjust, args.device, args.mode)
+                  args.max_steps, args.buffer_size, args.step_adjust, args.device, args.mode, 
+                  args.no_post_filter)
     
     elif args.cmd == "extract-regions-bw":
         extract_regions_bw(args.peaks, args.fasta, args.bigwigs, args.out_path, args.region_width)

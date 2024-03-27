@@ -148,7 +148,7 @@ class BatchLoaderHyp(BatchLoaderBase):
 
 
 def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_max, 
-                 convergence_tol, max_steps, batch_size, step_adjust, device):
+                 convergence_tol, max_steps, batch_size, step_adjust, post_filter, device):
     """
     Call hits by fitting sparse linear model to contributions
     
@@ -273,7 +273,10 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
                 inds_out = inds_buf[converged]
                 global_scale_out = global_scale_buf[converged]
 
-                coef_out = coef[converged,:,:].to_sparse()
+                coef_out = coef[converged,:,:]
+                if post_filter:
+                    coef_out = coef_out.clamp(min=alpha)
+                coef_out = coef_out.to_sparse()
 
                 # Extract hit coordinates
                 hit_idxs_out = torch.clone(coef_out.indices())
