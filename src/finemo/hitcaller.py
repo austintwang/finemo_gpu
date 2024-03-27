@@ -8,7 +8,7 @@ from tqdm import tqdm, trange
 
 
 def prox_grad_step(coefficients, importance_scale, cwms, contribs, pred_mask, 
-                   a_const, b_const, st_thresh, shrink_factor, step_sizes):
+                   alpha, b_const, st_thresh, step_sizes):
     """
     Proximal gradient descent optimization step for non-negative elastic net
 
@@ -35,24 +35,24 @@ def prox_grad_step(coefficients, importance_scale, cwms, contribs, pred_mask,
     
     # Compute duality gap
     dual_norm = (ngrad - b_const * coefficients).amax(dim=(1,2)) # (b)
-    dual_scale = (torch.clamp(a_const / dual_norm, max=1.)**2 + 1) / 2 # (b)
+    dual_scale = (torch.clamp(alpha / dual_norm, max=1.)**2 + 1) / 2 # (b)
     ll_scaled = ll * dual_scale # (b)
 
     dual_diff = (residuals * contribs).sum(dim=(1,2)) # (b)
 
-    l1_term = a_const * torch.linalg.vector_norm(coefficients, ord=1, dim=(1,2)) # (b)
+    l1_term = alpha * torch.linalg.vector_norm(coefficients, ord=1, dim=(1,2)) # (b)
     l2_term = b_const * torch.sum(coefficients**2, dim=(1,2)) # (b)
 
     dual_gap = (ll_scaled - dual_diff + l1_term + l2_term).abs() # (b)
 
     # Compute proximal gradient descent step
     c_next = coefficients + step_sizes * ngrad # (b, m, l + w - 1)
-    c_next = F.relu(c_next - st_thresh) / shrink_factor # (b, m, l - w + 1)
+    c_next = F.relu(c_next - st_thresh) # (b, m, l - w + 1)
 
     return c_next, dual_gap, ll
 
 
-def optimizer(cwms, l, a_const, b_const):
+def optimizer(cwms, l, alpha):
     """
     Buffered non-negative elastic net optimizer coroutine. 
     Uses proximal gradient descent with momentum.
@@ -72,13 +72,12 @@ def optimizer(cwms, l, a_const, b_const):
     # i, step_sizes: (b,)
 
     while True:
-        st_thresh = a_const * step_sizes
-        shrink_factor = 1 + b_const * step_sizes
+        st_thresh = alpha * step_sizes
 
         # Proximal gradient descent step
         c_b_prev = c_b
         c_b, gap, ll = prox_grad_step(c_a, importance_scale, cwms, contribs, sequences, 
-                                      a_const, b_const, st_thresh, shrink_factor, step_sizes)
+                                      alpha, st_thresh, step_sizes)
         gap = gap / l
         ll = ll / (2 * l)
 
@@ -143,7 +142,7 @@ def _load_batch_hyp(contribs, sequences, start, end, motif_width, l, device):
     return contribs_batch, 1, inds, global_scale
 
 
-def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, step_size_max, 
+def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_max, 
                  convergence_tol, max_steps, buffer_size, step_adjust, device):
     """
     Call hits by fitting sparse linear model to contributions
@@ -170,10 +169,6 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
     else:
         raise ValueError(f"Input contributions array is of incorrect shape {contribs.shape}")
 
-    # L1 and L2 regularization hyperparameters
-    a_const = alpha * l1_ratio
-    b_const = alpha * (1 - l1_ratio)
-
     # Convert inputs to pytorch tensors
     cwms = torch.from_numpy(cwms)
     contribs = torch.from_numpy(contribs)
@@ -189,7 +184,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, l1_ratio, s
     qc_lsts = {"log_likelihood": [], "dual_gap": [], "num_steps": [], "step_size": [], "global_scale": []}
 
     # Initialize optimizer
-    opt_iter = optimizer(cwms, l, a_const, b_const)
+    opt_iter = optimizer(cwms, l, alpha)
     opt_iter.send(None)
 
     # Utility convolutional filter for summing values in window 

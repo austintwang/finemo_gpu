@@ -32,7 +32,7 @@ def extract_regions_modisco_fmt(shaps_paths, ohe_path, out_path, region_width):
 
 
 def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, out_dir, cwm_trim_threshold, 
-              alpha, l1_ratio, step_size, convergence_tol, max_steps, buffer_size, step_adjust, device, mode):
+              alpha, step_size, convergence_tol, max_steps, buffer_size, step_adjust, device, mode):
     
     params = locals()
     from . import hitcaller
@@ -72,7 +72,7 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, out_d
     num_motifs = cwms.shape[0]
     motif_width = cwms.shape[2]
 
-    hits, qc = hitcaller.fit_contribs(cwms, contribs, sequences, use_hypothetical_contribs, alpha, l1_ratio, step_size, 
+    hits, qc = hitcaller.fit_contribs(cwms, contribs, sequences, use_hypothetical_contribs, alpha, step_size, 
                                       convergence_tol, max_steps, buffer_size, step_adjust, device)
     hits_df = pl.DataFrame(hits)
     qc_df = pl.DataFrame(qc).with_row_count(name="peak_id")
@@ -170,8 +170,6 @@ def cli():
         help="Trim treshold for determining motif start and end positions within the full input motif CWM's.")
     call_hits_parser.add_argument("-a", "--alpha", type=float, default=0.6,
         help="Total regularization weight.")
-    call_hits_parser.add_argument("-l", "--l1-ratio", type=float, default=1.,
-        help="Elastic net mixing parameter. This specifies the fraction of `alpha` used for L1 regularization.")
     call_hits_parser.add_argument("-s", "--step-size", type=float, default=3.,
         help="Maximum optimizer step size.")
     call_hits_parser.add_argument("-A", "--step-adjust", type=float, default=0.7,
@@ -255,7 +253,7 @@ def cli():
 
     if args.cmd == "call-hits":
         call_hits(args.regions, args.peaks, args.modisco_h5, args.chrom_order, args.out_dir, 
-                  args.cwm_trim_threshold, args.alpha, args.l1_ratio, args.step_size, args.convergence_tol, 
+                  args.cwm_trim_threshold, args.alpha, args.step_size, args.convergence_tol, 
                   args.max_steps, args.buffer_size, args.step_adjust, args.device, args.mode)
     
     elif args.cmd == "extract-regions-bw":
