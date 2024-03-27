@@ -76,60 +76,69 @@ def optimizer_step(cwms, contribs, importance_scale, sequences, c_a, c_b, i, ste
     return c_a, c_b, gap, ll
 
 
-def _load_batch_compact_fmt(contribs, sequences, start, end, l, device):
-    n = end - start
-    end = min(end, contribs.shape[0])
-    overhang = n - (end - start)
-    pad_lens = (0, 0, 0, 0, 0, overhang)
+class BatchLoaderBase:
+    def __init__(self, contribs, sequences, l, device):
+        self.contribs = contribs
+        self.sequences = sequences
+        self.l = l
+        self.device = device
 
-    inds = F.pad(torch.arange(start, end, dtype=torch.int), (0, overhang), value=-1).to(device=device)
+    def _get_inds_and_pad_lens(self, start, end):
+        n = end - start
+        end = min(end, self.contribs.shape[0])
+        overhang = n - (end - start)
+        pad_lens = (0, 0, 0, 0, 0, overhang)
 
-    contribs_compact = F.pad(contribs[start:end,None,:], pad_lens).float().to(device=device)
-    sequences_batch = F.pad(sequences[start:end,:,:], pad_lens).to(device=device) # (b, 4, l)
+        inds = F.pad(torch.arange(start, end, dtype=torch.int), (0, overhang), value=-1).to(device=self.device)
 
-    global_scale = ((contribs_compact**2).sum(dim=(1,2)) / l).sqrt()
+        return inds, pad_lens
 
-    contribs_batch = (contribs_compact / global_scale[:,None,None]) * sequences_batch # (b, 4, l)
+    def load_batch(self, start, end):
+        raise NotImplementedError
+    
 
-    return contribs_batch, sequences_batch, inds, global_scale
+class BatchLoaderCompactFmt(BatchLoaderBase):
+    def load_batch(self, start, end):
+        inds, pad_lens = self._get_inds_and_pad_lens(start, end)
 
+        contribs_compact = F.pad(self.contribs[start:end,None,:], pad_lens).float().to(device=self.device)
+        sequences_batch = F.pad(self.sequences[start:end,:,:], pad_lens).to(device=self.device) # (b, 4, l)
 
-def _load_batch_proj(contribs, sequences, start, end, l, device):
-    n = end - start
-    end = min(end, contribs.shape[0])
-    overhang = n - (end - start)
-    pad_lens = (0, 0, 0, 0, 0, overhang)
+        global_scale = ((contribs_compact**2).sum(dim=(1,2)) / self.l).sqrt()
 
-    inds = F.pad(torch.arange(start, end, dtype=torch.int), (0, overhang), value=-1).to(device=device)
+        contribs_batch = (contribs_compact / global_scale[:,None,None]) * sequences_batch # (b, 4, l)
 
-    contribs_hyp = F.pad(contribs[start:end,:,:], pad_lens).float().to(device=device) 
-    sequences_batch = F.pad(sequences[start:end,:,:], pad_lens).to(device=device) # (b, 4, l)
-    contribs_batch = contribs_hyp * sequences_batch
-
-    global_scale = ((contribs_batch**2).sum(dim=(1,2)) / l).sqrt()
-    contribs_batch /= global_scale[:,None,None]
-
-    return contribs_batch, sequences_batch, inds, global_scale
+        return contribs_batch, sequences_batch, inds, global_scale
 
 
-def _load_batch_hyp(contribs, sequences, start, end, l, device):
-    n = end - start
-    end = min(end, contribs.shape[0])
-    overhang = n - (end - start)
-    pad_lens = (0, 0, 0, 0, 0, overhang)
+class BatchLoaderProj(BatchLoaderBase):
+    def load_batch(self, start, end):
+        inds, pad_lens = self._get_inds_and_pad_lens(start, end)
 
-    inds = F.pad(torch.arange(start, end, dtype=torch.int), (0, overhang), value=-1).to(device=device)
+        contribs_hyp = F.pad(self.contribs[start:end,:,:], pad_lens).float().to(device=self.device) 
+        sequences_batch = F.pad(self.sequences[start:end,:,:], pad_lens).to(device=self.device) # (b, 4, l)
+        contribs_batch = contribs_hyp * sequences_batch
 
-    contribs_batch = F.pad(contribs[start:end,:,:], pad_lens).float().to(device=device) 
+        global_scale = ((contribs_batch**2).sum(dim=(1,2)) / self.l).sqrt()
+        contribs_batch /= global_scale[:,None,None]
 
-    global_scale = ((contribs_batch**2).sum(dim=(1,2)) / l).sqrt()
-    contribs_batch /= global_scale[:,None,None]
+        return contribs_batch, sequences_batch, inds, global_scale
+    
 
-    return contribs_batch, 1, inds, global_scale
+class BatchLoaderHyp(BatchLoaderBase):
+    def load_batch(self, start, end):
+        inds, pad_lens = self._get_inds_and_pad_lens(start, end)
+
+        contribs_batch = F.pad(self.contribs[start:end,:,:], pad_lens).float().to(device=self.device) 
+
+        global_scale = ((contribs_batch**2).sum(dim=(1,2)) / self.l).sqrt()
+        contribs_batch /= global_scale[:,None,None]
+
+        return contribs_batch, 1, inds, global_scale
 
 
 def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_max, 
-                 convergence_tol, max_steps, buffer_size, step_adjust, device):
+                 convergence_tol, max_steps, batch_size, step_adjust, device):
     """
     Call hits by fitting sparse linear model to contributions
     
@@ -140,18 +149,18 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
     m, _, w = cwms.shape
     n, _, l = sequences.shape
 
-    b = buffer_size
+    b = batch_size
 
     if len(contribs.shape) == 3:
         if use_hypothetical:
-            load_batch_fn = _load_batch_hyp
+            batch_loader = BatchLoaderHyp(contribs, sequences, l, device)
         else:
-            load_batch_fn = _load_batch_proj
+            batch_loader = BatchLoaderProj(contribs, sequences, l, device)
     elif len(contribs.shape) == 2:
         if use_hypothetical:
             raise ValueError("Input regions do not contain hypothetical contribution scores")
         else:
-            load_batch_fn = _load_batch_compact_fmt
+            batch_loader = BatchLoaderCompactFmt(contribs, sequences, l, device)
     else:
         raise ValueError(f"Input contributions array is of incorrect shape {contribs.shape}")
 
@@ -200,7 +209,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
                 load_end = load_start + num_load
                 next_ind = min(load_end, contribs.shape[0])
 
-                batch_data = load_batch_fn(contribs, sequences, load_start, load_end, l, device)
+                batch_data = batch_loader.load_batch(load_start, load_end)
                 contribs_batch, seqs_batch, inds_batch, global_scale_batch = batch_data
 
                 importance_scale_batch = (F.conv1d(contribs_batch**2, sum_filter) + 1)**(-0.5)
