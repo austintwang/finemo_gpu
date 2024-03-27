@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from tqdm import tqdm, trange
 
 
-def prox_grad_step(coefficients, importance_scale, cwms, contribs, pred_mask, 
+def prox_grad_step(coefficients, importance_scale, cwms, contribs, sequences, 
                    alpha, step_sizes):
     """
     Proximal gradient descent optimization step for non-negative lasso
@@ -16,7 +16,7 @@ def prox_grad_step(coefficients, importance_scale, cwms, contribs, pred_mask,
     importance_scale: (b, 1, l - w + 1)
     cwms: (m, 4, w)
     contribs: (b, 4, l)
-    pred_mask: (b, 4, l) or dummy scalar
+    sequences: (b, 4, l) or dummy scalar
 
     For details on proximal gradient descent: https://yuxinchen2020.github.io/ele520_math_data/lectures/lasso_algorithm_extension.pdf, slide 22 
     For details on duality gap computation: https://stanford.edu/~boyd/papers/pdf/l1_ls.pdf, Section III
@@ -24,7 +24,7 @@ def prox_grad_step(coefficients, importance_scale, cwms, contribs, pred_mask,
     # Forward pass
     coef_adj = coefficients * importance_scale
     pred_unmasked = F.conv_transpose1d(coef_adj, cwms) # (b, 4, l)
-    pred = pred_unmasked * pred_mask # (b, 4, l)
+    pred = pred_unmasked * sequences # (b, 4, l)
 
     # Compute gradient * -1
     residuals = contribs - pred # (b, 4, l)
@@ -76,6 +76,10 @@ def optimizer_step(cwms, contribs, importance_scale, sequences, c_a, c_b, i, ste
     return c_a, c_b, gap, ll
 
 
+def _to_channel_last_layout(tensor, **kwargs):
+    return tensor[:,:,:,None].to(memory_format=torch.channels_last, **kwargs).squeeze(3)
+
+
 class BatchLoaderBase:
     def __init__(self, contribs, sequences, l, device):
         self.contribs = contribs
@@ -101,8 +105,10 @@ class BatchLoaderCompactFmt(BatchLoaderBase):
     def load_batch(self, start, end):
         inds, pad_lens = self._get_inds_and_pad_lens(start, end)
 
-        contribs_compact = F.pad(self.contribs[start:end,None,:], pad_lens).float().to(device=self.device)
-        sequences_batch = F.pad(self.sequences[start:end,:,:], pad_lens).to(device=self.device) # (b, 4, l)
+        contribs_compact = F.pad(self.contribs[start:end,None,:], pad_lens)
+        contribs_batch = _to_channel_last_layout(contribs_compact, device=self.device, dtype=torch.float32)
+        sequences_batch = F.pad(self.sequences[start:end,:,:], pad_lens) # (b, 4, l)
+        sequences_batch = _to_channel_last_layout(sequences_batch, device=self.device, dtype=torch.int8)
 
         global_scale = ((contribs_compact**2).sum(dim=(1,2)) / self.l).sqrt()
 
@@ -115,8 +121,10 @@ class BatchLoaderProj(BatchLoaderBase):
     def load_batch(self, start, end):
         inds, pad_lens = self._get_inds_and_pad_lens(start, end)
 
-        contribs_hyp = F.pad(self.contribs[start:end,:,:], pad_lens).float().to(device=self.device) 
-        sequences_batch = F.pad(self.sequences[start:end,:,:], pad_lens).to(device=self.device) # (b, 4, l)
+        contribs_hyp = F.pad(self.contribs[start:end,:,:], pad_lens)
+        contribs_hyp = _to_channel_last_layout(contribs_hyp, device=self.device, dtype=torch.float32) 
+        sequences_batch = F.pad(self.sequences[start:end,:,:], pad_lens) # (b, 4, l)
+        sequences_batch = _to_channel_last_layout(sequences_batch, device=self.device, dtype=torch.int8)
         contribs_batch = contribs_hyp * sequences_batch
 
         global_scale = ((contribs_batch**2).sum(dim=(1,2)) / self.l).sqrt()
@@ -129,7 +137,8 @@ class BatchLoaderHyp(BatchLoaderBase):
     def load_batch(self, start, end):
         inds, pad_lens = self._get_inds_and_pad_lens(start, end)
 
-        contribs_batch = F.pad(self.contribs[start:end,:,:], pad_lens).float().to(device=self.device) 
+        contribs_batch = F.pad(self.contribs[start:end,:,:], pad_lens)
+        contribs_batch = _to_channel_last_layout(contribs_batch, device=self.device, dtype=torch.float32)
 
         global_scale = ((contribs_batch**2).sum(dim=(1,2)) / self.l).sqrt()
         contribs_batch /= global_scale[:,None,None]
@@ -169,7 +178,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
     contribs = torch.from_numpy(contribs)
     sequences = torch.from_numpy(sequences)
 
-    cwms = cwms.to(device=device).float()
+    cwms = _to_channel_last_layout(cwms, device=device, dtype=torch.float32)
 
     # Intialize output container objects
     hit_idxs_lst = []
@@ -182,7 +191,8 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
     sum_filter = torch.ones((1, 4, w), dtype=torch.float32, device=device)
 
     # Initialize buffers for optimizer
-    c_a = torch.zeros((b, m, l - w + 1), dtype=torch.float32, device=device) # (b, m, l - w + 1)
+    c_a = torch.zeros((b, m, l - w + 1)) # (b, m, l - w + 1)
+    c_a = _to_channel_last_layout(c_a, device=device, dtype=torch.float32)
     c_b = torch.zeros_like(c_a)
     i = torch.zeros((b, 1, 1), dtype=torch.int, device=device)
     step_sizes = torch.full((b, 1, 1), step_size_max, dtype=torch.float32, device=device)
@@ -190,12 +200,18 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
     converged = torch.full((b,), True, dtype=torch.bool, device=device)
     num_load = b
 
-    contribs_buf = torch.zeros((b, 4, l), dtype=torch.float32, device=device)
+    contribs_buf = torch.zeros((b, 4, l))
+    contribs_buf = _to_channel_last_layout(contribs_buf, device=device, dtype=torch.float32)
+    
     if use_hypothetical:
         seqs_buf = 1
     else:
-        seqs_buf = torch.zeros((b, 4, l), dtype=torch.int8, device=device)
-    importance_scale_buf = torch.zeros((b, 1, l - w + 1), dtype=torch.float32, device=device)
+        seqs_buf = torch.zeros((b, 4, l))
+        seqs_buf = _to_channel_last_layout(seqs_buf, device=device, dtype=torch.int8)
+
+    importance_scale_buf = torch.zeros((b, 1, l - w + 1))
+    importance_scale_buf = _to_channel_last_layout(importance_scale_buf, device=device, dtype=torch.float32)
+
     inds_buf = torch.zeros((b,), dtype=torch.int, device=device)
     global_scale_buf = torch.zeros((b,), dtype=torch.float, device=device)
 
