@@ -49,7 +49,7 @@ def prox_grad_step(coefficients, importance_scale, cwms, contribs, sequences,
     return c_next, dual_gap, ll
 
 
-def optimizer_step(cwms, contribs, importance_scale, sequences, c_a, c_b, i, step_sizes, l, alpha):
+def optimizer_step(cwms, contribs, importance_scale, sequences, coef_inter, coef, i, step_sizes, l, alpha):
     """
     Non-negative lasso optimizer step with momentum. 
 
@@ -57,23 +57,24 @@ def optimizer_step(cwms, contribs, importance_scale, sequences, c_a, c_b, i, ste
     contribs: (b, 4, l)
     importance_scale: (b, 1, l - w + 1)
     sequences: (b, 4, l) or dummy scalar
-    c_a, c_b: (b, m, l - w + 1)
+    coef_inter, coef: (b, m, l - w + 1)
     i, step_sizes: (b,)
 
     For details on optimization algorithm: https://yuxinchen2020.github.io/ele520_math_data/lectures/lasso_algorithm_extension.pdf, slides 22, 27 
     """
+    coef_prev = coef
+
     # Proximal gradient descent step
-    c_b_prev = c_b
-    c_b, gap, ll = prox_grad_step(c_a, importance_scale, cwms, contribs, sequences, 
+    coef, gap, ll = prox_grad_step(coef_inter, importance_scale, cwms, contribs, sequences, 
                                     alpha, step_sizes)
     gap = gap / l
     ll = ll / (2 * l)
 
     # Compute updated coefficients
     mom_term = i / (i + 3.)
-    c_a = (1 + mom_term) * c_b - mom_term * c_b_prev
+    coef_inter = (1 + mom_term) * coef - mom_term * coef_prev
 
-    return c_a, c_b, gap, ll
+    return coef_inter, coef, gap, ll
 
 
 def _to_channel_last_layout(tensor, **kwargs):
@@ -191,9 +192,9 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
     sum_filter = torch.ones((1, 4, w), dtype=torch.float32, device=device)
 
     # Initialize buffers for optimizer
-    c_a = torch.zeros((b, m, l - w + 1)) # (b, m, l - w + 1)
-    c_a = _to_channel_last_layout(c_a, device=device, dtype=torch.float32)
-    c_b = torch.zeros_like(c_a)
+    coef_inter = torch.zeros((b, m, l - w + 1)) # (b, m, l - w + 1)
+    coef_inter = _to_channel_last_layout(coef_inter, device=device, dtype=torch.float32)
+    coef = torch.zeros_like(coef_inter)
     i = torch.zeros((b, 1, 1), dtype=torch.int, device=device)
     step_sizes = torch.full((b, 1, 1), step_size_max, dtype=torch.float32, device=device)
     
@@ -202,7 +203,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
 
     contribs_buf = torch.zeros((b, 4, l))
     contribs_buf = _to_channel_last_layout(contribs_buf, device=device, dtype=torch.float32)
-    
+
     if use_hypothetical:
         seqs_buf = 1
     else:
@@ -240,14 +241,14 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
                 inds_buf[converged] = inds_batch
                 global_scale_buf[converged] = global_scale_batch
 
-                c_a[converged,:,:] *= 0
-                c_b[converged,:,:] *= 0
+                coef_inter[converged,:,:] *= 0
+                coef[converged,:,:] *= 0
                 i[converged] *= 0
 
                 step_sizes[converged] = step_size_max
 
             # Optimization step
-            c_a, c_b, gap, ll = optimizer_step(cwms, contribs_buf, importance_scale_buf, seqs_buf, c_a, c_b, 
+            coef_inter, coef, gap, ll = optimizer_step(cwms, contribs_buf, importance_scale_buf, seqs_buf, coef_inter, coef, 
                                                i, step_sizes, l, alpha)
             i += 1
 
@@ -255,8 +256,8 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
             active = inds_buf >= 0
 
             diverged = ~torch.isfinite(gap) & active
-            c_a[diverged,:,:] *= 0
-            c_b[diverged,:,:] *= 0
+            coef_inter[diverged,:,:] *= 0
+            coef[diverged,:,:] *= 0
             i[diverged] *= 0
             step_sizes[diverged,:,:] *= step_adjust
 
@@ -272,7 +273,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
                 inds_out = inds_buf[converged]
                 global_scale_out = global_scale_buf[converged]
 
-                coef_out = c_b[converged,:,:].to_sparse()
+                coef_out = coef[converged,:,:].to_sparse()
 
                 # Extract hit coordinates
                 hit_idxs_out = torch.clone(coef_out.indices())
