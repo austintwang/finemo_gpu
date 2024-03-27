@@ -8,9 +8,9 @@ from tqdm import tqdm, trange
 
 
 def prox_grad_step(coefficients, importance_scale, cwms, contribs, pred_mask, 
-                   alpha, b_const, st_thresh, step_sizes):
+                   alpha, step_sizes):
     """
-    Proximal gradient descent optimization step for non-negative elastic net
+    Proximal gradient descent optimization step for non-negative lasso
 
     coefficients: (b, m, l - w + 1)
     importance_scale: (b, 1, l - w + 1)
@@ -34,62 +34,49 @@ def prox_grad_step(coefficients, importance_scale, cwms, contribs, pred_mask,
     ll = (residuals**2).sum(dim=(1,2)) # (b)
     
     # Compute duality gap
-    dual_norm = (ngrad - b_const * coefficients).amax(dim=(1,2)) # (b)
+    dual_norm = ngrad.amax(dim=(1,2)) # (b)
     dual_scale = (torch.clamp(alpha / dual_norm, max=1.)**2 + 1) / 2 # (b)
     ll_scaled = ll * dual_scale # (b)
 
     dual_diff = (residuals * contribs).sum(dim=(1,2)) # (b)
-
     l1_term = alpha * torch.linalg.vector_norm(coefficients, ord=1, dim=(1,2)) # (b)
-    l2_term = b_const * torch.sum(coefficients**2, dim=(1,2)) # (b)
-
-    dual_gap = (ll_scaled - dual_diff + l1_term + l2_term).abs() # (b)
+    dual_gap = (ll_scaled - dual_diff + l1_term).abs() # (b)
 
     # Compute proximal gradient descent step
-    c_next = coefficients + step_sizes * ngrad # (b, m, l + w - 1)
-    c_next = F.relu(c_next - st_thresh) # (b, m, l - w + 1)
+    c_next = coefficients + step_sizes * (ngrad - alpha) # (b, m, l + w - 1)
+    c_next = F.relu(c_next) # (b, m, l - w + 1)
 
     return c_next, dual_gap, ll
 
 
-def optimizer(cwms, l, alpha):
+def optimizer_step(cwms, contribs, importance_scale, sequences, c_a, c_b, i, step_sizes, l, alpha):
     """
-    Buffered non-negative elastic net optimizer coroutine. 
-    Uses proximal gradient descent with momentum.
-    Converged inputs are swapped out with fresh inputs at each iteration.
+    Non-negative lasso optimizer step with momentum. 
 
-    cwms_t: (m, 4, w)
+    cwms: (m, 4, w)
+    contribs: (b, 4, l)
+    importance_scale: (b, 1, l - w + 1)
+    sequences: (b, 4, l) or dummy scalar
+    c_a, c_b: (b, m, l - w + 1)
+    i, step_sizes: (b,)
 
     For details on optimization algorithm: https://yuxinchen2020.github.io/ele520_math_data/lectures/lasso_algorithm_extension.pdf, slides 22, 27 
     """
+    # Proximal gradient descent step
+    c_b_prev = c_b
+    c_b, gap, ll = prox_grad_step(c_a, importance_scale, cwms, contribs, sequences, 
+                                    alpha, step_sizes)
+    gap = gap / l
+    ll = ll / (2 * l)
 
-    contribs, importance_scale, sequences, c_a, c_b, i, step_sizes = yield
-    # Retrieve initial inputs
-    # contribs: (b, 4, l)
-    # importance_scale: (b, 1, l - w + 1)
-    # sequences: (b, 4, l) or dummy scalar
-    # c_a, c_b: (b, m, l - w + 1)
-    # i, step_sizes: (b,)
+    # Compute updated coefficients
+    mom_term = i / (i + 3.)
+    c_a = (1 + mom_term) * c_b - mom_term * c_b_prev
 
-    while True:
-        st_thresh = alpha * step_sizes
-
-        # Proximal gradient descent step
-        c_b_prev = c_b
-        c_b, gap, ll = prox_grad_step(c_a, importance_scale, cwms, contribs, sequences, 
-                                      alpha, st_thresh, step_sizes)
-        gap = gap / l
-        ll = ll / (2 * l)
-
-        # Compute updated coefficients
-        mom_term = i / (i + 3.)
-        c_a = (1 + mom_term) * c_b - mom_term * c_b_prev
-
-        contribs, importance_scale, sequences, c_a, c_b, i, step_sizes = yield c_a, c_b, gap, ll
-        # Send updated coefficients and retrieve updated inputs
+    return c_a, c_b, gap, ll
 
 
-def _load_batch_compact_fmt(contribs, sequences, start, end, motif_width, l, device):
+def _load_batch_compact_fmt(contribs, sequences, start, end, l, device):
     n = end - start
     end = min(end, contribs.shape[0])
     overhang = n - (end - start)
@@ -99,7 +86,6 @@ def _load_batch_compact_fmt(contribs, sequences, start, end, motif_width, l, dev
 
     contribs_compact = F.pad(contribs[start:end,None,:], pad_lens).float().to(device=device)
     sequences_batch = F.pad(sequences[start:end,:,:], pad_lens).to(device=device) # (b, 4, l)
-    # contribs_batch = contribs_compact * sequences_batch
 
     global_scale = ((contribs_compact**2).sum(dim=(1,2)) / l).sqrt()
 
@@ -108,7 +94,7 @@ def _load_batch_compact_fmt(contribs, sequences, start, end, motif_width, l, dev
     return contribs_batch, sequences_batch, inds, global_scale
 
 
-def _load_batch_proj(contribs, sequences, start, end, motif_width, l, device):
+def _load_batch_proj(contribs, sequences, start, end, l, device):
     n = end - start
     end = min(end, contribs.shape[0])
     overhang = n - (end - start)
@@ -126,7 +112,7 @@ def _load_batch_proj(contribs, sequences, start, end, motif_width, l, device):
     return contribs_batch, sequences_batch, inds, global_scale
 
 
-def _load_batch_hyp(contribs, sequences, start, end, motif_width, l, device):
+def _load_batch_hyp(contribs, sequences, start, end, l, device):
     n = end - start
     end = min(end, contribs.shape[0])
     overhang = n - (end - start)
@@ -183,10 +169,6 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
     importance_lst = []
     qc_lsts = {"log_likelihood": [], "dual_gap": [], "num_steps": [], "step_size": [], "global_scale": []}
 
-    # Initialize optimizer
-    opt_iter = optimizer(cwms, l, alpha)
-    opt_iter.send(None)
-
     # Utility convolutional filter for summing values in window 
     sum_filter = torch.ones((1, 4, w), dtype=torch.float32, device=device)
 
@@ -218,7 +200,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
                 load_end = load_start + num_load
                 next_ind = min(load_end, contribs.shape[0])
 
-                batch_data = load_batch_fn(contribs, sequences, load_start, load_end, w, l, device)
+                batch_data = load_batch_fn(contribs, sequences, load_start, load_end, l, device)
                 contribs_batch, seqs_batch, inds_batch, global_scale_batch = batch_data
 
                 importance_scale_batch = (F.conv1d(contribs_batch**2, sum_filter) + 1)**(-0.5)
@@ -240,7 +222,8 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
                 step_sizes[converged] = step_size_max
 
             # Optimization step
-            c_a, c_b, gap, ll = opt_iter.send((contribs_buf, importance_scale_buf, seqs_buf, c_a, c_b, i, step_sizes),)
+            c_a, c_b, gap, ll = optimizer_step(cwms, contribs_buf, importance_scale_buf, seqs_buf, c_a, c_b, 
+                                               i, step_sizes, l, alpha)
             i += 1
 
             # Assess convergence of each peak being optimized. Reset diverged peaks with lower step size.

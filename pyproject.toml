@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "finemo"
-version = "0.11"
+version = "0.13"
 dependencies = [
     "numpy",
     "scipy",
