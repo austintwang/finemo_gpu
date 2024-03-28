@@ -273,23 +273,25 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
                 inds_out = inds_buf[converged]
                 global_scale_out = global_scale_buf[converged]
 
+                # Compute hit scores 
                 coef_out = coef[converged,:,:]
+                importance_scale_out_dense = importance_scale_buf[converged,:]
+                xcor_scale = (importance_scale_out_dense**(-2) - 1).sqrt()
+
+                xcov_out_dense = F.conv1d(contribs_buf[converged,:,:], cwms) 
+                xcor_out_dense = xcov_out_dense / xcor_scale
+
                 if post_filter:
-                    coef_out = coef_out.clamp(min=alpha)
-                coef_out = coef_out.to_sparse()
+                    coef_out = coef_out * (xcor_out_dense >= alpha)
 
                 # Extract hit coordinates
+                coef_out = coef_out.to_sparse()
+
                 hit_idxs_out = torch.clone(coef_out.indices())
                 hit_idxs_out[0,:] = F.embedding(hit_idxs_out[0,:], inds_out[:,None]).squeeze()
                     # Map buffer index to peak index
 
-                # Compute hit scores 
-                importance_scale_out_dense = importance_scale_buf[converged,:]
-                xcor_scale = (importance_scale_out_dense**(-2) - 1).sqrt()
                 importance_out = xcor_scale[coef_out.indices()[0,:],0,coef_out.indices()[2,:]]
-
-                xcov_out_dense = F.conv1d(contribs_buf[converged,:,:], cwms) 
-                xcor_out_dense = xcov_out_dense / xcor_scale
 
                 ind_tuple = torch.unbind(coef_out.indices())
                 xcor_out = xcor_out_dense[ind_tuple]
