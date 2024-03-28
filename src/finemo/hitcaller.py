@@ -30,23 +30,23 @@ def prox_grad_step(coefficients, importance_scale, cwms, contribs, sequences,
     residuals = contribs - pred # (b, 4, l)
     ngrad = F.conv1d(residuals, cwms) * importance_scale # (b, m, l - w + 1)
 
-    # Log likelihood (proportional to MSE)
-    ll = (residuals**2).sum(dim=(1,2)) # (b)
+    # Negative log likelihood (proportional to MSE)
+    nll = (residuals**2).sum(dim=(1,2)) # (b)
     
     # Compute duality gap
     dual_norm = ngrad.amax(dim=(1,2)) # (b)
     dual_scale = (torch.clamp(alpha / dual_norm, max=1.)**2 + 1) / 2 # (b)
-    ll_scaled = ll * dual_scale # (b)
+    nll_scaled = nll * dual_scale # (b)
 
     dual_diff = (residuals * contribs).sum(dim=(1,2)) # (b)
     l1_term = alpha * torch.linalg.vector_norm(coefficients, ord=1, dim=(1,2)) # (b)
-    dual_gap = (ll_scaled - dual_diff + l1_term).abs() # (b)
+    dual_gap = (nll_scaled - dual_diff + l1_term).abs() # (b)
 
     # Compute proximal gradient descent step
     c_next = coefficients + step_sizes * (ngrad - alpha) # (b, m, l + w - 1)
     c_next = F.relu(c_next) # (b, m, l - w + 1)
 
-    return c_next, dual_gap, ll
+    return c_next, dual_gap, nll
 
 
 def optimizer_step(cwms, contribs, importance_scale, sequences, coef_inter, coef, i, step_sizes, l, alpha):
@@ -65,16 +65,16 @@ def optimizer_step(cwms, contribs, importance_scale, sequences, coef_inter, coef
     coef_prev = coef
 
     # Proximal gradient descent step
-    coef, gap, ll = prox_grad_step(coef_inter, importance_scale, cwms, contribs, sequences, 
+    coef, gap, nll = prox_grad_step(coef_inter, importance_scale, cwms, contribs, sequences, 
                                     alpha, step_sizes)
     gap = gap / l
-    ll = ll / (2 * l)
+    nll = nll / (2 * l)
 
     # Compute updated coefficients
     mom_term = i / (i + 3.)
     coef_inter = (1 + mom_term) * coef - mom_term * coef_prev
 
-    return coef_inter, coef, gap, ll
+    return coef_inter, coef, gap, nll
 
 
 def _to_channel_last_layout(tensor, **kwargs):
@@ -150,7 +150,7 @@ class BatchLoaderHyp(BatchLoaderBase):
 def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_max, 
                  convergence_tol, max_steps, batch_size, step_adjust, post_filter, device):
     """
-    Call hits by fitting sparse linear model to contributions
+    Canll hits by fitting sparse linear model to contributions
     
     cwms: (m, 4, w)
     contribs: (n, 4, l) or (n, l)  
@@ -186,7 +186,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
     coefficients_lst = []
     correlation_lst = []
     importance_lst = []
-    qc_lsts = {"log_likelihood": [], "dual_gap": [], "num_steps": [], "step_size": [], "global_scale": []}
+    qc_lsts = {"nll": [], "dual_gap": [], "num_steps": [], "step_size": [], "global_scale": []}
 
     # Utility convolutional filter for summing values in window 
     sum_filter = torch.ones((1, 4, w), dtype=torch.float32, device=device)
@@ -196,9 +196,9 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
     coef_inter = _to_channel_last_layout(coef_inter, device=device, dtype=torch.float32)
     coef = torch.zeros_like(coef_inter)
     i = torch.zeros((b, 1, 1), dtype=torch.int, device=device)
-    step_sizes = torch.full((b, 1, 1), step_size_max, dtype=torch.float32, device=device)
+    step_sizes = torch.funll((b, 1, 1), step_size_max, dtype=torch.float32, device=device)
     
-    converged = torch.full((b,), True, dtype=torch.bool, device=device)
+    converged = torch.funll((b,), True, dtype=torch.bool, device=device)
     num_load = b
 
     contribs_buf = torch.zeros((b, 4, l))
@@ -220,7 +220,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
         num_complete = 0
         next_ind = 0
         while num_complete < n:
-            # Retire converged peaks and fill buffer with new data
+            # Retire converged peaks and finll buffer with new data
             if num_load > 0:
                 load_start = next_ind
                 load_end = load_start + num_load
@@ -248,7 +248,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
                 step_sizes[converged] = step_size_max
 
             # Optimization step
-            coef_inter, coef, gap, ll = optimizer_step(cwms, contribs_buf, importance_scale_buf, seqs_buf, coef_inter, coef, 
+            coef_inter, coef, gap, nll = optimizer_step(cwms, contribs_buf, importance_scale_buf, seqs_buf, coef_inter, coef, 
                                                i, step_sizes, l, alpha)
             i += 1
 
@@ -263,7 +263,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
 
             timeouts = (i > max_steps).squeeze()
             if timeouts.sum().item() > 0:
-                warnings.warn(f"Not all regions have converged within max_steps={max_steps} iterations.", RuntimeWarning)
+                warnings.warn(f"Not anll regions have converged within max_steps={max_steps} iterations.", RuntimeWarning)
 
             converged = ((gap <= convergence_tol) | timeouts) & active
             num_load = converged.sum().item()
@@ -300,7 +300,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
 
                 # Store outputs
                 gap_out = gap[converged]
-                ll_out = ll[converged]
+                nll_out = nll[converged]
                 step_out = i[converged,0,0]
                 step_sizes_out = step_sizes[converged,0,0]
 
@@ -309,7 +309,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
                 correlation_lst.append(xcor_out.numpy(force=True))
                 importance_lst.append(importance_out.numpy(force=True))
 
-                qc_lsts["log_likelihood"].append(ll_out.numpy(force=True))
+                qc_lsts["nll"].append(nll_out.numpy(force=True))
                 qc_lsts["dual_gap"].append(gap_out.numpy(force=True))
                 qc_lsts["num_steps"].append(step_out.numpy(force=True))
                 qc_lsts["global_scale"].append(global_scale_out.numpy(force=True))
