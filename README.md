@@ -131,7 +131,7 @@ options:
 Identify hits in input regions using TFMoDISCo CWM's.
 
 ```console
-usage: finemo call-hits [-h] [-M MODE] -r REGIONS -m MODISCO_H5 [-p PEAKS] -o OUT_DIR [-t CWM_TRIM_THRESHOLD] [-a ALPHA] [-l L1_RATIO] [-s STEP_SIZE] [-A STEP_ADJUST] [-c CONVERGENCE_TOL] [-S MAX_STEPS] [-b BUFFER_SIZE] [-d DEVICE]
+usage: finemo call-hits [-h] [-M {hp,pp,ph,hh}] -r REGIONS -m MODISCO_H5 [-p PEAKS] [-C CHROM_ORDER] -o OUT_DIR [-t CWM_TRIM_THRESHOLD] [-a ALPHA] [-f] [-s STEP_SIZE] [-A STEP_ADJUST] [-c CONVERGENCE_TOL] [-S MAX_STEPS] [-b BATCH_SIZE] [-d DEVICE]
 
 options:
   -h, --help            show help message and exit
@@ -151,7 +151,7 @@ options:
                         The threshold to determine motif start and end positions within the full CWMs. (default: 0.3)
   -a ALPHA, --alpha ALPHA
                         The L1 regularization weight. (default: 0.6)
-  -f, --no-post-filter  "Do not perform post-hit-calling filtering. By default, hits are filtered based on a minimum correlation of `alpha` with the input contributions. (default: False)
+  -f, --no-post-filter  Do not perform post-hit-calling filtering. By default, hits are filtered based on a minimum correlation of `alpha` with the input contributions. (default: False)
   -s STEP_SIZE, --step-size STEP_SIZE
                         The maximum optimizer step size. (default: 3.0)
   -A STEP_ADJUST, --step-adjust STEP_ADJUST
@@ -213,7 +213,7 @@ options:
 - The `-a/--alpha`  is the primary hyperparameter to tune, where higher values result in fewer but more confident hits. This parameter essentially represents the highest expected correlation between a CWM and a non-informative background signal. Values typically fall between 0.4 and 0.7.
 - Set `-b/--batch-size` to the largest value your GPU memory can accommodate. **If you encounter GPU out-of-memory errors, try lowering this value.**
 - You can update legacy TFMoDISCo H5 files to the newer TFMoDISCo-lite format with the `modisco convert` command found in the [tfmodisco-lite](https://github.com/jmschrei/tfmodisco-lite/tree/main) package.
-- The process of calling hits relies solely on untrimmed CWMs, with trimmed CWMs being utilized solely to determine the starting and ending points of hits.
+- Hits are called using untrimmed CWMs, with trimmed CWMs utilized solely to determine the starting and ending points of hits.
 
 ### Output reporting
 
