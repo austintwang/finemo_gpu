@@ -161,6 +161,14 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
 
     b = batch_size
 
+    # Convert inputs to pytorch tensors
+    cwms = torch.from_numpy(cwms)
+    contribs = torch.from_numpy(contribs)
+    sequences = torch.from_numpy(sequences)
+
+    cwms = _to_channel_last_layout(cwms, device=device, dtype=torch.float32)
+
+    # Initialize batch loader
     if len(contribs.shape) == 3:
         if use_hypothetical:
             batch_loader = BatchLoaderHyp(contribs, sequences, l, device)
@@ -173,13 +181,6 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
             batch_loader = BatchLoaderCompactFmt(contribs, sequences, l, device)
     else:
         raise ValueError(f"Input contributions array is of incorrect shape {contribs.shape}")
-
-    # Convert inputs to pytorch tensors
-    cwms = torch.from_numpy(cwms)
-    contribs = torch.from_numpy(contribs)
-    sequences = torch.from_numpy(sequences)
-
-    cwms = _to_channel_last_layout(cwms, device=device, dtype=torch.float32)
 
     # Intialize output container objects
     hit_idxs_lst = []
