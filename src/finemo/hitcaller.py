@@ -150,7 +150,7 @@ class BatchLoaderHyp(BatchLoaderBase):
 def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_max, 
                  convergence_tol, max_steps, batch_size, step_adjust, post_filter, device):
     """
-    Canll hits by fitting sparse linear model to contributions
+    Call hits by fitting sparse linear model to contributions
     
     cwms: (m, 4, w)
     contribs: (n, 4, l) or (n, l)  
@@ -196,9 +196,9 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
     coef_inter = _to_channel_last_layout(coef_inter, device=device, dtype=torch.float32)
     coef = torch.zeros_like(coef_inter)
     i = torch.zeros((b, 1, 1), dtype=torch.int, device=device)
-    step_sizes = torch.funll((b, 1, 1), step_size_max, dtype=torch.float32, device=device)
+    step_sizes = torch.full((b, 1, 1), step_size_max, dtype=torch.float32, device=device)
     
-    converged = torch.funll((b,), True, dtype=torch.bool, device=device)
+    converged = torch.full((b,), True, dtype=torch.bool, device=device)
     num_load = b
 
     contribs_buf = torch.zeros((b, 4, l))
@@ -220,7 +220,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
         num_complete = 0
         next_ind = 0
         while num_complete < n:
-            # Retire converged peaks and finll buffer with new data
+            # Retire converged peaks and fill buffer with new data
             if num_load > 0:
                 load_start = next_ind
                 load_end = load_start + num_load
@@ -263,7 +263,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
 
             timeouts = (i > max_steps).squeeze()
             if timeouts.sum().item() > 0:
-                warnings.warn(f"Not anll regions have converged within max_steps={max_steps} iterations.", RuntimeWarning)
+                warnings.warn(f"Not all regions have converged within max_steps={max_steps} iterations.", RuntimeWarning)
 
             converged = ((gap <= convergence_tol) | timeouts) & active
             num_load = converged.sum().item()

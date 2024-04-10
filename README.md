@@ -212,7 +212,7 @@ options:
 
 - The `-a/--alpha`  is the primary hyperparameter to tune, where higher values result in fewer but more confident hits. This parameter essentially represents the highest expected correlation between a CWM and a non-informative background signal. Values typically fall between 0.4 and 0.7.
 - Set `-b/--batch-size` to the largest value your GPU memory can accommodate. **If you encounter GPU out-of-memory errors, try lowering this value.**
-- You can update legacy TFMoDISCo H5 files to the newer TFMoDISCo-lite format with the `modisco convert` command found in the [tfmodisco-lite](https://github.com/jmschrei/tfmodisco-lite/tree/main) package.
+- Legacy TFMoDISCo H5 files can be updated to the newer TFMoDISCo-lite format with the `modisco convert` command found in the [tfmodisco-lite](https://github.com/jmschrei/tfmodisco-lite/tree/main) package.
 - Hits are called using untrimmed CWMs, with trimmed CWMs utilized solely to determine the starting and ending points of hits.
 
 ### Output reporting
