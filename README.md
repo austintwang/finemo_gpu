@@ -152,8 +152,10 @@ options:
   -a ALPHA, --alpha ALPHA
                         The L1 regularization weight. (default: 0.6)
   -f, --no-post-filter  Do not perform post-hit-calling filtering. By default, hits are filtered based on a minimum correlation of `alpha` with the input contributions. (default: False)
-  -s STEP_SIZE, --step-size STEP_SIZE
+  -s STEP_SIZE-MAX, --step-size-max MAX-STEP_SIZE
                         The maximum optimizer step size. (default: 3.0)
+  -i STEP_SIZE-MIN, --step-size-min MIN-STEP_SIZE
+                        The maximum optimizer step size. (default: 0.08)
   -A STEP_ADJUST, --step-adjust STEP_ADJUST
                         The optimizer step size adjustment factor. If the optimizer diverges, the step size is multiplicatively adjusted by this factor (default: 0.7)
   -c CONVERGENCE_TOL, --convergence-tol CONVERGENCE_TOL

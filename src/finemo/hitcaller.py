@@ -147,7 +147,7 @@ class BatchLoaderHyp(BatchLoaderBase):
         return contribs_batch, 1, inds, global_scale
 
 
-def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_max, 
+def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_max, step_size_min,
                  convergence_tol, max_steps, batch_size, step_adjust, post_filter, device):
     """
     Call hits by fitting sparse linear model to contributions
@@ -262,11 +262,19 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
             i[diverged] *= 0
             step_sizes[diverged,:,:] *= step_adjust
 
-            timeouts = (i > max_steps).squeeze()
+            timeouts = (i > max_steps).squeeze() & active
             if timeouts.sum().item() > 0:
-                warnings.warn(f"Not all regions have converged within max_steps={max_steps} iterations.", RuntimeWarning)
+                timeout_inds = inds_buf[timeouts]
+                for ind in timeout_inds:
+                    warnings.warn(f"Region {ind} has not converged within max_steps={max_steps} iterations.", RuntimeWarning)
 
-            converged = ((gap <= convergence_tol) | timeouts) & active
+            fails = (step_sizes < step_size_min).squeeze() & active
+            if fails.sum().item() > 0:
+                fail_inds = inds_buf[fails]
+                for ind in fail_inds:
+                    warnings.warn(f"Optimizer failed for region {ind}.", RuntimeWarning)
+            
+            converged = ((gap <= convergence_tol) | timeouts | fails) & active
             num_load = converged.sum().item()
 
             # Extract hits from converged peaks

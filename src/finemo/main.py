@@ -32,7 +32,8 @@ def extract_regions_modisco_fmt(shaps_paths, ohe_path, out_path, region_width):
 
 
 def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, out_dir, cwm_trim_threshold, 
-              alpha, step_size, convergence_tol, max_steps, batch_size, step_adjust, device, mode, no_post_filter):
+              alpha, step_size_max, step_size_min, convergence_tol, max_steps, batch_size, step_adjust, 
+              device, mode, no_post_filter):
     
     params = locals()
     from . import hitcaller
@@ -72,7 +73,7 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, out_d
     num_motifs = cwms.shape[0]
     motif_width = cwms.shape[2]
 
-    hits, qc = hitcaller.fit_contribs(cwms, contribs, sequences, use_hypothetical_contribs, alpha, step_size, 
+    hits, qc = hitcaller.fit_contribs(cwms, contribs, sequences, use_hypothetical_contribs, alpha, step_size_max, step_size_min, 
                                       convergence_tol, max_steps, batch_size, step_adjust, not no_post_filter, device)
     hits_df = pl.DataFrame(hits)
     qc_df = pl.DataFrame(qc).with_row_count(name="peak_id")
@@ -172,8 +173,10 @@ def cli():
         help="The L1 regularization weight.")
     call_hits_parser.add_argument("-f", "--no-post-filter", action='store_true',
         help="Do not perform post-hit-calling filtering. By default, hits are filtered based on a minimum correlation of `alpha` with the input contributions.")
-    call_hits_parser.add_argument("-s", "--step-size", type=float, default=3.,
+    call_hits_parser.add_argument("-s", "--step-size-max", type=float, default=3.,
         help="The maximum optimizer step size.")
+    call_hits_parser.add_argument("-i", "--step-size-min", type=float, default=0.08,
+        help="The minimum optimizer step size.")
     call_hits_parser.add_argument("-A", "--step-adjust", type=float, default=0.7,
         help="The optimizer step size adjustment factor. If the optimizer diverges, the step size is multiplicatively adjusted by this factor")
     call_hits_parser.add_argument("-c", "--convergence-tol", type=float, default=0.0005,
@@ -255,9 +258,9 @@ def cli():
 
     if args.cmd == "call-hits":
         call_hits(args.regions, args.peaks, args.modisco_h5, args.chrom_order, args.out_dir, 
-                  args.cwm_trim_threshold, args.alpha, args.step_size, args.convergence_tol, 
-                  args.max_steps, args.batch_size, args.step_adjust, args.device, args.mode, 
-                  args.no_post_filter)
+                  args.cwm_trim_threshold, args.alpha, args.step_size_max, args.step_size_min, 
+                  args.convergence_tol, args.max_steps, args.batch_size, args.step_adjust, 
+                  args.device, args.mode, args.no_post_filter)
     
     elif args.cmd == "extract-regions-bw":
         extract_regions_bw(args.peaks, args.fasta, args.bigwigs, args.out_path, args.region_width)
