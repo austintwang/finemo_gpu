@@ -113,7 +113,7 @@ class BatchLoaderCompactFmt(BatchLoaderBase):
 
         global_scale = ((contribs_compact**2).sum(dim=(1,2)) / self.l).sqrt()
 
-        contribs_batch = (contribs_compact / global_scale[:,None,None]) * sequences_batch # (b, 4, l)
+        contribs_batch = torch.nan_to_num(contribs_compact / global_scale[:,None,None]) * sequences_batch # (b, 4, l)
 
         return contribs_batch, sequences_batch, inds, global_scale
 
@@ -129,7 +129,7 @@ class BatchLoaderProj(BatchLoaderBase):
         contribs_batch = contribs_hyp * sequences_batch
 
         global_scale = ((contribs_batch**2).sum(dim=(1,2)) / self.l).sqrt()
-        contribs_batch /= global_scale[:,None,None]
+        contribs_batch = torch.nan_to_num(contribs_batch / global_scale[:,None,None])
 
         return contribs_batch, sequences_batch, inds, global_scale
     
@@ -142,7 +142,7 @@ class BatchLoaderHyp(BatchLoaderBase):
         contribs_batch = _to_channel_last_layout(contribs_batch, device=self.device, dtype=torch.float32)
 
         global_scale = ((contribs_batch**2).sum(dim=(1,2)) / self.l).sqrt()
-        contribs_batch /= global_scale[:,None,None]
+        contribs_batch = torch.nan_to_num(contribs_batch / global_scale[:,None,None])
 
         return contribs_batch, 1, inds, global_scale
 
