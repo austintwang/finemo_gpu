@@ -2,5 +2,6 @@
 .DS_Store
 *.egg-info
 __pycache__
-notebooks/old
-scratch.txt
+/notebooks
+/notebooks/old
+/scratch.txt
