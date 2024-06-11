@@ -44,7 +44,7 @@ git pull
 
 Required:
 
-- Contribution scores for peak sequences in bigWig format, [ChromBPNet H5](https://github.com/kundajelab/chrombpnet/wiki/Generate-contribution-score-bigwigs#output-format) format, or [tfmodisco-lite](https://github.com/jmschrei/tfmodisco-lite/tree/main#running-tfmodisco-lite) input format.
+- Contribution scores for peak sequences in bigWig format, [ChromBPNet H5](https://github.com/kundajelab/chrombpnet/wiki/Generate-contribution-score-bigwigs#output-format) format, [BPNet H5](https://github.com/kundajelab/bpnet-refactor?tab=readme-ov-file#3-compute-importance-scores), or [tfmodisco-lite](https://github.com/jmschrei/tfmodisco-lite/tree/main#running-tfmodisco-lite) input format.
 - Motif CWMs in [tfmodisco-lite](https://github.com/jmschrei/tfmodisco-lite/tree/main#running-tfmodisco-lite) H5 output format.
 
 Recommended:
@@ -88,12 +88,29 @@ options:
                         The width of the input region centered around each peak summit. (default: 1000)
 ```
 
-#### `finemo extract-regions-h5`
+#### `finemo extract-regions-chrombpnet-h5`
 
 Extract sequences and contributions from ChromBPNet H5 files.
 
 ```console
-usage: finemo extract-regions-h5 [-h] -c H5S [H5S ...] -o OUT_PATH [-w REGION_WIDTH]
+usage: finemo extract-regions-chrombpnet-h5 [-h] -c H5S [H5S ...] -o OUT_PATH [-w REGION_WIDTH]
+
+options:
+  -h, --help            show help message and exit
+  -c H5S [H5S ...], --h5s H5S [H5S ...]
+                        One or more H5 files of contribution scores, with paths delimited by whitespace. Scores are averaged across files. (*Required*)
+  -o OUT_PATH, --out-path OUT_PATH
+                        The path to the output .npz file. (*Required*)
+  -w REGION_WIDTH, --region-width REGION_WIDTH
+                        The width of the input region centered around each peak summit. (default: 1000)
+```
+
+#### `finemo extract-regions-bpnet-h5`
+
+Extract sequences and contributions from BPNet H5 files.
+
+```console
+usage: finemo extract-regions-bpnet-h5 [-h] -c H5S [H5S ...] -o OUT_PATH [-w REGION_WIDTH]
 
 options:
   -h, --help            show help message and exit

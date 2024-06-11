@@ -15,10 +15,18 @@ def extract_regions_bw(peaks_path, fa_path, bw_paths, out_path, region_width):
     data_io.write_regions_npz(sequences, contribs, out_path)
 
 
-def extract_regions_h5(h5_paths, out_path, region_width):
+def extract_regions_chrombpnet_h5(h5_paths, out_path, region_width):
     half_width = region_width // 2
 
-    sequences, contribs = data_io.load_regions_from_h5(h5_paths, half_width)
+    sequences, contribs = data_io.load_regions_from_chrombpnet_h5(h5_paths, half_width)
+
+    data_io.write_regions_npz(sequences, contribs, out_path)
+
+
+def extract_regions_bpnet_h5(h5_paths, out_path, region_width):
+    half_width = region_width // 2
+
+    sequences, contribs = data_io.load_regions_from_bpnet_h5(h5_paths, half_width)
 
     data_io.write_regions_npz(sequences, contribs, out_path)
 
@@ -206,8 +214,21 @@ def cli():
         help="The width of the input region centered around each peak summit.")
     
 
+    extract_chrombpnet_regions_h5_parser = subparsers.add_parser("extract-regions-chrombpnet-h5", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
+        help="Extract sequences and contributions from ChromBPNet contributions H5 files.")
+    
+    extract_chrombpnet_regions_h5_parser.add_argument("-c", "--h5s", type=str, required=True, nargs='+',
+        help="One or more H5 files of contribution scores, with paths delimited by whitespace. Scores are averaged across files.")
+    
+    extract_chrombpnet_regions_h5_parser.add_argument("-o", "--out-path", type=str, required=True,
+        help="The path to the output .npz file.")
+    
+    extract_chrombpnet_regions_h5_parser.add_argument("-w", "--region-width", type=int, default=1000,
+        help="The width of the input region centered around each peak summit.")
+    
+    
     extract_regions_h5_parser = subparsers.add_parser("extract-regions-h5", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
-        help="Extract sequences and contributions from chromBPNet contributions h5 files.")
+        help="Extract sequences and contributions from ChromBPNet contributions H5 files. DEPRECATED: Use `extract-regions-chrombpnet-h5` instead.")
     
     extract_regions_h5_parser.add_argument("-c", "--h5s", type=str, required=True, nargs='+',
         help="One or more H5 files of contribution scores, with paths delimited by whitespace. Scores are averaged across files.")
@@ -216,6 +237,19 @@ def cli():
         help="The path to the output .npz file.")
     
     extract_regions_h5_parser.add_argument("-w", "--region-width", type=int, default=1000,
+        help="The width of the input region centered around each peak summit.")
+    
+
+    extract_bpnet_regions_h5_parser = subparsers.add_parser("extract-regions-bpnet-h5", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
+        help="Extract sequences and contributions from BPNet contributions H5 files.")
+    
+    extract_bpnet_regions_h5_parser.add_argument("-c", "--h5s", type=str, required=True, nargs='+',
+        help="One or more H5 files of contribution scores, with paths delimited by whitespace. Scores are averaged across files.")
+    
+    extract_bpnet_regions_h5_parser.add_argument("-o", "--out-path", type=str, required=True,
+        help="The path to the output .npz file.")
+    
+    extract_bpnet_regions_h5_parser.add_argument("-w", "--region-width", type=int, default=1000,
         help="The width of the input region centered around each peak summit.")
     
 
@@ -265,8 +299,15 @@ def cli():
     elif args.cmd == "extract-regions-bw":
         extract_regions_bw(args.peaks, args.fasta, args.bigwigs, args.out_path, args.region_width)
 
+    elif args.cmd == "extract-regions-chrombpnet-h5":
+        extract_regions_chrombpnet_h5(args.h5s, args.out_path, args.region_width)
+
     elif args.cmd == "extract-regions-h5":
-        extract_regions_h5(args.h5s, args.out_path, args.region_width)
+        print("WARNING: The `extract-regions-h5` command is deprecated. Use `extract-regions-chrombpnet-h5` instead.")
+        extract_regions_chrombpnet_h5(args.h5s, args.out_path, args.region_width)
+
+    elif args.cmd == "extract-regions-bpnet-h5":
+        extract_regions_bpnet_h5(args.h5s, args.out_path, args.region_width)
 
     elif args.cmd == "extract-regions-modisco-fmt":
         extract_regions_modisco_fmt(args.attributions, args.sequences, args.out_path, args.region_width)
