@@ -3,8 +3,8 @@ requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "finemo"
-version = "0.14"
+name = "FiNeMo"
+version = "0.15"
 dependencies = [
     "numpy",
     "scipy",
