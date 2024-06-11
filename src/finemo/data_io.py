@@ -98,7 +98,7 @@ def load_regions_from_bw(peaks, fa_path, bw_paths, half_width):
     return sequences, contribs
 
 
-def load_regions_from_h5(h5_paths, half_width):
+def load_regions_from_chrombpnet_h5(h5_paths, half_width):
     with ExitStack() as stack:
         h5s = [stack.enter_context(h5py.File(i)) for i in h5_paths]
 
@@ -107,6 +107,19 @@ def load_regions_from_h5(h5_paths, half_width):
         
         sequences = h5s[0]['raw/seq'][:,:,start:end].astype(np.int8) 
         contribs = np.mean([np.nan_to_num(f['shap/seq'][:,:,start:end]) for f in h5s], axis=0, dtype=np.float16)
+
+    return sequences, contribs
+
+
+def load_regions_from_bpnet_h5(h5_paths, half_width):
+    with ExitStack() as stack:
+        h5s = [stack.enter_context(h5py.File(i)) for i in h5_paths]
+
+        start = h5s[0]['input_seqs'].shape[-2] // 2 - half_width
+        end = start + 2 * half_width
+
+        sequences = h5s[0]['input_seqs'][:,start:end,:].swapaxes(1,2).astype(np.int8) 
+        contribs = np.mean([np.nan_to_num(f['hyp_scores'][:,start:end,:].swapaxes(1,2)) for f in h5s], axis=0, dtype=np.float16)
 
     return sequences, contribs
 
