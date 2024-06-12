@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from tqdm import tqdm, trange
+from tqdm import tqdm
 
 
 def prox_grad_step(coefficients, importance_scale, cwms, contribs, sequences, 
@@ -147,14 +147,15 @@ class BatchLoaderHyp(BatchLoaderBase):
         return contribs_batch, 1, inds, global_scale
 
 
-def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_max, step_size_min,
-                 convergence_tol, max_steps, batch_size, step_adjust, post_filter, device):
+def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alpha, step_size_max, 
+                 step_size_min, convergence_tol, max_steps, batch_size, step_adjust, post_filter, device):
     """
     Call hits by fitting sparse linear model to contributions
     
     cwms: (m, 4, w)
     contribs: (n, 4, l) or (n, l)  
     sequences: (n, 4, l)
+    cwm_trim_mask: (m, w)
     """
     m, _, w = cwms.shape
     n, _, l = sequences.shape
@@ -165,8 +166,11 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
     cwms = torch.from_numpy(cwms)
     contribs = torch.from_numpy(contribs)
     sequences = torch.from_numpy(sequences)
+    cwm_trim_mask = torch.from_numpy(cwm_trim_mask)[:,None,:].repeat(1,4,1)
 
     cwms = _to_channel_last_layout(cwms, device=device, dtype=torch.float32)
+    cwm_trim_mask = _to_channel_last_layout(cwm_trim_mask, device=device, dtype=torch.float32)
+    cwms = cwms * cwm_trim_mask
 
     # Initialize batch loader
     if len(contribs.shape) == 3:
@@ -189,8 +193,8 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
     importance_lst = []
     qc_lsts = {"nll": [], "dual_gap": [], "num_steps": [], "step_size": [], "global_scale": []}
 
-    # Utility convolutional filter for summing values in window 
-    sum_filter = torch.ones((1, 4, w), dtype=torch.float32, device=device)
+    # # Utility convolutional filter for summing values in window 
+    # sum_filter = torch.ones((1, 4, w), dtype=torch.float32, device=device)
 
     # Initialize buffers for optimizer
     coef_inter = torch.zeros((b, m, l - w + 1)) # (b, m, l - w + 1)
@@ -211,13 +215,13 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
         seqs_buf = torch.zeros((b, 4, l))
         seqs_buf = _to_channel_last_layout(seqs_buf, device=device, dtype=torch.int8)
 
-    importance_scale_buf = torch.zeros((b, 1, l - w + 1))
+    importance_scale_buf = torch.zeros((b, m, l - w + 1))
     importance_scale_buf = _to_channel_last_layout(importance_scale_buf, device=device, dtype=torch.float32)
 
     inds_buf = torch.zeros((b,), dtype=torch.int, device=device)
     global_scale_buf = torch.zeros((b,), dtype=torch.float, device=device)
 
-    with tqdm(disable=None, unit="regions", total=n) as pbar:
+    with tqdm(disable=None, unit="regions", total=n, ncols=120) as pbar:
         num_complete = 0
         next_ind = 0
         while num_complete < n:
@@ -230,7 +234,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
                 batch_data = batch_loader.load_batch(load_start, load_end)
                 contribs_batch, seqs_batch, inds_batch, global_scale_batch = batch_data
 
-                importance_scale_batch = (F.conv1d(contribs_batch**2, sum_filter) + 1)**(-0.5)
+                importance_scale_batch = (F.conv1d(contribs_batch**2, cwm_trim_mask) + 1)**(-0.5)
                 importance_scale_batch = importance_scale_batch.clamp(max=10)
 
                 contribs_buf[converged,:,:] = contribs_batch
@@ -284,7 +288,7 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
 
                 # Compute hit scores 
                 coef_out = coef[converged,:,:]
-                importance_scale_out_dense = importance_scale_buf[converged,:]
+                importance_scale_out_dense = importance_scale_buf[converged,:,:]
                 xcor_scale = (importance_scale_out_dense**(-2) - 1).sqrt()
 
                 xcov_out_dense = F.conv1d(contribs_buf[converged,:,:], cwms) 
@@ -300,9 +304,8 @@ def fit_contribs(cwms, contribs, sequences, use_hypothetical, alpha, step_size_m
                 hit_idxs_out[0,:] = F.embedding(hit_idxs_out[0,:], inds_out[:,None]).squeeze()
                     # Map buffer index to peak index
 
-                importance_out = xcor_scale[coef_out.indices()[0,:],0,coef_out.indices()[2,:]]
-
                 ind_tuple = torch.unbind(coef_out.indices())
+                importance_out = xcor_scale[ind_tuple]
                 xcor_out = xcor_out_dense[ind_tuple]
 
                 scores_out_raw = coef_out.values()

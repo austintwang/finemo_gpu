@@ -44,7 +44,7 @@ git pull
 
 Required:
 
-- Contribution scores for peak sequences in bigWig format, [ChromBPNet H5](https://github.com/kundajelab/chrombpnet/wiki/Generate-contribution-score-bigwigs#output-format) format, [BPNet H5](https://github.com/kundajelab/bpnet-refactor?tab=readme-ov-file#3-compute-importance-scores), or [tfmodisco-lite](https://github.com/jmschrei/tfmodisco-lite/tree/main#running-tfmodisco-lite) input format.
+- Contribution scores for peak sequences in bigWig format, [ChromBPNet H5](https://github.com/kundajelab/chrombpnet/wiki/Generate-contribution-score-bigwigs#output-format) format, [BPNet H5](https://github.com/kundajelab/bpnet-refactor?tab=readme-ov-file#3-compute-importance-scores) format, or [tfmodisco-lite](https://github.com/jmschrei/tfmodisco-lite/tree/main#running-tfmodisco-lite) input format.
 - Motif CWMs in [tfmodisco-lite](https://github.com/jmschrei/tfmodisco-lite/tree/main#running-tfmodisco-lite) H5 output format.
 
 Recommended:

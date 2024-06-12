@@ -185,6 +185,7 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type):
     motif_data_lsts = {"motif_name": [], "motif_strand": [], 
                        "motif_start": [], "motif_end": [], "motif_scale": []}
     motif_lst = [] 
+    trim_mask_lst = []
 
     with h5py.File(modisco_h5_path, 'r') as modisco_results:
         for name in MODISCO_PATTERN_GROUPS:
@@ -203,6 +204,11 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type):
                 cwm_rev = cwm_fwd[::-1,::-1]
                 start_fwd, end_fwd = trim_motif(cwm_fwd, trim_threshold)
                 start_rev, end_rev = trim_motif(cwm_rev, trim_threshold)
+                
+                trim_mask_fwd = np.zeros(cwm_fwd.shape[1], dtype=np.int8)
+                trim_mask_fwd[start_fwd:end_fwd] = 1
+                trim_mask_rev = np.zeros(cwm_rev.shape[1], dtype=np.int8)
+                trim_mask_rev[start_rev:end_rev] = 1
 
                 if motif_type == "cwm":
                     motif_fwd = cwm_fwd
@@ -245,11 +251,13 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type):
                 motif_data_lsts["motif_scale"].append(motif_norm)
 
                 motif_lst.extend([motif_fwd, motif_rev])
-
+                trim_mask_lst.extend([trim_mask_fwd, trim_mask_rev])
+                
     motifs_df = pl.DataFrame(motif_data_lsts).with_row_count(name="motif_id")
     cwms = np.stack(motif_lst, dtype=np.float16, axis=0)
+    trim_masks = np.stack(trim_mask_lst, dtype=np.int8, axis=0)
 
-    return motifs_df, cwms
+    return motifs_df, cwms, trim_masks
 
 
 def load_hits(hits_path, lazy=False):
