@@ -131,8 +131,8 @@ def report(regions_path, hits_path, modisco_h5_path, peaks_path, out_dir, modisc
 
     occ_df, coooc = evaluation.get_motif_occurences(hits_df, motif_names)
 
-    recall_data, recall_df, cwms = evaluation.seqlet_recall(regions, hits_df, peaks_df, seqlets_df, 
-                                                            motif_names, modisco_half_width, motif_width)
+    recall_data, recall_df, cwms, trim_bounds = evaluation.seqlet_recall(regions, hits_df, peaks_df, seqlets_df, motifs_df,
+                                                                         motif_names, modisco_half_width, motif_width)
     
     os.makedirs(out_dir, exist_ok=True)
     
@@ -147,7 +147,7 @@ def report(regions_path, hits_path, modisco_h5_path, peaks_path, out_dir, modisc
     evaluation.plot_peak_motif_indicator_heatmap(coooc, motif_names, coooc_path)
 
     plot_dir = os.path.join(out_dir, "CWMs")
-    evaluation.plot_cwms(cwms, plot_dir)
+    evaluation.plot_cwms(cwms, trim_bounds, plot_dir)
 
     plot_path = os.path.join(out_dir, "hit_vs_seqlet_counts.png")
     evaluation.plot_hit_vs_seqlet_counts(recall_data, plot_path)

@@ -218,7 +218,7 @@
     If seqlet recall is near zero for all motifs, the <code>-W/--modisco-region-width</code> argument is likely incorrect.
 </p>
 <p>
-    CWMs (contribution weight matrices) are average contribution scores over a set of regions. The CWMs shown here are:
+    Motif CWMs (contribution weight matrices) are average contribution scores over a set of regions. The CWMs plotted here are:
 </p>
 <ul>
     <li><strong>Hit CWM (FC)</strong>: The forward-strand CWM of all hits</li>
@@ -227,6 +227,9 @@
     <li><strong>Missed-Seqlet-Only CWM</strong>: The CWM of all TF-MoDISco seqlets that were not called as hits</li>
     <li><strong>Additional-Restricted-Hit CWM</strong>: The CWM of all hits within the TF-MoDISco input regions that were not identified as seqlets by TF-MoDISco</li>
 </ul>
+<p>
+    The plots span the full untrimmed motif, with the trimmed motif shaded.
+</p>
 <p>
     The hit-seqlet correlation is the Pearson correlation between the additional-restricted-hits CWM and the seqlet CWM. 
     This statistic measures the similarity between hits that were missed by TF-MoDISco and the seqlets used to construct the motif.

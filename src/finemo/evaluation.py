@@ -153,7 +153,7 @@ def get_cwms(regions, positions_df, motif_width):
     return cwms
 
 
-def seqlet_recall(regions, hits_df, peaks_df, seqlets_df, motif_names, modisco_half_width, motif_width):
+def seqlet_recall(regions, hits_df, peaks_df, seqlets_df, motifs_df, motif_names, modisco_half_width, motif_width):
     hits_df = (
         hits_df
         .with_columns(pl.col('peak_id').cast(pl.UInt32))
@@ -220,6 +220,7 @@ def seqlet_recall(regions, hits_df, peaks_df, seqlets_df, motif_names, modisco_h
 
     recall_data = {}
     cwms = {}
+    cwm_trim_bounds = {}
     dummy_df = overlaps_df.clear()
     for m in motif_names:
         hits = hits_by_motif.get(m, dummy_df)
@@ -246,6 +247,19 @@ def seqlet_recall(regions, hits_df, peaks_df, seqlets_df, motif_names, modisco_h
             "hits_restricted_only": get_cwms(regions, hits_only_filtered, motif_width),
         }
         cwms[m]["hits_rc"] = cwms[m]["hits_fc"][::-1,::-1]
+
+        motif_data_fc = motifs_df.row(by_predicate=(pl.col("motif_name") == m) & (pl.col("is_revcomp") == False), named=True)
+        motif_data_rc = motifs_df.row(by_predicate=(pl.col("motif_name") == m) & (pl.col("is_revcomp") == True), named=True)
+        bounds_fc = (motif_data_fc["motif_start"], motif_data_fc["motif_end"])
+        bounds_rc = (motif_data_rc["motif_start"], motif_data_rc["motif_end"])
+        
+        cwm_trim_bounds[m] = {
+            "hits_fc": bounds_fc,
+            "seqlets_fc": bounds_fc,
+            "seqlets_only": bounds_fc,
+            "hits_restricted_only": bounds_fc,
+            "hits_rc": bounds_rc
+        }
         
         hits_only_cwm = cwms[m]["hits_restricted_only"]
         seqlets_cwm = cwms[m]["seqlets_fc"]
@@ -258,7 +272,7 @@ def seqlet_recall(regions, hits_df, peaks_df, seqlets_df, motif_names, modisco_h
     records = [{"motif_name": k} | v for k, v in recall_data.items()]
     recall_df = pl.from_dicts(records)
 
-    return recall_data, recall_df, cwms
+    return recall_data, recall_df, cwms, cwm_trim_bounds
 
 
 class LogoGlyph(AbstractPathEffect):
@@ -300,7 +314,7 @@ class LogoGlyph(AbstractPathEffect):
         self.patch.draw(renderer)
 
 
-def plot_logo(ax, heights, glyphs, colors=None, font_props=None):
+def plot_logo(ax, heights, glyphs, colors=None, font_props=None, shade_bounds=None):
     if colors is None:
         colors = {g: None for g in glyphs}
 
@@ -326,6 +340,10 @@ def plot_logo(ax, heights, glyphs, colors=None, font_props=None):
 
     x = np.arange(heights.shape[1])
 
+    if shade_bounds is not None:
+        for start, end in shade_bounds:
+            ax.axvspan(start, end, color='0.9', zorder=-1)
+
     for glyph, height, bottom in zip(glyphs, heights, bottoms):
         ax.bar(x, height, 0.95, bottom=bottom, 
                path_effects=[LogoGlyph(glyph, font_props=font_props)], color=colors[glyph])
@@ -337,7 +355,7 @@ LOGO_ALPHABET = 'ACGT'
 LOGO_COLORS = {"A": '#109648', "C": '#255C99', "G": '#F7B32B', "T": '#D62839'}
 LOGO_FONT = FontProperties(weight="bold")
 
-def plot_cwms(cwms, out_dir, alphabet=LOGO_ALPHABET, colors=LOGO_COLORS, font=LOGO_FONT):
+def plot_cwms(cwms, trim_bounds, out_dir, alphabet=LOGO_ALPHABET, colors=LOGO_COLORS, font=LOGO_FONT):
     for m, v in cwms.items():
         motif_dir = os.path.join(out_dir, m)
         os.makedirs(motif_dir, exist_ok=True)
@@ -346,7 +364,7 @@ def plot_cwms(cwms, out_dir, alphabet=LOGO_ALPHABET, colors=LOGO_COLORS, font=LO
 
             fig, ax = plt.subplots(figsize=(10,2))
 
-            plot_logo(ax, cwm, alphabet, colors=colors, font_props=font)
+            plot_logo(ax, cwm, alphabet, colors=colors, font_props=font, shade_bounds=trim_bounds[m][cwm_type])
 
             for name, spine in ax.spines.items():
                 spine.set_visible(False)
