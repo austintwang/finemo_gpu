@@ -302,8 +302,8 @@ def load_modisco_seqlets(modisco_h5_path, peaks_df, half_width, modisco_half_wid
             for ind, (pattern_name, pattern) in enumerate(sorted(metacluster.items(), key=key)):
                 pattern_tag = f'{name}.{pattern_name}'
 
-                starts = pattern['seqlets/start'][:]
-                ends = pattern['seqlets/end'][:]
+                starts = pattern['seqlets/start'][:].astype(np.uint32)
+                ends = pattern['seqlets/end'][:].astype(np.uint32)
                 is_revcomps = pattern['seqlets/is_revcomp'][:]
                 peak_ids = pattern['seqlets/example_idx'][:].astype(np.uint32)
 
