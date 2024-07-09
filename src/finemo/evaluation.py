@@ -34,6 +34,12 @@ def get_motif_occurences(hits_df, motif_names):
         .collect()
         .pivot(index="peak_id", columns="motif_name", values="count", aggregate_function="sum")
         .fill_null(0)
+    )
+
+    missing_cols = set(motif_names) - set(occ_df.columns)
+    occ_df = (
+        occ_df
+        .with_columns([pl.lit(0).alias(m) for m in missing_cols])
         .with_columns(total=pl.sum_horizontal(*motif_names))
         .sort(["peak_id"])
     )
