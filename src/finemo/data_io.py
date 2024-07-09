@@ -260,9 +260,24 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type):
     return motifs_df, cwms, trim_masks
 
 
+HITS_DTYPES = {
+    "chr": pl.Utf8,
+    "start": pl.UInt32,
+    "end": pl.UInt32,
+    "start_untrimmed": pl.UInt32,
+    "end_untrimmed": pl.UInt32,
+    "motif_name": pl.Utf8,
+    "hit_coefficient": pl.Float32,
+    "hit_correlation": pl.Float32,
+    "hit_importance": pl.Float32,
+    "strand": pl.Utf8,
+    "peak_name": pl.Utf8,
+    "peak_id": pl.UInt32,
+}
+
 def load_hits(hits_path, lazy=False):
     hits_df = (
-        pl.scan_csv(hits_path, separator='\t', quote_char=None)
+        pl.scan_csv(hits_path, separator='\t', quote_char=None, dtypes=HITS_DTYPES)
         .with_columns(pl.lit(1).alias("count"))
     )
 
