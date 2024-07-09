@@ -236,14 +236,12 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type):
                     motif_fwd = softmax(motif_raw)
                     motif_rev = motif_fwd[::-1,::-1]
 
-                # motif_data_lsts["motif_id"].append(2 * ind)
                 motif_data_lsts["motif_name"].append(pattern_tag)
                 motif_data_lsts["motif_strand"].append('+')
                 motif_data_lsts["motif_start"].append(start_fwd)
                 motif_data_lsts["motif_end"].append(end_fwd)
                 motif_data_lsts["motif_scale"].append(motif_norm)
 
-                # motif_data_lsts["motif_id"].append(2 * ind + 1)
                 motif_data_lsts["motif_name"].append(pattern_tag)
                 motif_data_lsts["motif_strand"].append('-')
                 motif_data_lsts["motif_start"].append(start_rev)
@@ -466,7 +464,7 @@ def write_occ_df(occ_df, out_path):
     occ_df.write_csv(out_path, separator="\t")
 
 
-def write_recall_data(recall_df, cwms, out_dir):
+def write_report_data(report_df, cwms, out_dir):
     cwms_dir = os.path.join(out_dir, "CWMs")
     os.makedirs(cwms_dir, exist_ok=True)
 
@@ -476,5 +474,5 @@ def write_recall_data(recall_df, cwms, out_dir):
         for cwm_type, cwm in v.items():
             np.savetxt(os.path.join(motif_dir, f"{cwm_type}.txt"), cwm)
 
-    recall_df.write_csv(os.path.join(out_dir, "seqlet_recall.tsv"), separator="\t")
+    report_df.write_csv(os.path.join(out_dir, "seqlet_report.tsv"), separator="\t")
 

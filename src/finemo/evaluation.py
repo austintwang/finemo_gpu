@@ -153,7 +153,8 @@ def get_cwms(regions, positions_df, motif_width):
     return cwms
 
 
-def seqlet_recall(regions, hits_df, peaks_df, seqlets_df, motifs_df, motif_names, modisco_half_width, motif_width):
+def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df, 
+                         cwms_modisco, motif_names, modisco_half_width, motif_width):
     hits_df = (
         hits_df
         .with_columns(pl.col('peak_id').cast(pl.UInt32))
@@ -218,7 +219,7 @@ def seqlet_recall(regions, hits_df, peaks_df, seqlets_df, motifs_df, motif_names
     seqlets_only_by_motif = seqlets_only_df.partition_by("motif_name", as_dict=True)
     hits_only_filtered_by_motif = hits_only_filtered_df.partition_by("motif_name", as_dict=True)
 
-    recall_data = {}
+    report_data = {}
     cwms = {}
     cwm_trim_bounds = {}
     dummy_df = overlaps_df.clear()
@@ -230,7 +231,7 @@ def seqlet_recall(regions, hits_df, peaks_df, seqlets_df, motifs_df, motif_names
         seqlets_only = seqlets_only_by_motif.get(m, dummy_df)
         hits_only_filtered = hits_only_filtered_by_motif.get(m, dummy_df)
 
-        recall_data[m] = {
+        report_data[m] = {
             "seqlet_recall": np.float64(overlaps.height) / seqlets.height,
             "num_hits_total": hits.height,
             "num_hits_restricted": hits_filtered.height,
@@ -240,39 +241,42 @@ def seqlet_recall(regions, hits_df, peaks_df, seqlets_df, motifs_df, motif_names
             "num_hits_restricted_only": hits_only_filtered.height
         }
 
+        motif_data_fc = motifs_df.row(by_predicate=(pl.col("motif_name") == m) & (pl.col("is_revcomp") == False), named=True)
+        motif_data_rc = motifs_df.row(by_predicate=(pl.col("motif_name") == m) & (pl.col("is_revcomp") == True), named=True)
+
         cwms[m] = {
             "hits_fc": get_cwms(regions, hits, motif_width),
-            "seqlets_fc": get_cwms(regions, seqlets, motif_width),
+            "modisco_fc": cwms_modisco[motif_data_fc["motif_id"]],
+            "modisco_rc": cwms_modisco[motif_data_rc["motif_id"]],
             "seqlets_only": get_cwms(regions, seqlets_only, motif_width),
             "hits_restricted_only": get_cwms(regions, hits_only_filtered, motif_width),
         }
         cwms[m]["hits_rc"] = cwms[m]["hits_fc"][::-1,::-1]
 
-        motif_data_fc = motifs_df.row(by_predicate=(pl.col("motif_name") == m) & (pl.col("is_revcomp") == False), named=True)
-        motif_data_rc = motifs_df.row(by_predicate=(pl.col("motif_name") == m) & (pl.col("is_revcomp") == True), named=True)
         bounds_fc = (motif_data_fc["motif_start"], motif_data_fc["motif_end"])
         bounds_rc = (motif_data_rc["motif_start"], motif_data_rc["motif_end"])
         
         cwm_trim_bounds[m] = {
             "hits_fc": bounds_fc,
-            "seqlets_fc": bounds_fc,
+            "modisco_fc": bounds_fc,
+            "modisco_rc": bounds_rc,
             "seqlets_only": bounds_fc,
             "hits_restricted_only": bounds_fc,
             "hits_rc": bounds_rc
         }
         
         hits_only_cwm = cwms[m]["hits_restricted_only"]
-        seqlets_cwm = cwms[m]["seqlets_fc"]
+        modisco_cwm = cwms[m]["modisco_fc"]
         hnorm = np.sqrt((hits_only_cwm**2).sum())
-        snorm = np.sqrt((seqlets_cwm**2).sum())
-        cwm_cor = (hits_only_cwm * seqlets_cwm).sum() / (hnorm * snorm)
+        snorm = np.sqrt((modisco_cwm**2).sum())
+        cwm_cor = (hits_only_cwm * modisco_cwm).sum() / (hnorm * snorm)
 
-        recall_data[m]["cwm_correlation"] = cwm_cor
+        report_data[m]["cwm_correlation"] = cwm_cor
 
-    records = [{"motif_name": k} | v for k, v in recall_data.items()]
-    recall_df = pl.from_dicts(records)
+    records = [{"motif_name": k} | v for k, v in report_data.items()]
+    report_df = pl.from_dicts(records)
 
-    return recall_data, recall_df, cwms, cwm_trim_bounds
+    return report_data, report_df, cwms, cwm_trim_bounds
 
 
 class LogoGlyph(AbstractPathEffect):
@@ -340,15 +344,15 @@ def plot_logo(ax, heights, glyphs, colors=None, font_props=None, shade_bounds=No
 
     x = np.arange(heights.shape[1])
 
-    if shade_bounds is not None:
-        for start, end in shade_bounds:
-            ax.axvspan(start, end, color='0.9', zorder=-1)
-
     for glyph, height, bottom in zip(glyphs, heights, bottoms):
         ax.bar(x, height, 0.95, bottom=bottom, 
                path_effects=[LogoGlyph(glyph, font_props=font_props)], color=colors[glyph])
 
     ax.axhline(zorder=-1, linewidth=0.5, color='black',)
+
+    if shade_bounds is not None:
+        for start, end in shade_bounds:
+            ax.axvspan(start, end, color='0.9', zorder=-1)
 
 
 LOGO_ALPHABET = 'ACGT'

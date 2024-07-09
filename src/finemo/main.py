@@ -131,15 +131,15 @@ def report(regions_path, hits_path, modisco_h5_path, peaks_path, out_dir, modisc
 
     occ_df, coooc = evaluation.get_motif_occurences(hits_df, motif_names)
 
-    recall_data, recall_df, cwms, trim_bounds = evaluation.seqlet_recall(regions, hits_df, peaks_df, seqlets_df, motifs_df,
-                                                                         motif_names, modisco_half_width, motif_width)
+    report_data, report_df, cwms, trim_bounds = evaluation.tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df,
+                                                                                cwms_modisco, motif_names, modisco_half_width, motif_width)
     
     os.makedirs(out_dir, exist_ok=True)
     
     occ_path = os.path.join(out_dir, "motif_occurrences.tsv")
     data_io.write_occ_df(occ_df, occ_path)
 
-    data_io.write_recall_data(recall_df, cwms, out_dir)
+    data_io.write_report_data(report_df, cwms, out_dir)
 
     evaluation.plot_hit_distributions(occ_df, motif_names, out_dir)
 
@@ -150,10 +150,10 @@ def report(regions_path, hits_path, modisco_h5_path, peaks_path, out_dir, modisc
     evaluation.plot_cwms(cwms, trim_bounds, plot_dir)
 
     plot_path = os.path.join(out_dir, "hit_vs_seqlet_counts.png")
-    evaluation.plot_hit_vs_seqlet_counts(recall_data, plot_path)
+    evaluation.plot_hit_vs_seqlet_counts(report_data, plot_path)
 
     report_path = os.path.join(out_dir, "report.html")
-    evaluation.write_report(recall_df, motif_names, report_path)
+    evaluation.write_report(report_df, motif_names, report_path)
 
 
 def cli():

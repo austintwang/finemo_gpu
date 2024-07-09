@@ -187,7 +187,7 @@
 <h3>Hit vs. seqlet counts</h3>
 <p>
     This figure shows the number of hits called vs. the number of TF-MoDISco seqlets identified for each motif. 
-    The hit counts should be greater than the corresponding seqlet counts, since TF-MoDISco stringently filters seqlets and usually uses a smaller input window. 
+    The hit counts should be mostly greater than the corresponding seqlet counts, since TF-MoDISco stringently filters seqlets and usually uses a smaller input window. 
     The dashed line is the identity line. 
 </p>
 <img src="hit_vs_seqlet_counts.png" width="780">
@@ -205,17 +205,18 @@
     <li><strong>Seqlets</strong>: The number of unique TF-MoDISco seqlets</li>
     <li><strong>Hit/Seqlet Overlaps</strong>: The number of hits that coincide with TF-MoDISco seqlets</li>
     <li><strong>Missed Seqlets</strong>: The number of TF-MoDISco seqlets not called as hits</li>
-    <li><strong>Additional Restricted Hits</strong>: The number of hits within the TF-MoDISco input regions that were not identified as seqlets by TF-MoDISco</li>
+    <li><strong>Additional Restricted Hits</strong>: The number of hits within the TF-MoDISco input regions that are not identified as seqlets by TF-MoDISco</li>
     <li><strong>Seqlet Recall</strong>: The fraction of seqlets that are called as hits</li>
-    <li><strong>Hit-Seqlet Correlation</strong>: The Pearson correlation between the additional-restricted-hits CWM and the seqlet CWM</li>
+    <li><strong>Hit-Seqlet CWM Correlation</strong>: The Pearson correlation between the additional-restricted-hits CWM and the TF-MoDISco CWM</li>
 </ul>
 <p>
     Note that the seqlet counts here may be lower than those shown in the tfmodisco-lite report due to double-counting in overlapping regions.
-    The seqlet counts shown here are after de-duplication, while the counts in the tfmodisco-lite report are not de-duplicated.
+    The seqlet counts shown here are unique while the counts in the tfmodisco-lite report are not de-duplicated.
 </p>
 <p>
     Note that palindromic motifs may have lower recall due to disagreements on orientation.
     If seqlet recall is near zero for all motifs, the <code>-W/--modisco-region-width</code> argument is likely incorrect.
+    This value is required to infer genomic coordinates of seqlets from the tfmodisco-lite output H5.
 </p>
 <p>
     Motif CWMs (contribution weight matrices) are average contribution scores over a set of regions. The CWMs plotted here are:
@@ -223,7 +224,7 @@
 <ul>
     <li><strong>Hit CWM (FC)</strong>: The forward-strand CWM of all hits</li>
     <li><strong>Hit CWM (RC)</strong>: The reverse-strand CWM of all hits</li>
-    <li><strong>Seqlet CWM</strong>: The CWM of all TF-MoDISco seqlets</li>
+    <li><strong>TF-MoDISco CWM (FC/RC)</strong>: The CWM of all TF-MoDISco seqlets</li>
     <li><strong>Missed-Seqlet-Only CWM</strong>: The CWM of all TF-MoDISco seqlets that were not called as hits</li>
     <li><strong>Additional-Restricted-Hit CWM</strong>: The CWM of all hits within the TF-MoDISco input regions that were not identified as seqlets by TF-MoDISco</li>
 </ul>
@@ -240,7 +241,7 @@
         <tr>
             <th>Motif Name</th>
             <th class="num_col">Seqlet Recall</th>
-            <th class="num_col">Hit-Seqlet Correlation</th>
+            <th class="num_col">Hit-Seqlet CWM Correlation</th>
             <th class="num_col">Hits</th>
             <th class="num_col">Restricted Hits</th>
             <th class="num_col">Seqlets</th>
@@ -249,7 +250,8 @@
             <th class="num_col">Additional Restricted Hits</th>
             <th class="cwm">Hit CWM (FC)</th>
             <th class="cwm">Hit CWM (RC)</th>
-            <th class="cwm">Seqlet CWM</th>
+            <th class="cwm">TF-MoDISco CWM (FC)</th>
+            <th class="cwm">TF-MoDISco CWM (RC)</th>
             <th class="cwm">Missed-Seqlet-Only CWM</th>
             <th class="cwm">Additional-Restricted-Hit CWM</th>
         </tr>
@@ -268,7 +270,8 @@
             <td class="num_col">{{ item.num_hits_restricted_only }}</td>
             <td class="cwm"><img src="CWMs/{{ item.motif_name }}/hits_fc.png" width="360"></td>
             <td class="cwm"><img src="CWMs/{{ item.motif_name }}/hits_rc.png" width="360"></td>
-            <td class="cwm"><img src="CWMs/{{ item.motif_name }}/seqlets_fc.png" width="360"></td>
+            <td class="cwm"><img src="CWMs/{{ item.motif_name }}/modisco_fc.png" width="360"></td>
+            <td class="cwm"><img src="CWMs/{{ item.motif_name }}/modisco_rc.png" width="360"></td>
             <td class="cwm"><img src="CWMs/{{ item.motif_name }}/seqlets_only.png" width="360"></td>
             <td class="cwm"><img src="CWMs/{{ item.motif_name }}/hits_restricted_only.png" width="360"></td>
         </tr>
