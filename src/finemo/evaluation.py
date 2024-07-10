@@ -241,8 +241,8 @@ def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df,
             "num_hits_restricted_only": hits_only_filtered.height
         }
 
-        motif_data_fc = motifs_df.row(by_predicate=(pl.col("motif_name") == m) & (pl.col("is_revcomp") == False), named=True)
-        motif_data_rc = motifs_df.row(by_predicate=(pl.col("motif_name") == m) & (pl.col("is_revcomp") == True), named=True)
+        motif_data_fc = motifs_df.row(by_predicate=(pl.col("motif_name") == m) & (pl.col("motif_strand") == "+"), named=True)
+        motif_data_rc = motifs_df.row(by_predicate=(pl.col("motif_name") == m) & (pl.col("motif_strand") == "-"), named=True)
 
         cwms[m] = {
             "hits_fc": get_cwms(regions, hits, motif_width),
