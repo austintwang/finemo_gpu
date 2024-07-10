@@ -66,7 +66,7 @@ def plot_hit_distributions(occ_df, motif_names, plot_dir):
 
         unique, counts = np.unique(occ_df.get_column(m), return_counts=True)
         freq = counts / counts.sum()
-        num_bins = np.amax(unique) + 1
+        num_bins = np.amax(unique, initial=0) + 1
         x = np.arange(num_bins)
         y = np.zeros(num_bins)
         y[unique] = freq
@@ -81,7 +81,7 @@ def plot_hit_distributions(occ_df, motif_names, plot_dir):
 
     unique, counts = np.unique(occ_df.get_column("total"), return_counts=True)
     freq = counts / counts.sum()
-    num_bins = np.amax(unique) + 1
+    num_bins = np.amax(unique, initial=0) + 1
     x = np.arange(num_bins)
     y = np.zeros(num_bins)
     y[unique] = freq
