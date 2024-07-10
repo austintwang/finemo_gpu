@@ -110,7 +110,7 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, out_d
     data_io.write_params(params, out_path_params)
 
 
-def report(regions_path, hits_path, modisco_h5_path, peaks_path, out_dir, modisco_region_width):
+def report(regions_path, hits_path, modisco_h5_path, peaks_path, out_dir, modisco_region_width, cwm_trim_threshold):
     from . import evaluation
 
     sequences, contribs = data_io.load_regions_npz(regions_path)
@@ -125,7 +125,7 @@ def report(regions_path, hits_path, modisco_h5_path, peaks_path, out_dir, modisc
     hits_df = data_io.load_hits(hits_path, lazy=True)
     seqlets_df = data_io.load_modisco_seqlets(modisco_h5_path, peaks_df, half_width, modisco_half_width, lazy=True)
 
-    motifs_df, cwms_modisco, trim_masks = data_io.load_modisco_motifs(modisco_h5_path, 0, "cwm")
+    motifs_df, cwms_modisco, trim_masks = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, "cwm")
     motif_names = motifs_df.filter(pl.col("motif_strand") == "+").get_column("motif_name").to_numpy()
     motif_width = cwms_modisco.shape[2]
 
@@ -293,6 +293,8 @@ def cli():
     
     report_parser.add_argument("-W", "--modisco-region-width", type=int, default=400,
         help="The width of the region around each peak summit used by tfmodisco-lite.")
+    report_parser.add_argument("-t", "--cwm-trim-threshold", type=float, default=0.3,
+        help="The threshold to determine motif start and end positions within the full CWMs. This should match the value used in `finemo call-hits`.")
     
 
     args = parser.parse_args()
@@ -321,4 +323,4 @@ def cli():
 
     elif args.cmd == "report":
         report(args.regions, args.hits, args.modisco_h5, args.peaks, 
-               args.out_dir, args.modisco_region_width)
+               args.out_dir, args.modisco_region_width, args.cwm_trim_threshold)

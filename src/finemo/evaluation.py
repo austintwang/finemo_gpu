@@ -352,7 +352,7 @@ def plot_logo(ax, heights, glyphs, colors=None, font_props=None, shade_bounds=No
 
     if shade_bounds is not None:
         start, end = shade_bounds
-        ax.axvspan(start, end, color='0.9', zorder=-1)
+        ax.axvspan(start - 0.5, end - 0.5, color='0.9', zorder=-1)
 
 
 LOGO_ALPHABET = 'ACGT'
