@@ -351,8 +351,8 @@ def plot_logo(ax, heights, glyphs, colors=None, font_props=None, shade_bounds=No
     ax.axhline(zorder=-1, linewidth=0.5, color='black',)
 
     if shade_bounds is not None:
-        for start, end in shade_bounds:
-            ax.axvspan(start, end, color='0.9', zorder=-1)
+        start, end = shade_bounds
+        ax.axvspan(start, end, color='0.9', zorder=-1)
 
 
 LOGO_ALPHABET = 'ACGT'
@@ -405,10 +405,10 @@ def plot_hit_vs_seqlet_counts(recall_data, output_path):
     plt.close()
 
 
-def write_report(recall_df, motif_names, out_path):
+def write_report(report_df, motif_names, out_path):
     template_str = importlib.resources.files(templates).joinpath('report.html').read_text()
     template = Template(template_str)
-    report = template.render(seqlet_recall_data=recall_df.iter_rows(named=True), motif_names=motif_names)
+    report = template.render(report_data=report_df.iter_rows(named=True), motif_names=motif_names)
     with open(out_path, "w") as f:
         f.write(report)
 

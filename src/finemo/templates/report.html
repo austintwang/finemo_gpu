@@ -257,7 +257,7 @@
         </tr>
     </thead>
     <tbody>
-        {% for item in seqlet_recall_data %}
+        {% for item in report_data %}
         <tr>
             <td><code>{{ item.motif_name }}</code></td>
             <td class="num_col">{{ '%0.3f'| format(item.seqlet_recall|float) }}</td>
