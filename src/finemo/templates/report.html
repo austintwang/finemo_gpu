@@ -179,6 +179,12 @@
 <body>
 <h1>FiNeMo hit calling report</h1>
 
+{% if not compute_recall %}
+<blockquote>
+    Seqlet recall and other statistics directly comparing hits and seqlets are not computed because the <code>-n/--no-recall</code> argument was set.
+</blockquote>
+{% endif %}
+
 <h2>TF-MoDISco seqlet comparisons</h2>
 <p>
     The following figures and statistics compare the called hits with the seqlets used by TF-MoDISco to construct each motif. 
@@ -187,8 +193,8 @@
 <h3>Hit vs. seqlet counts</h3>
 <p>
     This figure shows the number of hits called vs. the number of TF-MoDISco seqlets identified for each motif. 
-    The hit counts should be mostly greater than the corresponding seqlet counts, since TF-MoDISco stringently filters seqlets and usually uses a smaller input window. 
     The dashed line is the identity line. 
+    When comparing a shared set of regions, the hit counts should be mostly greater than the corresponding seqlet counts, since TF-MoDISco stringently filters seqlets and usually uses a smaller input window. 
 </p>
 <img src="hit_vs_seqlet_counts.png" width="780">
 
@@ -196,28 +202,35 @@
 <p>
     For each motif, this table examines the consistency between hits and TF-MoDISco seqlets. 
 </p>
+
 <p>
     The following statistics report the number of hits, seqlets, and their relationships: 
 </p>
 <ul>
     <li><strong>Hits</strong>: The number of hits called by FiNeMo</li>
+    {% if compute_recall %}
     <li><strong>Restricted Hits</strong>: The number of FiNeMo hits within the TF-MoDISco input regions</li>
+    {% endif %}
     <li><strong>Seqlets</strong>: The number of unique TF-MoDISco seqlets</li>
+    {% if compute_recall %}
     <li><strong>Hit/Seqlet Overlaps</strong>: The number of hits that coincide with TF-MoDISco seqlets</li>
     <li><strong>Missed Seqlets</strong>: The number of TF-MoDISco seqlets not called as hits</li>
     <li><strong>Additional Restricted Hits</strong>: The number of hits within the TF-MoDISco input regions that are not identified as seqlets by TF-MoDISco</li>
     <li><strong>Seqlet Recall</strong>: The fraction of seqlets that are called as hits</li>
-    <li><strong>Hit-Seqlet CWM Correlation</strong>: The Pearson correlation between the additional-restricted-hits CWM and the TF-MoDISco CWM</li>
+    {% endif %}
+    <li><strong>Hit-Seqlet CWM Correlation</strong>: The Pearson correlation between the hit CWM and the TF-MoDISco CWM</li>
 </ul>
 <p>
     Note that the seqlet counts here may be lower than those shown in the tfmodisco-lite report due to double-counting in overlapping regions.
     The seqlet counts shown here are unique while the counts in the tfmodisco-lite report are not de-duplicated.
 </p>
+{% if compute_recall %}
 <p>
     Note that palindromic motifs may have lower recall due to disagreements on orientation.
     If seqlet recall is near zero for all motifs, the <code>-W/--modisco-region-width</code> argument is likely incorrect.
     This value is required to infer genomic coordinates of seqlets from the tfmodisco-lite output H5.
 </p>
+{% endif %}
 <p>
     Motif CWMs (contribution weight matrices) are average contribution scores over a set of regions. The CWMs plotted here are:
 </p>
@@ -225,8 +238,10 @@
     <li><strong>Hit CWM (FC)</strong>: The forward-strand CWM of all hits</li>
     <li><strong>Hit CWM (RC)</strong>: The reverse-strand CWM of all hits</li>
     <li><strong>TF-MoDISco CWM (FC/RC)</strong>: The CWM of all TF-MoDISco seqlets</li>
+    {% if compute_recall %}
     <li><strong>Missed-Seqlet-Only CWM</strong>: The CWM of all TF-MoDISco seqlets that were not called as hits</li>
     <li><strong>Additional-Restricted-Hit CWM</strong>: The CWM of all hits within the TF-MoDISco input regions that were not identified as seqlets by TF-MoDISco</li>
+    {% endif %}
 </ul>
 <p>
     The plots span the full untrimmed motif, with the trimmed motif shaded.
@@ -240,40 +255,56 @@
     <thead>
         <tr>
             <th>Motif Name</th>
+            {% if compute_recall %}
             <th class="num_col">Seqlet Recall</th>
+            {% endif %}
             <th class="num_col">Hit-Seqlet CWM Correlation</th>
             <th class="num_col">Hits</th>
+            {% if compute_recall %}
             <th class="num_col">Restricted Hits</th>
+            {% endif %}
             <th class="num_col">Seqlets</th>
+            {% if compute_recall %}
             <th class="num_col">Hit/Seqlet Overlaps</th>
             <th class="num_col">Missed Seqlets</th>
             <th class="num_col">Additional Restricted Hits</th>
+            {% endif %}
             <th class="cwm">Hit CWM (FC)</th>
             <th class="cwm">Hit CWM (RC)</th>
             <th class="cwm">TF-MoDISco CWM (FC)</th>
             <th class="cwm">TF-MoDISco CWM (RC)</th>
+            {% if compute_recall %}
             <th class="cwm">Missed-Seqlet-Only CWM</th>
             <th class="cwm">Additional-Restricted-Hit CWM</th>
+            {% endif %}
         </tr>
     </thead>
     <tbody>
         {% for item in report_data %}
         <tr>
             <td><code>{{ item.motif_name }}</code></td>
+            {% if compute_recall %}
             <td class="num_col">{{ '%0.3f'| format(item.seqlet_recall|float) }}</td>
+            {% endif %}
             <td class="num_col">{{ '%0.3f'| format(item.cwm_correlation|float) }}</td>
             <td class="num_col">{{ item.num_hits_total }}</td>
+            {% if compute_recall %}
             <td class="num_col">{{ item.num_hits_restricted }}</td>
+            {% endif %}
             <td class="num_col">{{ item.num_seqlets }}</td>
+            {% if compute_recall %}
             <td class="num_col">{{ item.num_overlaps }}</td>
             <td class="num_col">{{ item.num_seqlets_only }}</td>
             <td class="num_col">{{ item.num_hits_restricted_only }}</td>
+            {% endif %}
             <td class="cwm"><img src="CWMs/{{ item.motif_name }}/hits_fc.png" width="360"></td>
             <td class="cwm"><img src="CWMs/{{ item.motif_name }}/hits_rc.png" width="360"></td>
             <td class="cwm"><img src="CWMs/{{ item.motif_name }}/modisco_fc.png" width="360"></td>
             <td class="cwm"><img src="CWMs/{{ item.motif_name }}/modisco_rc.png" width="360"></td>
+            {% if compute_recall %}
             <td class="cwm"><img src="CWMs/{{ item.motif_name }}/seqlets_only.png" width="360"></td>
             <td class="cwm"><img src="CWMs/{{ item.motif_name }}/hits_restricted_only.png" width="360"></td>
+            {% endif %}
         </tr>
         {% endfor %}
     </tbody>

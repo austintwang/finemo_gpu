@@ -153,8 +153,8 @@ def get_cwms(regions, positions_df, motif_width):
     return cwms
 
 
-def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df, 
-                         cwms_modisco, motif_names, modisco_half_width, motif_width):
+def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df, cwms_modisco, 
+                         motif_names, modisco_half_width, motif_width, compute_recall):
     hits_df = (
         hits_df
         .with_columns(pl.col('peak_id').cast(pl.UInt32))
@@ -185,39 +185,42 @@ def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df,
         .unique(subset=["chr", "start_untrimmed", "motif_name", "is_revcomp"])
     )
     
-    overlaps_df = (
-        hits_filtered.join(
-            seqlets_df, 
-            on=["chr", "start_untrimmed", "is_revcomp", "motif_name"],
-            how="inner",
+    if compute_recall:
+        overlaps_df = (
+            hits_filtered.join(
+                seqlets_df, 
+                on=["chr", "start_untrimmed", "is_revcomp", "motif_name"],
+                how="inner",
+            )
+            .collect()
         )
-        .collect()
-    )
 
-    seqlets_only_df = (
-        seqlets_df.join(
-            hits_df, 
-            on=["chr", "start_untrimmed", "is_revcomp", "motif_name"],
-            how="anti",
+        seqlets_only_df = (
+            seqlets_df.join(
+                hits_df, 
+                on=["chr", "start_untrimmed", "is_revcomp", "motif_name"],
+                how="anti",
+            )
+            .collect()
         )
-        .collect()
-    )
 
-    hits_only_filtered_df = (
-        hits_filtered.join(
-            seqlets_df, 
-            on=["chr", "start_untrimmed", "is_revcomp", "motif_name"],
-            how="anti",
+        hits_only_filtered_df = (
+            hits_filtered.join(
+                seqlets_df, 
+                on=["chr", "start_untrimmed", "is_revcomp", "motif_name"],
+                how="anti",
+            )
+            .collect()
         )
-        .collect()
-    )
 
     hits_by_motif = hits_unique.collect().partition_by("motif_name", as_dict=True)
     hits_fitered_by_motif = hits_filtered.collect().partition_by("motif_name", as_dict=True)
     seqlets_by_motif = seqlets_df.collect().partition_by("motif_name", as_dict=True)
-    overlaps_by_motif = overlaps_df.partition_by("motif_name", as_dict=True)
-    seqlets_only_by_motif = seqlets_only_df.partition_by("motif_name", as_dict=True)
-    hits_only_filtered_by_motif = hits_only_filtered_df.partition_by("motif_name", as_dict=True)
+
+    if compute_recall:
+        overlaps_by_motif = overlaps_df.partition_by("motif_name", as_dict=True)
+        seqlets_only_by_motif = seqlets_only_df.partition_by("motif_name", as_dict=True)
+        hits_only_filtered_by_motif = hits_only_filtered_df.partition_by("motif_name", as_dict=True)
 
     report_data = {}
     cwms = {}
@@ -227,31 +230,43 @@ def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df,
         hits = hits_by_motif.get(m, dummy_df)
         hits_filtered = hits_fitered_by_motif.get(m, dummy_df)
         seqlets = seqlets_by_motif.get(m, dummy_df)
-        overlaps = overlaps_by_motif.get(m, dummy_df)
-        seqlets_only = seqlets_only_by_motif.get(m, dummy_df)
-        hits_only_filtered = hits_only_filtered_by_motif.get(m, dummy_df)
+
+        if compute_recall:
+            overlaps = overlaps_by_motif.get(m, dummy_df)
+            seqlets_only = seqlets_only_by_motif.get(m, dummy_df)
+            hits_only_filtered = hits_only_filtered_by_motif.get(m, dummy_df)
 
         report_data[m] = {
-            "seqlet_recall": np.float64(overlaps.height) / seqlets.height,
             "num_hits_total": hits.height,
             "num_hits_restricted": hits_filtered.height,
             "num_seqlets": seqlets.height,
-            "num_overlaps": overlaps.height,
-            "num_seqlets_only": seqlets_only.height,
-            "num_hits_restricted_only": hits_only_filtered.height
         }
 
-        motif_data_fc = motifs_df.row(by_predicate=(pl.col("motif_name") == m) & (pl.col("motif_strand") == "+"), named=True)
-        motif_data_rc = motifs_df.row(by_predicate=(pl.col("motif_name") == m) & (pl.col("motif_strand") == "-"), named=True)
+        if compute_recall:
+            report_data[m] |= {
+                "num_overlaps": overlaps.height,
+                "num_seqlets_only": seqlets_only.height,
+                "num_hits_restricted_only": hits_only_filtered.height,
+                "seqlet_recall": np.float64(overlaps.height) / seqlets.height
+            }
+
+        motif_data_fc = motifs_df.row(by_predicate=(pl.col("motif_name") == m) 
+                                      & (pl.col("motif_strand") == "+"), named=True)
+        motif_data_rc = motifs_df.row(by_predicate=(pl.col("motif_name") == m) 
+                                      & (pl.col("motif_strand") == "-"), named=True)
 
         cwms[m] = {
             "hits_fc": get_cwms(regions, hits, motif_width),
             "modisco_fc": cwms_modisco[motif_data_fc["motif_id"]],
             "modisco_rc": cwms_modisco[motif_data_rc["motif_id"]],
-            "seqlets_only": get_cwms(regions, seqlets_only, motif_width),
-            "hits_restricted_only": get_cwms(regions, hits_only_filtered, motif_width),
         }
         cwms[m]["hits_rc"] = cwms[m]["hits_fc"][::-1,::-1]
+
+        if compute_recall:
+            cwms[m] |= {
+                "seqlets_only": get_cwms(regions, seqlets_only, motif_width),
+                "hits_restricted_only": get_cwms(regions, hits_only_filtered, motif_width),
+            }
 
         bounds_fc = (motif_data_fc["motif_start"], motif_data_fc["motif_end"])
         bounds_rc = (motif_data_rc["motif_start"], motif_data_rc["motif_end"])
@@ -260,16 +275,20 @@ def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df,
             "hits_fc": bounds_fc,
             "modisco_fc": bounds_fc,
             "modisco_rc": bounds_rc,
-            "seqlets_only": bounds_fc,
-            "hits_restricted_only": bounds_fc,
             "hits_rc": bounds_rc
         }
+
+        if compute_recall:
+            cwm_trim_bounds[m] |= {
+                "seqlets_only": bounds_fc,
+                "hits_restricted_only": bounds_fc,
+            }
         
-        hits_only_cwm = cwms[m]["hits_restricted_only"]
+        hits_cwm = cwms[m]["hits_fc"]
         modisco_cwm = cwms[m]["modisco_fc"]
-        hnorm = np.sqrt((hits_only_cwm**2).sum())
+        hnorm = np.sqrt((hits_cwm**2).sum())
         snorm = np.sqrt((modisco_cwm**2).sum())
-        cwm_cor = (hits_only_cwm * modisco_cwm).sum() / (hnorm * snorm)
+        cwm_cor = (hits_cwm * modisco_cwm).sum() / (hnorm * snorm)
 
         report_data[m]["cwm_correlation"] = cwm_cor
 
@@ -405,10 +424,11 @@ def plot_hit_vs_seqlet_counts(recall_data, output_path):
     plt.close()
 
 
-def write_report(report_df, motif_names, out_path):
+def write_report(report_df, motif_names, out_path, compute_recall):
     template_str = importlib.resources.files(templates).joinpath('report.html').read_text()
     template = Template(template_str)
-    report = template.render(report_data=report_df.iter_rows(named=True), motif_names=motif_names)
+    report = template.render(report_data=report_df.iter_rows(named=True), 
+                             motif_names=motif_names, compute_recall=compute_recall)
     with open(out_path, "w") as f:
         f.write(report)
 
