@@ -178,7 +178,7 @@ def softmax(x, temp=100):
 
 MODISCO_PATTERN_GROUPS = ['pos_patterns', 'neg_patterns']
 
-def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type):
+def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type, motifs_include):
     """
     Adapted from https://github.com/jmschrei/tfmodisco-lite/blob/570535ee5ccf43d670e898d92d63af43d68c38c5/modiscolite/report.py#L252-L272
     """
@@ -186,6 +186,9 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type):
                        "motif_start": [], "motif_end": [], "motif_scale": []}
     motif_lst = [] 
     trim_mask_lst = []
+
+    if motifs_include is not None:
+        motifs_include = set(motifs_include)
 
     with h5py.File(modisco_h5_path, 'r') as modisco_results:
         for name in MODISCO_PATTERN_GROUPS:
@@ -196,6 +199,9 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type):
             key = lambda x: int(x[0].split("_")[-1])
             for ind, (pattern_name, pattern) in enumerate(sorted(metacluster.items(), key=key)):
                 pattern_tag = f'{name}.{pattern_name}'
+
+                if motifs_include is not None and pattern_tag not in motifs_include:
+                    continue
 
                 cwm_raw = pattern['contrib_scores'][:].T
                 cwm_norm = np.sqrt((cwm_raw**2).sum())

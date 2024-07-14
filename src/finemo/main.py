@@ -41,7 +41,7 @@ def extract_regions_modisco_fmt(shaps_paths, ohe_path, out_path, region_width):
 
 def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, out_dir, cwm_trim_threshold, 
               alpha, step_size_max, step_size_min, convergence_tol, max_steps, batch_size, step_adjust, 
-              device, mode, no_post_filter, use_untrimmed):
+              device, mode, no_post_filter, motifs_include):
     
     params = locals()
     import numpy as np
@@ -78,12 +78,12 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, out_d
         motif_type = "hcwm"
         use_hypothetical_contribs = True
     
-    motifs_df, cwms, trim_masks = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, motif_type)
+    motifs_df, cwms, trim_masks = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, motif_type, motifs_include)
     num_motifs = cwms.shape[0]
     motif_width = cwms.shape[2]
 
-    if use_untrimmed:
-        trim_masks = np.ones_like(trim_masks)
+    # if use_untrimmed:
+    #     trim_masks = np.ones_like(trim_masks)
 
     hits, qc = hitcaller.fit_contribs(cwms, contribs, sequences, trim_masks, use_hypothetical_contribs, alpha, step_size_max, 
                                       step_size_min, convergence_tol, max_steps, batch_size, step_adjust, not no_post_filter, device)
@@ -176,14 +176,17 @@ def cli():
         help="A peak regions file in ENCODE NarrowPeak format, exactly matching the regions specified in `--regions`. If omitted, outputs will lack absolute genomic coordinates.")
     call_hits_parser.add_argument("-C", "--chrom-order", type=str, default=None,
         help="A tab-delimited file with chromosome names in the first column to define sort order of chromosomes. Missing chromosomes are ordered as they appear in -p/--peaks.")
+    call_hits_parser.add_argument("-I", "--motifs-include", type=str, default=None,
+        help="A tab-delimited file with tfmodisco motif names (e.g pos_patterns.pattern_0) in the first column to include in hit calling. If omitted, all motifs in the modisco H5 file are used.")
+    
     
     call_hits_parser.add_argument("-o", "--out-dir", type=str, required=True,
         help="The path to the output directory.")
     
     call_hits_parser.add_argument("-t", "--cwm-trim-threshold", type=float, default=0.3,
         help="The threshold to determine motif start and end positions within the full CWMs.")
-    call_hits_parser.add_argument("-T", "--use-trimmed", default=False, action="store_true",
-        help="Call hits using the trimmed motif CWMs. By default, the full CWMs are used.")
+    # call_hits_parser.add_argument("-T", "--use-trimmed", default=False, action="store_true",
+    #     help="Call hits using the trimmed motif CWMs. By default, the full CWMs are used.")
     
     call_hits_parser.add_argument("-a", "--alpha", type=float, default=0.6,
         help="The L1 regularization weight.")
@@ -306,7 +309,7 @@ def cli():
         call_hits(args.regions, args.peaks, args.modisco_h5, args.chrom_order, args.out_dir, 
                   args.cwm_trim_threshold, args.alpha, args.step_size_max, args.step_size_min, 
                   args.convergence_tol, args.max_steps, args.batch_size, args.step_adjust, 
-                  args.device, args.mode, args.no_post_filter, not args.use_trimmed)
+                  args.device, args.mode, args.no_post_filter, args.motifs_include)
     
     elif args.cmd == "extract-regions-bw":
         extract_regions_bw(args.peaks, args.fasta, args.bigwigs, args.out_path, args.region_width)
