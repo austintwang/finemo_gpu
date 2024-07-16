@@ -39,9 +39,9 @@ def extract_regions_modisco_fmt(shaps_paths, ohe_path, out_path, region_width):
     data_io.write_regions_npz(sequences, contribs, out_path)
 
 
-def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, out_dir, cwm_trim_threshold, 
-              alpha, step_size_max, step_size_min, convergence_tol, max_steps, batch_size, step_adjust, 
-              device, mode, no_post_filter, motifs_include):
+def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motifs_include_path, out_dir, 
+              cwm_trim_threshold, alpha, step_size_max, step_size_min, convergence_tol, max_steps, 
+              batch_size, step_adjust, device, mode, no_post_filter):
     
     params = locals()
     import numpy as np
@@ -77,6 +77,11 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, out_d
     elif mode == "hh":
         motif_type = "hcwm"
         use_hypothetical_contribs = True
+
+    if motifs_include_path is not None:
+        motifs_include = data_io.load_txt(motifs_include_path)
+    else:
+        motifs_include = None
     
     motifs_df, cwms, trim_masks = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, motif_type, motifs_include)
     num_motifs = cwms.shape[0]
@@ -110,7 +115,8 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, out_d
     data_io.write_params(params, out_path_params)
 
 
-def report(regions_path, hits_path, modisco_h5_path, peaks_path, out_dir, modisco_region_width, cwm_trim_threshold, compute_recall):
+def report(regions_path, hits_path, modisco_h5_path, peaks_path, motifs_include_path, 
+           out_dir, modisco_region_width, cwm_trim_threshold, compute_recall):
     from . import evaluation
 
     sequences, contribs = data_io.load_regions_npz(regions_path)
@@ -125,7 +131,12 @@ def report(regions_path, hits_path, modisco_h5_path, peaks_path, out_dir, modisc
     hits_df = data_io.load_hits(hits_path, lazy=True)
     seqlets_df = data_io.load_modisco_seqlets(modisco_h5_path, peaks_df, half_width, modisco_half_width, lazy=True)
 
-    motifs_df, cwms_modisco, trim_masks = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, "cwm")
+    if motifs_include_path is not None:
+        motifs_include = data_io.load_txt(motifs_include_path)
+    else:
+        motifs_include = None
+
+    motifs_df, cwms_modisco, trim_masks = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, "cwm", motifs_include)
     motif_names = motifs_df.filter(pl.col("motif_strand") == "+").get_column("motif_name").to_numpy()
     motif_width = cwms_modisco.shape[2]
 
@@ -291,6 +302,8 @@ def cli():
         help="A file of peak regions in ENCODE NarrowPeak format, exactly matching the regions specified in `--regions`.")
     report_parser.add_argument("-m", "--modisco-h5", type=str, required=True,
         help="The tfmodisco-lite output H5 file of motif patterns. Must be the same as that used for hit calling unless `--no-recall` is set.")
+    report_parser.add_argument("-I", "--motifs-include", type=str, default=None,
+        help="A tab-delimited file with tfmodisco motif names (e.g pos_patterns.pattern_0) in the first column to include in the report. If omitted, all motifs in the modisco H5 file are used.")
     
     report_parser.add_argument("-o", "--out-dir", type=str, required=True,
         help="The path to the output directory.")
@@ -306,10 +319,10 @@ def cli():
     args = parser.parse_args()
 
     if args.cmd == "call-hits":
-        call_hits(args.regions, args.peaks, args.modisco_h5, args.chrom_order, args.out_dir, 
-                  args.cwm_trim_threshold, args.alpha, args.step_size_max, args.step_size_min, 
-                  args.convergence_tol, args.max_steps, args.batch_size, args.step_adjust, 
-                  args.device, args.mode, args.no_post_filter, args.motifs_include)
+        call_hits(args.regions, args.peaks, args.modisco_h5, args.chrom_order, args.motifs_include,
+                  args.out_dir, args.cwm_trim_threshold, args.alpha, args.step_size_max, args.step_size_min, 
+                  args.convergence_tol, args.max_steps, args.batch_size, args.step_adjust, args.device, 
+                  args.mode, args.no_post_filter)
     
     elif args.cmd == "extract-regions-bw":
         extract_regions_bw(args.peaks, args.fasta, args.bigwigs, args.out_path, args.region_width)
@@ -328,5 +341,5 @@ def cli():
         extract_regions_modisco_fmt(args.attributions, args.sequences, args.out_path, args.region_width)
 
     elif args.cmd == "report":
-        report(args.regions, args.hits, args.modisco_h5, args.peaks, args.out_dir, 
-               args.modisco_region_width, args.cwm_trim_threshold, not args.no_recall)
+        report(args.regions, args.hits, args.modisco_h5, args.peaks, args.motifs_include, 
+               args.out_dir, args.modisco_region_width, args.cwm_trim_threshold, not args.no_recall)

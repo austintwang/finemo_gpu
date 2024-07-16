@@ -291,7 +291,10 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
                 importance_scale_out_dense = importance_scale_buf[converged,:,:]
                 xcor_scale = (importance_scale_out_dense**(-2) - 1).sqrt()
 
-                xcov_out_dense = F.conv1d(contribs_buf[converged,:,:], cwms) 
+                contribs_converged = contribs_buf[converged,:,:]
+                importance_sum_out_dense = F.conv1d(contribs_converged, cwm_trim_mask)
+                # xcov_out_dense = F.conv1d(contribs_converged, cwms) 
+                xcov_out_dense = F.conv1d(torch.abs(contribs_converged), cwms) 
                 xcor_out_dense = xcov_out_dense / xcor_scale
 
                 if post_filter:
@@ -305,7 +308,7 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
                     # Map buffer index to peak index
 
                 ind_tuple = torch.unbind(coef_out.indices())
-                importance_out = xcor_scale[ind_tuple]
+                importance_out = importance_sum_out_dense[ind_tuple]
                 xcor_out = xcor_out_dense[ind_tuple]
 
                 scores_out_raw = coef_out.values()

@@ -11,6 +11,17 @@ import pyfaidx
 
 from tqdm import tqdm, trange
 
+
+def load_txt(path):
+    entries = []
+    with open(path) as f:
+        for line in f:
+            item = line.rstrip("\n").split("\t")[0]
+            entries.append(item)
+    
+    return entries
+
+
 NARROWPEAK_SCHEMA = ["chr", "peak_start", "peak_end", "peak_name", "peak_score", 
                      "peak_strand", "peak_signal", "peak_pval", "peak_qval", "peak_summit"]
 NARROWPEAK_DTYPES = [pl.Utf8, pl.UInt32, pl.UInt32, pl.Utf8, pl.UInt32, 
@@ -29,12 +40,10 @@ def load_peaks(peaks_path, chrom_order_path, half_width):
         .collect()
     )
     
-    chrom_order = []
     if chrom_order_path is not None:
-        with open(chrom_order_path) as f:
-            for line in f:
-                chrom = line.rstrip("\n").split("\t")[0]
-                chrom_order.append(chrom)
+        chrom_order = load_txt(chrom_order_path)
+    else:
+        chrom_order = []
 
     chrom_order_set = set(chrom_order)
     chrom_order_peaks = [i for i in peaks.get_column("chr").unique(maintain_order=True) if i not in chrom_order_set]
