@@ -111,9 +111,9 @@ class BatchLoaderCompactFmt(BatchLoaderBase):
         sequences_batch = F.pad(self.sequences[start:end,:,:], pad_lens) # (b, 4, l)
         sequences_batch = _to_channel_last_layout(sequences_batch, device=self.device, dtype=torch.int8)
 
-        global_scale = ((contribs_compact**2).sum(dim=(1,2)) / self.l).sqrt()
+        global_scale = ((contribs_batch**2).sum(dim=(1,2)) / self.l).sqrt()
 
-        contribs_batch = torch.nan_to_num(contribs_compact / global_scale[:,None,None]) * sequences_batch # (b, 4, l)
+        contribs_batch = torch.nan_to_num(contribs_batch / global_scale[:,None,None]) * sequences_batch # (b, 4, l)
 
         return contribs_batch, sequences_batch, inds, global_scale
 
@@ -191,7 +191,7 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
     coefficients_lst = []
     correlation_lst = []
     importance_lst = []
-    qc_lsts = {"nll": [], "dual_gap": [], "num_steps": [], "step_size": [], "global_scale": []}
+    qc_lsts = {"nll": [], "dual_gap": [], "num_steps": [], "step_size": [], "global_scale": [], "peak_id": []}
 
     # # Utility convolutional filter for summing values in window 
     # sum_filter = torch.ones((1, 4, w), dtype=torch.float32, device=device)
@@ -292,9 +292,9 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
                 xcor_scale = (importance_scale_out_dense**(-2) - 1).sqrt()
 
                 contribs_converged = contribs_buf[converged,:,:]
-                importance_sum_out_dense = F.conv1d(contribs_converged, cwm_trim_mask)
-                # xcov_out_dense = F.conv1d(contribs_converged, cwms) 
-                xcov_out_dense = F.conv1d(torch.abs(contribs_converged), cwms) 
+                importance_sum_out_dense = F.conv1d(torch.abs(contribs_converged), cwm_trim_mask)
+                xcov_out_dense = F.conv1d(contribs_converged, cwms) 
+                # xcov_out_dense = F.conv1d(torch.abs(contribs_converged), cwms) 
                 xcor_out_dense = xcov_out_dense / xcor_scale
 
                 if post_filter:
@@ -329,6 +329,7 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
                 qc_lsts["num_steps"].append(step_out.numpy(force=True))
                 qc_lsts["global_scale"].append(global_scale_out.numpy(force=True))
                 qc_lsts["step_size"].append(step_sizes_out.numpy(force=True))
+                qc_lsts["peak_id"].append(inds_out.numpy(force=True).astype(np.uint32))
 
                 num_complete += num_load
                 pbar.update(num_load)

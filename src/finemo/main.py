@@ -93,7 +93,7 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motif
     hits, qc = hitcaller.fit_contribs(cwms, contribs, sequences, trim_masks, use_hypothetical_contribs, alpha, step_size_max, 
                                       step_size_min, convergence_tol, max_steps, batch_size, step_adjust, not no_post_filter, device)
     hits_df = pl.DataFrame(hits)
-    qc_df = pl.DataFrame(qc).with_row_count(name="peak_id")
+    qc_df = pl.DataFrame(qc)
 
     os.makedirs(out_dir, exist_ok=True)
     out_path_qc = os.path.join(out_dir, "peaks_qc.tsv")
