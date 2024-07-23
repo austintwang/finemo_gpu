@@ -162,6 +162,8 @@ options:
                         A peak regions file in ENCODE NarrowPeak format, exactly matching the regions specified in `--regions`. If omitted, outputs will lack absolute genomic coordinates. (Optional)
   -C CHROM_ORDER, --chrom-order CHROM_ORDER
                         A tab-delimited file with chromosome names in the first column to define sort order of chromosomes. Missing chromosomes are ordered as they appear in -p/--peaks. (Optional)
+  -I MOTIFS_INCLUDE, --motifs-include MOTIFS_INCLUDE
+                        A tab-delimited file with tfmodisco motif names (e.g pos_patterns.pattern_0) in the first column to include in hit calling. If omitted, all motifs in the modisco H5 file are used. (Optional)
   -o OUT_DIR, --out-dir OUT_DIR
                         The path to the output directory. (*Required*)
   -t CWM_TRIM_THRESHOLD, --cwm-trim-threshold CWM_TRIM_THRESHOLD
@@ -195,9 +197,10 @@ options:
 - `start_untrimmed`: Hit start coordinate from trimmed CWM, zero-indexed. Absolute if peak coordinates are provided, otherwise relative to the input region.
 - `end_untrimmed`: Hit end coordinate from trimmed CWM, zero-indexed,exclusive. Absolute if peak coordinates are provided, otherwise relative to the input region.
 - `motif_name`: The hit motif name as specified in the provided tfmodisco H5 file.
-- `hit_coefficient`: The regression coefficient for the hit. This is the primary hit score.
-- `hit_correlation`: The correlation between the untrimmed CWM and the contribution score of the hit region.
-- `hit_importance`: The root-mean-square contribution score within the hit region.
+- `hit_coefficient`: The regression coefficient for the hit. Values are normalized per peak region. This is the primary hit score.
+- `hit_coefficient_global`: The regression coefficient for the hit, scaled by the overall importance of the region.
+- `hit_correlation`: The correlation between the untrimmed CWM and the contribution score of the motif hit.
+- `hit_importance`: The total absolute contribution score within the motif hit.
 - `strand`: The orientation of the hit (`+` or `-`).
 - `peak_name`: The name of the peak region containing the hit, taken from the `name` field of the input peak data. `NA` if `-p/--peaks` is not provided.
 - `peak_id`: The numerical index of the peak region containing the hit.
@@ -220,7 +223,7 @@ options:
 - `dual_gap`: The final duality gap.
 - `num_steps`: The number of optimization steps taken.
 - `step_size`: The optimization step size.
-- `global_scale`: The peak-level scaling factor.
+- `global_scale`: The peak-level scaling factor, used to normalize by overall importance.
 - `chr`: The chromosome name, omitted if `-p/--peaks` not provided.
 - `peak_region_start`: The start coordinate of the peak region, zero-indexed, omitted if `-p/--peaks` not provided.
 - `peak_name`: The name of the peak region, derived from the input peak data's `name` field, omitted if `-p/--peaks` not provided.
@@ -229,10 +232,10 @@ options:
 
 #### Additional notes
 
-- The `-a/--alpha`  is the primary hyperparameter to tune, where higher values result in fewer but more confident hits. This parameter essentially represents the highest expected correlation between a CWM and a non-informative background signal. Values typically fall between 0.4 and 0.7.
+- The `-a/--alpha` is the primary hyperparameter to tune, where higher values result in fewer but more confident hits. This parameter essentially represents the highest expected correlation between a CWM and a non-informative background signal. Values typically fall between 0.4 and 0.7.
+- The `-t/--cwm-trim-threshold` parameter determines the threshold for trimming CWMs. If you find that motif flanks are being trimmed too aggressively, consider lowering this value. However, a too-high value may result in closely-spaced motif instances being missed.
 - Set `-b/--batch-size` to the largest value your GPU memory can accommodate. **If you encounter GPU out-of-memory errors, try lowering this value.**
 - Legacy TFMoDISCo H5 files can be updated to the newer TFMoDISCo-lite format with the `modisco convert` command found in the [tfmodisco-lite](https://github.com/jmschrei/tfmodisco-lite/tree/main) package.
-- Hits are called using untrimmed CWMs, with trimmed CWMs utilized solely to determine the starting and ending points of hits.
 
 ### Output reporting
 
@@ -258,4 +261,5 @@ options:
                         The path to the output directory. (*Required*)
   -W MODISCO_REGION_WIDTH, --modisco-region-width MODISCO_REGION_WIDTH
                         The width of the region around each peak summit used by tfmodisco-lite. (default: 400)
+  -n, --no-recall       Do not compute motif recall metrics. (default: False)
 ```
