@@ -199,7 +199,7 @@ def cli():
     # call_hits_parser.add_argument("-T", "--use-trimmed", default=False, action="store_true",
     #     help="Call hits using the trimmed motif CWMs. By default, the full CWMs are used.")
     
-    call_hits_parser.add_argument("-a", "--alpha", type=float, default=0.6,
+    call_hits_parser.add_argument("-a", "--alpha", type=float, default=0.7,
         help="The L1 regularization weight.")
     call_hits_parser.add_argument("-f", "--no-post-filter", action='store_true',
         help="Do not perform post-hit-calling filtering. By default, hits are filtered based on a minimum correlation of `alpha` with the input contributions.")

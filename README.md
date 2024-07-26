@@ -169,7 +169,7 @@ options:
   -t CWM_TRIM_THRESHOLD, --cwm-trim-threshold CWM_TRIM_THRESHOLD
                         The threshold to determine motif start and end positions within the full CWMs. (default: 0.3)
   -a ALPHA, --alpha ALPHA
-                        The L1 regularization weight. (default: 0.6)
+                        The L1 regularization weight. (default: 0.7)
   -f, --no-post-filter  Do not perform post-hit-calling filtering. By default, hits are filtered based on a minimum correlation of `alpha` with the input contributions. (default: False)
   -s STEP_SIZE-MAX, --step-size-max MAX-STEP_SIZE
                         The maximum optimizer step size. (default: 3.0)
@@ -232,7 +232,7 @@ options:
 
 #### Additional notes
 
-- The `-a/--alpha` is the primary hyperparameter to tune, where higher values result in fewer but more confident hits. This parameter essentially represents the highest expected correlation between a CWM and a non-informative background signal. Values typically fall between 0.4 and 0.7.
+- The `-a/--alpha` is the primary hyperparameter to tune, where higher values result in fewer but more confident hits. This parameter essentially represents the highest expected correlation between a CWM and a non-informative background signal. Values typically fall between 0.5 and 0.8.
 - The `-t/--cwm-trim-threshold` parameter determines the threshold for trimming CWMs. If you find that motif flanks are being trimmed too aggressively, consider lowering this value. However, a too-high value may result in closely-spaced motif instances being missed.
 - Set `-b/--batch-size` to the largest value your GPU memory can accommodate. **If you encounter GPU out-of-memory errors, try lowering this value.**
 - Legacy TFMoDISCo H5 files can be updated to the newer TFMoDISCo-lite format with the `modisco convert` command found in the [tfmodisco-lite](https://github.com/jmschrei/tfmodisco-lite/tree/main) package.
