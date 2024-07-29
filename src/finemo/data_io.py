@@ -473,6 +473,10 @@ def write_qc_no_peaks(qc_df, out_path):
     df.write_csv(out_path, separator="\t")
 
 
+def write_motifs(motifs_df, out_path):
+    motifs_df.write_csv(out_path, separator="\t")
+
+
 def write_params(params, out_path):
     with open(out_path, "w") as f:
         json.dump(params, f, indent=4)

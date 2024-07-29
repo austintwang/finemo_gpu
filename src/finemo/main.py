@@ -87,9 +87,6 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motif
     num_motifs = cwms.shape[0]
     motif_width = cwms.shape[2]
 
-    # if use_untrimmed:
-    #     trim_masks = np.ones_like(trim_masks)
-
     hits, qc = hitcaller.fit_contribs(cwms, contribs, sequences, trim_masks, use_hypothetical_contribs, alpha, step_size_max, 
                                       step_size_min, convergence_tol, max_steps, batch_size, step_adjust, not no_post_filter, device)
     hits_df = pl.DataFrame(hits)
@@ -103,6 +100,9 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motif
     else:
         data_io.write_hits_no_peaks(hits_df, motifs_df, qc_df, out_dir, motif_width)
         data_io.write_qc_no_peaks(qc_df, out_path_qc)
+
+    out_path_motifs = os.path.join(out_dir, "motif_data.tsv")
+    data_io.write_motifs(motifs_df, out_path_motifs)
 
     params |= {
         "region_width": region_width,
