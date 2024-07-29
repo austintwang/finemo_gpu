@@ -116,7 +116,7 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motif
 
 
 def report(regions_path, hits_path, modisco_h5_path, peaks_path, motifs_include_path, 
-           out_dir, modisco_region_width, cwm_trim_threshold, compute_recall):
+           out_dir, modisco_region_width, cwm_trim_threshold, compute_recall, use_seqlets):
     from . import evaluation
 
     sequences, contribs = data_io.load_regions_npz(regions_path)
@@ -129,7 +129,11 @@ def report(regions_path, hits_path, modisco_h5_path, peaks_path, motifs_include_
     modisco_half_width = modisco_region_width // 2
     peaks_df = data_io.load_peaks(peaks_path, None, half_width)
     hits_df = data_io.load_hits(hits_path, lazy=True)
-    seqlets_df = data_io.load_modisco_seqlets(modisco_h5_path, peaks_df, half_width, modisco_half_width, lazy=True)
+
+    if use_seqlets:
+        seqlets_df = data_io.load_modisco_seqlets(modisco_h5_path, peaks_df, half_width, modisco_half_width, lazy=True)
+    else:
+        seqlets_df = None
 
     if motifs_include_path is not None:
         motifs_include = data_io.load_txt(motifs_include_path)
@@ -161,11 +165,12 @@ def report(regions_path, hits_path, modisco_h5_path, peaks_path, motifs_include_
     plot_dir = os.path.join(out_dir, "CWMs")
     evaluation.plot_cwms(cwms, trim_bounds, plot_dir)
 
-    plot_path = os.path.join(out_dir, "hit_vs_seqlet_counts.png")
-    evaluation.plot_hit_vs_seqlet_counts(report_data, plot_path)
+    if use_seqlets:
+        plot_path = os.path.join(out_dir, "hit_vs_seqlet_counts.png")
+        evaluation.plot_hit_vs_seqlet_counts(report_data, plot_path)
 
     report_path = os.path.join(out_dir, "report.html")
-    evaluation.write_report(report_df, motif_names, report_path, compute_recall)
+    evaluation.write_report(report_df, motif_names, report_path, compute_recall, use_seqlets)
 
 
 def cli():
@@ -314,6 +319,8 @@ def cli():
         help="The threshold to determine motif start and end positions within the full CWMs. This should match the value used in `finemo call-hits`.")
     report_parser.add_argument("-n", "--no-recall", action='store_true',
         help="Do not compute motif recall metrics.")
+    report_parser.add_argument("-N", "--no-seqlets", action='store_true',
+        help="Do not use seqlet data for comparison. Must be set in conjunction with `--no-recall`.")
     
 
     args = parser.parse_args()
@@ -341,5 +348,9 @@ def cli():
         extract_regions_modisco_fmt(args.attributions, args.sequences, args.out_path, args.region_width)
 
     elif args.cmd == "report":
+        if args.no_recall and not args.no_seqlets:
+            raise ValueError("The `--no-seqlets` flag must be set in conjunction with `--no-recall`.")
+        
         report(args.regions, args.hits, args.modisco_h5, args.peaks, args.motifs_include, 
-               args.out_dir, args.modisco_region_width, args.cwm_trim_threshold, not args.no_recall)
+               args.out_dir, args.modisco_region_width, args.cwm_trim_threshold, 
+               not args.no_recall, not args.no_seqlets)

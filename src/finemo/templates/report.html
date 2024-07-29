@@ -181,10 +181,17 @@
 
 {% if not compute_recall %}
 <blockquote>
-    Seqlet recall and other statistics directly comparing hits and seqlets are not computed because the <code>-n/--no-recall</code> argument was set.
+    Seqlet recall and other statistics directly comparing hits and seqlets are not computed because the <code>-n/--no-recall</code> argument is set.
 </blockquote>
 {% endif %}
 
+{% if not use_seqlets %}
+<blockquote>
+    Seqlet comparisons are not shown because the <code>-N/--no-seqlets</code> argument is set.
+</blockquote>
+{% endif %}
+
+{% if use_seqlets %}
 <h2>TF-MoDISco seqlet comparisons</h2>
 <p>
     The following figures and statistics compare the called hits with the seqlets used by TF-MoDISco to construct each motif. 
@@ -197,8 +204,9 @@
     When comparing a shared set of regions, the hit counts should be mostly greater than the corresponding seqlet counts, since TF-MoDISco stringently filters seqlets and usually uses a smaller input window. 
 </p>
 <img src="hit_vs_seqlet_counts.png" width="780">
+{% endif %}
 
-<h3>CWMs and seqlet recall</h3>
+<h3>Hit and seqlet motif comparisons</h3>
 <p>
     For each motif, this table examines the consistency between hits and TF-MoDISco seqlets. 
 </p>
@@ -211,7 +219,9 @@
     {% if compute_recall %}
     <li><strong>Restricted Hits</strong>: The number of FiNeMo hits within the TF-MoDISco input regions</li>
     {% endif %}
+    {% if use_seqlets %}
     <li><strong>Seqlets</strong>: The number of unique TF-MoDISco seqlets</li>
+    {% endif %}
     {% if compute_recall %}
     <li><strong>Hit/Seqlet Overlaps</strong>: The number of hits that coincide with TF-MoDISco seqlets</li>
     <li><strong>Missed Seqlets</strong>: The number of TF-MoDISco seqlets not called as hits</li>
@@ -263,7 +273,9 @@
             {% if compute_recall %}
             <th class="num_col">Restricted Hits</th>
             {% endif %}
+            {% if use_seqlets %}
             <th class="num_col">Seqlets</th>
+            {% endif %}
             {% if compute_recall %}
             <th class="num_col">Hit/Seqlet Overlaps</th>
             <th class="num_col">Missed Seqlets</th>

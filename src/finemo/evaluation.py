@@ -215,7 +215,9 @@ def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df, cwms
 
     hits_by_motif = hits_unique.collect().partition_by("motif_name", as_dict=True)
     hits_fitered_by_motif = hits_filtered.collect().partition_by("motif_name", as_dict=True)
-    seqlets_by_motif = seqlets_df.collect().partition_by("motif_name", as_dict=True)
+
+    if seqlets_df is not None:
+        seqlets_by_motif = seqlets_df.collect().partition_by("motif_name", as_dict=True)
 
     if compute_recall:
         overlaps_by_motif = overlaps_df.partition_by("motif_name", as_dict=True)
@@ -229,7 +231,9 @@ def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df, cwms
     for m in motif_names:
         hits = hits_by_motif.get(m, dummy_df)
         hits_filtered = hits_fitered_by_motif.get(m, dummy_df)
-        seqlets = seqlets_by_motif.get(m, dummy_df)
+
+        if seqlets_df is not None:
+            seqlets = seqlets_by_motif.get(m, dummy_df)
 
         if compute_recall:
             overlaps = overlaps_by_motif.get(m, dummy_df)
@@ -239,8 +243,10 @@ def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df, cwms
         report_data[m] = {
             "num_hits_total": hits.height,
             "num_hits_restricted": hits_filtered.height,
-            "num_seqlets": seqlets.height,
         }
+
+        if seqlets_df is not None:
+            report_data[m]["num_seqlets"] = seqlets.height
 
         if compute_recall:
             report_data[m] |= {
@@ -424,11 +430,11 @@ def plot_hit_vs_seqlet_counts(recall_data, output_path):
     plt.close()
 
 
-def write_report(report_df, motif_names, out_path, compute_recall):
+def write_report(report_df, motif_names, out_path, compute_recall, use_seqlets):
     template_str = importlib.resources.files(templates).joinpath('report.html').read_text()
     template = Template(template_str)
     report = template.render(report_data=report_df.iter_rows(named=True), 
-                             motif_names=motif_names, compute_recall=compute_recall)
+                             motif_names=motif_names, compute_recall=compute_recall, use_seqlets=use_seqlets)
     with open(out_path, "w") as f:
         f.write(report)
 
