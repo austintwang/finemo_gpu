@@ -233,7 +233,7 @@ def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df, cwms
     report_data = {}
     cwms = {}
     cwm_trim_bounds = {}
-    dummy_df = overlaps_df.clear()
+    dummy_df = hits_df.clear()
     for m in motif_names:
         hits = hits_by_motif.get(m, dummy_df)
         hits_filtered = hits_fitered_by_motif.get(m, dummy_df)
