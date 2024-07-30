@@ -16,16 +16,22 @@ from . import templates
 
 
 def abbreviate_motif_name(name):
-    group, motif = name.split(".")
+    try:
+        group, motif = name.split(".")
 
-    if group == "pos_patterns":
-        group_short = "+"
-    elif group == "neg_patterns":
-        group_short = "-"
+        if group == "pos_patterns":
+            group_short = "+"
+        elif group == "neg_patterns":
+            group_short = "-"
+        else:
+            raise Exception
 
-    motif_num = motif.split("_")[1]
+        motif_num = motif.split("_")[1]
 
-    return f"{group_short}/{motif_num}"
+        return f"{group_short}/{motif_num}"
+    
+    except:
+        return name
 
 
 def get_motif_occurences(hits_df, motif_names):
