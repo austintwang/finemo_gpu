@@ -30,7 +30,7 @@ NARROWPEAK_DTYPES = [pl.Utf8, pl.UInt32, pl.UInt32, pl.Utf8, pl.UInt32,
 def load_peaks(peaks_path, chrom_order_path, half_width):
     peaks = (
         pl.scan_csv(peaks_path, has_header=False, new_columns=NARROWPEAK_SCHEMA, 
-                    separator='\t', quote_char=None, dtypes=NARROWPEAK_DTYPES)
+                    separator='\t', quote_char=None, dtypes=NARROWPEAK_DTYPES, null_values=['.', 'NA', 'null','NaN'])
         .select(
             chr=pl.col("chr"),
             peak_region_start=pl.col("peak_start") + pl.col("peak_summit") - half_width,
