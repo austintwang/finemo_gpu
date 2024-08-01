@@ -22,6 +22,16 @@ def load_txt(path):
     return entries
 
 
+def load_mapping(path, type):
+    mapping = {}
+    with open(path) as f:
+        for line in f:
+            key, val = line.rstrip("\n").split("\t")
+            mapping[key] = type(val)
+
+    return mapping
+
+
 NARROWPEAK_SCHEMA = ["chr", "peak_start", "peak_end", "peak_name", "peak_score", 
                      "peak_strand", "peak_signal", "peak_pval", "peak_qval", "peak_summit"]
 NARROWPEAK_DTYPES = [pl.Utf8, pl.UInt32, pl.UInt32, pl.Utf8, pl.UInt32, 
@@ -187,12 +197,13 @@ def softmax(x, temp=100):
 
 MODISCO_PATTERN_GROUPS = ['pos_patterns', 'neg_patterns']
 
-def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type, motifs_include, motif_name_map):
+def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type, motifs_include, 
+                        motif_name_map, motif_alphas, motif_alpha_default, include_rc):
     """
     Adapted from https://github.com/jmschrei/tfmodisco-lite/blob/570535ee5ccf43d670e898d92d63af43d68c38c5/modiscolite/report.py#L252-L272
     """
-    motif_data_lsts = {"motif_name": [], "motif_strand": [], 
-                       "motif_start": [], "motif_end": [], "motif_scale": []}
+    motif_data_lsts = {"motif_name": [], "motif_strand": [], "motif_start": [], 
+                       "motif_end": [], "motif_scale": [], "alpha": []}
     motif_lst = [] 
     trim_mask_lst = []
 
@@ -201,6 +212,9 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type, motifs_incl
 
     if motif_name_map is None:
         motif_name_map = {}
+
+    if motif_alphas is None:
+        motif_alphas = {}
 
     if len(motif_name_map.values()) != len(set(motif_name_map.values())):
         raise ValueError("Specified motif names are not unique")
@@ -218,6 +232,7 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type, motifs_incl
                 if motifs_include is not None and pattern_tag not in motifs_include:
                     continue
 
+                motif_alpha = motif_alphas.get(pattern_tag, motif_alpha_default)
                 pattern_tag = motif_name_map.get(pattern_tag, pattern_tag)
 
                 cwm_raw = pattern['contrib_scores'][:].T
@@ -264,21 +279,29 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type, motifs_incl
                 motif_data_lsts["motif_start"].append(start_fwd)
                 motif_data_lsts["motif_end"].append(end_fwd)
                 motif_data_lsts["motif_scale"].append(motif_norm)
+                motif_data_lsts["alpha"].append(motif_alpha)
 
-                motif_data_lsts["motif_name"].append(pattern_tag)
-                motif_data_lsts["motif_strand"].append('-')
-                motif_data_lsts["motif_start"].append(start_rev)
-                motif_data_lsts["motif_end"].append(end_rev)
-                motif_data_lsts["motif_scale"].append(motif_norm)
+                if include_rc:
+                    motif_data_lsts["motif_name"].append(pattern_tag)
+                    motif_data_lsts["motif_strand"].append('-')
+                    motif_data_lsts["motif_start"].append(start_rev)
+                    motif_data_lsts["motif_end"].append(end_rev)
+                    motif_data_lsts["motif_scale"].append(motif_norm)
+                    motif_data_lsts["alpha"].append(motif_alpha)
 
-                motif_lst.extend([motif_fwd, motif_rev])
-                trim_mask_lst.extend([trim_mask_fwd, trim_mask_rev])
+                    motif_lst.extend([motif_fwd, motif_rev])
+                    trim_mask_lst.extend([trim_mask_fwd, trim_mask_rev])
+
+                else:
+                    motif_lst.append(motif_fwd)
+                    trim_mask_lst.append(trim_mask_fwd)
                 
     motifs_df = pl.DataFrame(motif_data_lsts).with_row_count(name="motif_id")
     cwms = np.stack(motif_lst, dtype=np.float16, axis=0)
     trim_masks = np.stack(trim_mask_lst, dtype=np.int8, axis=0)
+    names = motifs_df.filter(pl.col("motif_strand") == "+").get_column("motif_name").to_numpy()
 
-    return motifs_df, cwms, trim_masks
+    return motifs_df, cwms, trim_masks, names
 
 
 HITS_DTYPES = {

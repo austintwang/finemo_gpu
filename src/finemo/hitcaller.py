@@ -3,12 +3,13 @@ import warnings
 import numpy as np
 import torch
 import torch.nn.functional as F
+import polars as pl
 
 from tqdm import tqdm
 
 
 def prox_grad_step(coefficients, importance_scale, cwms, contribs, sequences, 
-                   alpha, step_sizes):
+                   alphas, step_sizes):
     """
     Proximal gradient descent optimization step for non-negative lasso
 
@@ -17,6 +18,7 @@ def prox_grad_step(coefficients, importance_scale, cwms, contribs, sequences,
     cwms: (m, 4, w)
     contribs: (b, 4, l)
     sequences: (b, 4, l) or dummy scalar
+    alphas: (1, m, 1)
 
     For details on proximal gradient descent: https://yuxinchen2020.github.io/ele520_math_data/lectures/lasso_algorithm_extension.pdf, slide 22 
     For details on duality gap computation: https://stanford.edu/~boyd/papers/pdf/l1_ls.pdf, Section III
@@ -34,22 +36,23 @@ def prox_grad_step(coefficients, importance_scale, cwms, contribs, sequences,
     nll = (residuals**2).sum(dim=(1,2)) # (b)
     
     # Compute duality gap
-    dual_norm = ngrad.amax(dim=(1,2)) # (b)
-    dual_scale = (torch.clamp(alpha / dual_norm, max=1.)**2 + 1) / 2 # (b)
+    dual_norm = (ngrad / alphas).amax(dim=(1,2)) # (b)
+    dual_scale = (torch.clamp(1 / dual_norm, max=1.)**2 + 1) / 2 # (b)
     nll_scaled = nll * dual_scale # (b)
 
     dual_diff = (residuals * contribs).sum(dim=(1,2)) # (b)
-    l1_term = alpha * torch.linalg.vector_norm(coefficients, ord=1, dim=(1,2)) # (b)
+    l1_term = (torch.abs(coefficients).sum(dim=2, keepdim=True) * alphas).sum(dim=(1,2)) # (b)
+    # l1_term = torch.linalg.vector_norm((coefficients * alphas), ord=1, dim=(1,2)) # (b)
     dual_gap = (nll_scaled - dual_diff + l1_term).abs() # (b)
 
     # Compute proximal gradient descent step
-    c_next = coefficients + step_sizes * (ngrad - alpha) # (b, m, l + w - 1)
+    c_next = coefficients + step_sizes * (ngrad - alphas) # (b, m, l - w + 1)
     c_next = F.relu(c_next) # (b, m, l - w + 1)
 
     return c_next, dual_gap, nll
 
 
-def optimizer_step(cwms, contribs, importance_scale, sequences, coef_inter, coef, i, step_sizes, l, alpha):
+def optimizer_step(cwms, contribs, importance_scale, sequences, coef_inter, coef, i, step_sizes, l, alphas):
     """
     Non-negative lasso optimizer step with momentum. 
 
@@ -66,7 +69,7 @@ def optimizer_step(cwms, contribs, importance_scale, sequences, coef_inter, coef
 
     # Proximal gradient descent step
     coef, gap, nll = prox_grad_step(coef_inter, importance_scale, cwms, contribs, sequences, 
-                                    alpha, step_sizes)
+                                    alphas, step_sizes)
     gap = gap / l
     nll = nll / (2 * l)
 
@@ -147,7 +150,7 @@ class BatchLoaderHyp(BatchLoaderBase):
         return contribs_batch, 1, inds, global_scale
 
 
-def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alpha, step_size_max, 
+def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alphas, step_size_max, 
                  step_size_min, convergence_tol, max_steps, batch_size, step_adjust, post_filter, device):
     """
     Call hits by fitting sparse linear model to contributions
@@ -167,6 +170,7 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
     contribs = torch.from_numpy(contribs)
     sequences = torch.from_numpy(sequences)
     cwm_trim_mask = torch.from_numpy(cwm_trim_mask)[:,None,:].repeat(1,4,1)
+    alphas = torch.from_numpy(alphas)[None,:,None].to(device=device, dtype=torch.float32)
 
     cwms = _to_channel_last_layout(cwms, device=device, dtype=torch.float32)
     cwm_trim_mask = _to_channel_last_layout(cwm_trim_mask, device=device, dtype=torch.float32)
@@ -192,9 +196,6 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
     correlation_lst = []
     importance_lst = []
     qc_lsts = {"nll": [], "dual_gap": [], "num_steps": [], "step_size": [], "global_scale": [], "peak_id": []}
-
-    # # Utility convolutional filter for summing values in window 
-    # sum_filter = torch.ones((1, 4, w), dtype=torch.float32, device=device)
 
     # Initialize buffers for optimizer
     coef_inter = torch.zeros((b, m, l - w + 1)) # (b, m, l - w + 1)
@@ -254,7 +255,7 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
 
             # Optimization step
             coef_inter, coef, gap, nll = optimizer_step(cwms, contribs_buf, importance_scale_buf, seqs_buf, coef_inter, coef, 
-                                               i, step_sizes, l, alpha)
+                                               i, step_sizes, l, alphas)
             i += 1
 
             # Assess convergence of each peak being optimized. Reset diverged peaks with lower step size.
@@ -298,7 +299,7 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
                 xcor_out_dense = xcov_out_dense / xcor_scale
 
                 if post_filter:
-                    coef_out = coef_out * (xcor_out_dense >= alpha)
+                    coef_out = coef_out * (xcor_out_dense >= alphas)
 
                 # Extract hit coordinates
                 coef_out = coef_out.to_sparse()
@@ -351,6 +352,7 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
 
     qc = {k: np.concatenate(v, axis=0) for k, v in qc_lsts.items()}
 
-    return hits, qc
+    hits_df = pl.DataFrame(hits)
+    qc_df = pl.DataFrame(qc)
 
-    
+    return hits_df, qc_df

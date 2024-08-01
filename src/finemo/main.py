@@ -3,8 +3,6 @@ from . import data_io
 import os
 import argparse
 
-import polars as pl
-
 
 def extract_regions_bw(peaks_path, fa_path, bw_paths, out_path, region_width):
     half_width = region_width // 2
@@ -40,8 +38,8 @@ def extract_regions_modisco_fmt(shaps_paths, ohe_path, out_path, region_width):
 
 
 def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motifs_include_path, motif_names_path, 
-              out_dir, cwm_trim_threshold, alpha, step_size_max, step_size_min, convergence_tol, max_steps, 
-              batch_size, step_adjust, device, mode, no_post_filter):
+              motif_alphas_path, out_dir, cwm_trim_threshold, alpha_default, step_size_max, step_size_min, 
+              convergence_tol, max_steps, batch_size, step_adjust, device, mode, no_post_filter):
     
     params = locals()
     import numpy as np
@@ -84,18 +82,23 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motif
         motifs_include = None
 
     if motif_names_path is not None:
-        motif_name_map = data_io.load_txt(motif_names_path)
+        motif_name_map = data_io.load_mapping(motif_names_path, str)
     else:
         motif_name_map = None
+
+    if motif_alphas_path is not None:
+        motif_alphas = data_io.load_mapping(motif_alphas_path, float)
+    else:
+        motif_alphas = None
     
-    motifs_df, cwms, trim_masks = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, motif_type, motifs_include, motif_name_map)
+    motifs_df, cwms, trim_masks, motif_names = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, motif_type, motifs_include, 
+                                                                           motif_name_map, motif_alphas, alpha_default, True)
     num_motifs = cwms.shape[0]
     motif_width = cwms.shape[2]
+    alphas = motifs_df.get_column("alpha").to_numpy(writable=True)
 
-    hits, qc = hitcaller.fit_contribs(cwms, contribs, sequences, trim_masks, use_hypothetical_contribs, alpha, step_size_max, 
-                                      step_size_min, convergence_tol, max_steps, batch_size, step_adjust, not no_post_filter, device)
-    hits_df = pl.DataFrame(hits)
-    qc_df = pl.DataFrame(qc)
+    hits_df, qc_df = hitcaller.fit_contribs(cwms, contribs, sequences, trim_masks, use_hypothetical_contribs, alphas, step_size_max, 
+                                            step_size_min, convergence_tol, max_steps, batch_size, step_adjust, not no_post_filter, device)
 
     os.makedirs(out_dir, exist_ok=True)
     out_path_qc = os.path.join(out_dir, "peaks_qc.tsv")
@@ -150,8 +153,8 @@ def report(regions_path, hits_path, modisco_h5_path, peaks_path, motifs_include_
     else:
         motif_name_map = None
 
-    motifs_df, cwms_modisco, trim_masks = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, "cwm", motifs_include, motif_name_map)
-    motif_names = motifs_df.filter(pl.col("motif_strand") == "+").get_column("motif_name").to_numpy()
+    motifs_df, cwms_modisco, trim_masks, motif_names = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, "cwm", 
+                                                                                   motifs_include, motif_name_map, None, None, True)
     motif_width = cwms_modisco.shape[2]
 
     occ_df, coooc = evaluation.get_motif_occurences(hits_df, motif_names)
@@ -186,54 +189,6 @@ def report(regions_path, hits_path, modisco_h5_path, peaks_path, motifs_include_
 def cli():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(required=True, dest='cmd')
-
-    call_hits_parser = subparsers.add_parser("call-hits", formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        help="Call hits on provided sequences, contributions, and motif CWM's.")
-    
-    call_hits_parser.add_argument("-M", "--mode", type=str, default="pp", choices={"pp", "ph", "hp", "hh"},
-        help="The type of attributions to use for CWM's and input contribution scores, respectively. 'h' for hypothetical and 'p' for projected.")
-
-    call_hits_parser.add_argument("-r", "--regions", type=str, required=True,
-        help="A .npz file of input sequences and contributions. Can be generated using `finemo extract-regions-*` subcommands.")
-    call_hits_parser.add_argument("-m", "--modisco-h5", type=str, required=True,
-        help="A tfmodisco-lite output H5 file of motif patterns.")
-    
-    call_hits_parser.add_argument("-p", "--peaks", type=str, default=None,
-        help="A peak regions file in ENCODE NarrowPeak format, exactly matching the regions specified in `--regions`. If omitted, outputs will lack absolute genomic coordinates.")
-    call_hits_parser.add_argument("-C", "--chrom-order", type=str, default=None,
-        help="A tab-delimited file with chromosome names in the first column to define sort order of chromosomes. Missing chromosomes are ordered as they appear in -p/--peaks.")
-    call_hits_parser.add_argument("-I", "--motifs-include", type=str, default=None,
-        help="A tab-delimited file with tfmodisco motif names (e.g pos_patterns.pattern_0) in the first column to include in hit calling. If omitted, all motifs in the modisco H5 file are used.")
-    call_hits_parser.add_argument("-N", "--motif-names", type=str, default=None,
-        help="A tab-delimited file with tfmodisco motif names (e.g pos_patterns.pattern_0) in the first column and custom names in the second column. Omitted motifs default to tfmodisco names.")
-
-    
-    call_hits_parser.add_argument("-o", "--out-dir", type=str, required=True,
-        help="The path to the output directory.")
-    
-    call_hits_parser.add_argument("-t", "--cwm-trim-threshold", type=float, default=0.3,
-        help="The threshold to determine motif start and end positions within the full CWMs.")
-    # call_hits_parser.add_argument("-T", "--use-trimmed", default=False, action="store_true",
-    #     help="Call hits using the trimmed motif CWMs. By default, the full CWMs are used.")
-    
-    call_hits_parser.add_argument("-a", "--alpha", type=float, default=0.7,
-        help="The L1 regularization weight.")
-    call_hits_parser.add_argument("-f", "--no-post-filter", action='store_true',
-        help="Do not perform post-hit-calling filtering. By default, hits are filtered based on a minimum correlation of `alpha` with the input contributions.")
-    call_hits_parser.add_argument("-s", "--step-size-max", type=float, default=3.,
-        help="The maximum optimizer step size.")
-    call_hits_parser.add_argument("-i", "--step-size-min", type=float, default=0.08,
-        help="The minimum optimizer step size.")
-    call_hits_parser.add_argument("-A", "--step-adjust", type=float, default=0.7,
-        help="The optimizer step size adjustment factor. If the optimizer diverges, the step size is multiplicatively adjusted by this factor")
-    call_hits_parser.add_argument("-c", "--convergence-tol", type=float, default=0.0005,
-        help="The tolerance for determining convergence. The optimizer exits when the duality gap is less than the tolerance.")
-    call_hits_parser.add_argument("-S", "--max-steps", type=int, default=10000,
-        help="The maximum number of optimization steps.")
-    call_hits_parser.add_argument("-b", "--batch-size", type=int, default=2000,
-        help="The batch size used for optimization.")
-    call_hits_parser.add_argument("-d", "--device", type=str, default="cuda",
-        help="The pytorch device name to use. Set to `cpu` to run without a GPU.")
     
     
     extract_regions_bw_parser = subparsers.add_parser("extract-regions-bw", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
@@ -308,6 +263,55 @@ def cli():
         help="The width of the input region centered around each peak summit.")
     
 
+    call_hits_parser = subparsers.add_parser("call-hits", formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        help="Call hits on provided sequences, contributions, and motif CWM's.")
+    
+    call_hits_parser.add_argument("-M", "--mode", type=str, default="pp", choices={"pp", "ph", "hp", "hh"},
+        help="The type of attributions to use for CWM's and input contribution scores, respectively. 'h' for hypothetical and 'p' for projected.")
+
+    call_hits_parser.add_argument("-r", "--regions", type=str, required=True,
+        help="A .npz file of input sequences and contributions. Can be generated using `finemo extract-regions-*` subcommands.")
+    call_hits_parser.add_argument("-m", "--modisco-h5", type=str, required=True,
+        help="A tfmodisco-lite output H5 file of motif patterns.")
+    
+    call_hits_parser.add_argument("-p", "--peaks", type=str, default=None,
+        help="A peak regions file in ENCODE NarrowPeak format, exactly matching the regions specified in `--regions`. If omitted, outputs will lack absolute genomic coordinates.")
+    call_hits_parser.add_argument("-C", "--chrom-order", type=str, default=None,
+        help="A tab-delimited file with chromosome names in the first column to define sort order of chromosomes. Missing chromosomes are ordered as they appear in -p/--peaks.")
+    call_hits_parser.add_argument("-I", "--motifs-include", type=str, default=None,
+        help="A tab-delimited file with tfmodisco motif names (e.g pos_patterns.pattern_0) in the first column to include in hit calling. If omitted, all motifs in the modisco H5 file are used.")
+    call_hits_parser.add_argument("-N", "--motif-names", type=str, default=None,
+        help="A tab-delimited file with tfmodisco motif names (e.g pos_patterns.pattern_0) in the first column and custom names in the second column. Omitted motifs default to tfmodisco names.")
+
+    call_hits_parser.add_argument("-o", "--out-dir", type=str, required=True,
+        help="The path to the output directory.")
+    
+    call_hits_parser.add_argument("-t", "--cwm-trim-threshold", type=float, default=0.3,
+        help="The threshold to determine motif start and end positions within the full CWMs.")
+    
+    call_hits_parser.add_argument("-a", "--alpha", type=float, default=0.7,
+        help="The L1 regularization weight.")
+    call_hits_parser.add_argument("-A", "--motif-alphas", type=str, default=None,
+        help="A tab-delimited file with tfmodisco motif names (e.g pos_patterns.pattern_0) in the first column and motif-specific alphas in the second column. Omitted motifs default to the `--alpha` value.")
+    
+    call_hits_parser.add_argument("-f", "--no-post-filter", action='store_true',
+        help="Do not perform post-hit-calling filtering. By default, hits are filtered based on a minimum correlation of `alpha` with the input contributions.")
+    call_hits_parser.add_argument("-s", "--step-size-max", type=float, default=3.,
+        help="The maximum optimizer step size.")
+    call_hits_parser.add_argument("-i", "--step-size-min", type=float, default=0.08,
+        help="The minimum optimizer step size.")
+    call_hits_parser.add_argument("-j", "--step-adjust", type=float, default=0.7,
+        help="The optimizer step size adjustment factor. If the optimizer diverges, the step size is multiplicatively adjusted by this factor")
+    call_hits_parser.add_argument("-c", "--convergence-tol", type=float, default=0.0005,
+        help="The tolerance for determining convergence. The optimizer exits when the duality gap is less than the tolerance.")
+    call_hits_parser.add_argument("-S", "--max-steps", type=int, default=10000,
+        help="The maximum number of optimization steps.")
+    call_hits_parser.add_argument("-b", "--batch-size", type=int, default=2000,
+        help="The batch size used for optimization.")
+    call_hits_parser.add_argument("-d", "--device", type=str, default="cuda",
+        help="The pytorch device name to use. Set to `cpu` to run without a GPU.")
+    
+
     report_parser = subparsers.add_parser("report", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
         help="Generate statistics and visualizations from hits and tfmodisco-lite motif data.")
     
@@ -338,14 +342,8 @@ def cli():
     
 
     args = parser.parse_args()
-
-    if args.cmd == "call-hits":
-        call_hits(args.regions, args.peaks, args.modisco_h5, args.chrom_order, args.motifs_include, args.motif_names,
-                  args.out_dir, args.cwm_trim_threshold, args.alpha, args.step_size_max, args.step_size_min, 
-                  args.convergence_tol, args.max_steps, args.batch_size, args.step_adjust, args.device, 
-                  args.mode, args.no_post_filter)
     
-    elif args.cmd == "extract-regions-bw":
+    if args.cmd == "extract-regions-bw":
         extract_regions_bw(args.peaks, args.fasta, args.bigwigs, args.out_path, args.region_width)
 
     elif args.cmd == "extract-regions-chrombpnet-h5":
@@ -360,6 +358,12 @@ def cli():
 
     elif args.cmd == "extract-regions-modisco-fmt":
         extract_regions_modisco_fmt(args.attributions, args.sequences, args.out_path, args.region_width)
+    
+    elif args.cmd == "call-hits":
+        call_hits(args.regions, args.peaks, args.modisco_h5, args.chrom_order, args.motifs_include, args.motif_names, 
+                  args.motif_alphas, args.out_dir, args.cwm_trim_threshold, args.alpha, args.step_size_max, 
+                  args.step_size_min, args.convergence_tol, args.max_steps, args.batch_size, args.step_adjust, 
+                  args.device, args.mode, args.no_post_filter)
 
     elif args.cmd == "report":
         if args.no_recall and not args.no_seqlets:
