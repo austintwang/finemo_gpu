@@ -37,12 +37,42 @@ def extract_regions_modisco_fmt(shaps_paths, ohe_path, out_path, region_width):
     data_io.write_regions_npz(sequences, contribs, out_path)
 
 
+def tune_alphas(regions_path, modisco_h5_path, motifs_include_path, p_vals, out_dir, cwm_trim_threshold, batch_size, device, mode):
+    from . import hitcaller
+
+    sequences, contribs = data_io.load_regions_npz(regions_path)
+    
+    if mode == "pp":
+        motif_type = "cwm"
+        use_hypothetical_contribs = False
+    elif mode == "ph":
+        motif_type = "cwm"
+        use_hypothetical_contribs = True
+    elif mode == "hp":
+        motif_type = "hcwm"
+        use_hypothetical_contribs = False
+    elif mode == "hh":
+        motif_type = "hcwm"
+        use_hypothetical_contribs = True
+
+    if motifs_include_path is not None:
+        motifs_include = data_io.load_txt(motifs_include_path)
+    else:
+        motifs_include = None
+
+    motifs_df, cwms, trim_masks, motif_names = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, motif_type, 
+                                                                           motifs_include, None, None, None, False)
+
+    alphas = hitcaller.calibrate_alphas(cwms, contribs, sequences, trim_masks, use_hypothetical_contribs, p_vals, batch_size, device)
+
+    data_io.write_alphas(alphas, p_vals, motif_names, out_dir)
+
+
 def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motifs_include_path, motif_names_path, 
               motif_alphas_path, out_dir, cwm_trim_threshold, alpha_default, step_size_max, step_size_min, 
               convergence_tol, max_steps, batch_size, step_adjust, device, mode, no_post_filter):
     
     params = locals()
-    import numpy as np
     from . import hitcaller
     
     sequences, contribs = data_io.load_regions_npz(regions_path)
@@ -190,7 +220,7 @@ def cli():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(required=True, dest='cmd')
     
-    
+
     extract_regions_bw_parser = subparsers.add_parser("extract-regions-bw", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
         help="Extract sequences and contributions from FASTA and bigwig files.")
     
@@ -261,6 +291,35 @@ def cli():
     
     extract_regions_modisco_fmt_parser.add_argument("-w", "--region-width", type=int, default=1000,
         help="The width of the input region centered around each peak summit.")
+
+
+    tune_alphas_parser = subparsers.add_parser("tune-alphas", formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        help="Calibrate motif-specific L1 regularization weights using contribution scores on background regions.")
+    
+    tune_alphas_parser.add_argument("-M", "--mode", type=str, default="pp", choices={"pp", "ph", "hp", "hh"},
+        help="The type of attributions to use for CWM's and input contribution scores, respectively. 'h' for hypothetical and 'p' for projected.")
+    
+    tune_alphas_parser.add_argument("-r", "--regions", type=str, required=True,
+        help="A .npz file of background sequences and contributions.")
+    tune_alphas_parser.add_argument("-m", "--modisco-h5", type=str, required=True,
+        help="A tfmodisco-lite output H5 file of motif patterns.")
+    
+    tune_alphas_parser.add_argument("-I", "--motifs-include", type=str, default=None,
+        help="A tab-delimited file with tfmodisco motif names (e.g pos_patterns.pattern_0) in the first column to include. If omitted, all motifs in the modisco H5 file are used.")
+    
+    tune_alphas_parser.add_argument("-o", "--out-dir", type=str, required=True,
+        help="The path to the output directory.")
+    
+    tune_alphas_parser.add_argument("-t", "--cwm-trim-threshold", type=float, default=0.3,
+        help="The threshold to determine motif start and end positions within the full CWMs.")
+    
+    tune_alphas_parser.add_argument("-b", "--batch-size", type=int, default=2000,
+        help="The batch size used for computation.")
+    tune_alphas_parser.add_argument("-d", "--device", type=str, default="cuda",
+        help="The pytorch device name to use. Set to `cpu` to run without a GPU.")
+
+    tune_alphas_parser.add_argument("-p", "--p-vals", type=float, default=[1e-3, 1e-4, 1e-5], nargs='+',
+        help="One or more p-values to use for alpha calibration, deliminated by whitespace.")
     
 
     call_hits_parser = subparsers.add_parser("call-hits", formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -304,7 +363,7 @@ def cli():
         help="The optimizer step size adjustment factor. If the optimizer diverges, the step size is multiplicatively adjusted by this factor")
     call_hits_parser.add_argument("-c", "--convergence-tol", type=float, default=0.0005,
         help="The tolerance for determining convergence. The optimizer exits when the duality gap is less than the tolerance.")
-    call_hits_parser.add_argument("-S", "--max-steps", type=int, default=10000,
+    call_hits_parser.add_argument("-S", "--max-steps", type=int, default=1000,
         help="The maximum number of optimization steps.")
     call_hits_parser.add_argument("-b", "--batch-size", type=int, default=2000,
         help="The batch size used for optimization.")
@@ -358,6 +417,10 @@ def cli():
 
     elif args.cmd == "extract-regions-modisco-fmt":
         extract_regions_modisco_fmt(args.attributions, args.sequences, args.out_path, args.region_width)
+
+    elif args.cmd == "tune-alphas":
+        tune_alphas(args.regions, args.modisco_h5, args.motifs_include, args.p_vals, args.out_dir, args.cwm_trim_threshold, 
+                    args.batch_size, args.device, args.mode)
     
     elif args.cmd == "call-hits":
         call_hits(args.regions, args.peaks, args.modisco_h5, args.chrom_order, args.motifs_include, args.motif_names, 

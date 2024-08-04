@@ -513,6 +513,16 @@ def write_params(params, out_path):
         json.dump(params, f, indent=4)
 
 
+def write_alphas(alphas, pvals, motifs, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
+
+    for i, p in enumerate(pvals):
+        out_path = os.path.join(out_dir, f"p_{p}.txt")
+        with open(out_path, "w") as f:
+            for j, m in enumerate(motifs):
+                f.write(f"{m}\t{alphas[i,j]}\n")
+
+
 def write_occ_df(occ_df, out_path):
     occ_df.write_csv(out_path, separator="\t")
 
