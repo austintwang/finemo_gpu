@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 import polars as pl
 
-from tqdm import tqdm
+from tqdm import tqdm, trange
 
 
 def prox_grad_step(coefficients, importance_scale, cwms, contribs, sequences, 
@@ -252,7 +252,7 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lam
             if num_load > 0:
                 load_start = next_ind
                 load_end = load_start + num_load
-                next_ind = min(load_end, contribs.shape[0])
+                next_ind = min(load_end, n)
 
                 batch_data = batch_loader.load_batch(load_start, load_end)
                 contribs_batch, seqs_batch, inds_batch = batch_data
@@ -275,9 +275,9 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lam
                 inds_buf[converged] = inds_batch
                 global_scale_buf[converged] = global_scale_batch
 
-                coef_inter[converged,:,:] *= 0
-                coef[converged,:,:] *= 0
-                i[converged] *= 0
+                coef_inter[converged,:,:] = 0
+                coef[converged,:,:] = 0
+                i[converged] = 0
 
                 step_sizes[converged] = step_size_max
 
@@ -389,3 +389,77 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lam
     qc_df = pl.DataFrame(qc)
 
     return hits_df, qc_df
+
+
+def calibrate_alphas(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, p_vals, batch_size, device):
+    """
+    Call hits by fitting sparse linear model to contributions
+    
+    cwms: (m, 4, w)
+    contribs: (n, 4, l) or (n, l)  
+    sequences: (n, 4, l)
+    cwm_trim_mask: (m, w)
+    """
+    m, _, w = cwms.shape
+    n, _, l = sequences.shape
+
+    b = batch_size
+    l_crop = l // w
+
+    # Convert inputs to pytorch tensors
+    cwms = torch.from_numpy(cwms)
+    contribs = torch.from_numpy(contribs)
+    sequences = torch.from_numpy(sequences)
+    cwm_trim_mask = torch.from_numpy(cwm_trim_mask)[:,None,:].repeat(1,4,1)
+    quantiles = 1 - torch.tensor(p_vals, device=device, dtype=torch.float32)
+
+    cwms = _to_channel_last_layout(cwms, device=device, dtype=torch.float32)
+    cwm_trim_mask = _to_channel_last_layout(cwm_trim_mask, device=device, dtype=torch.float32)
+    cwms = cwms * cwm_trim_mask
+    cwm_tile = cwms.permute(2, 1, 0).reshape(w * 4, m)
+    cwm_trim_mask_tile = cwm_trim_mask.permute(2, 1, 0).reshape(w * 4, m)
+
+    # Initialize batch loader
+    if len(contribs.shape) == 3:
+        if use_hypothetical:
+            batch_loader = BatchLoaderHyp(contribs, sequences, l, device)
+        else:
+            batch_loader = BatchLoaderProj(contribs, sequences, l, device)
+    elif len(contribs.shape) == 2:
+        if use_hypothetical:
+            raise ValueError("Input regions do not contain hypothetical contribution scores")
+        else:
+            batch_loader = BatchLoaderCompactFmt(contribs, sequences, l, device)
+    else:
+        raise ValueError(f"Input contributions array is of incorrect shape {contribs.shape}")
+
+    corrs_lst = []
+    
+    num_batches = -(n // -b)
+    for i in trange(num_batches, disable=None, unit="batches", ncols=120):
+        load_start = i * b
+        load_end = min(load_start + b, n)
+
+        batch_data = batch_loader.load_batch(load_start, load_end)
+        contribs_batch, _, _, _ = batch_data
+        contribs_batch = contribs_batch[:,:,:l_crop]
+        contribs_tile = contribs_batch.permute(0, 2, 1).reshape(-1, w * 4)
+        covs = torch.mm(contribs_tile, cwm_tile)
+        contrib_vars = torch.mm(contribs_tile**2, cwm_trim_mask_tile)
+        corrs = covs * (contrib_vars + 1)**(-0.5)
+
+        corrs_lst.append(corrs.cpu())
+
+    corrs = torch.cat(corrs_lst, dim=0).to(device=device)
+
+    cutoffs = torch.quantile(corrs, quantiles, dim=0, interpolation='higher')
+
+    return cutoffs.numpy(force=True)
+
+
+
+
+
+
+
+    
