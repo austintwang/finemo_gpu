@@ -333,20 +333,13 @@ class LogoGlyph(AbstractPathEffect):
             .translate(tx=w_shift, ty=0)
         )
 
-        self.patch = patches.PathPatch([], **kwargs)
-        self.patch._path = stretch.transform_path(path_orig)
+        self.path = stretch.transform_path(path_orig)
 
         #: The dictionary of keywords to update the graphics collection with.
         self._gc = kwargs
 
     def draw_path(self, renderer, gc, tpath, affine, rgbFace):
-        self.patch.set(color=rgbFace)
-        self.patch.set_transform(affine + self._offset_transform(renderer))
-        self.patch.set_clip_box(gc.get_clip_rectangle())
-        clip_path = gc.get_clip_path()
-        if clip_path and self.patch.get_clip_path() is None:
-            self.patch.set_clip_path(*clip_path)
-        self.patch.draw(renderer)
+        return renderer.draw_path(gc, self.path, affine, rgbFace)
 
 
 def plot_logo(ax, heights, glyphs, colors=None, font_props=None, shade_bounds=None):
