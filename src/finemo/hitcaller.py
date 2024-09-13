@@ -150,8 +150,8 @@ class BatchLoaderHyp(BatchLoaderBase):
         return contribs_batch, 1, inds, global_scale
 
 
-def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alphas, step_size_max, 
-                 step_size_min, convergence_tol, max_steps, batch_size, step_adjust, post_filter, device):
+def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alphas, step_size_max, step_size_min, 
+                 convergence_tol, max_steps, batch_size, step_adjust, post_filter, device, compile_optimizer):
     """
     Call hits by fitting sparse linear model to contributions
     
@@ -164,6 +164,10 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
     n, _, l = sequences.shape
 
     b = batch_size
+    
+    global optimizer_step
+    if compile_optimizer:
+        optimizer_step = torch.compile(optimizer_step, fullgraph=True)
 
     # Convert inputs to pytorch tensors
     cwms = torch.from_numpy(cwms)

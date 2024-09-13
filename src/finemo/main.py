@@ -39,7 +39,7 @@ def extract_regions_modisco_fmt(shaps_paths, ohe_path, out_path, region_width):
 
 def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motifs_include_path, motif_names_path, 
               motif_alphas_path, out_dir, cwm_trim_threshold, alpha_default, step_size_max, step_size_min, 
-              convergence_tol, max_steps, batch_size, step_adjust, device, mode, no_post_filter):
+              convergence_tol, max_steps, batch_size, step_adjust, device, mode, no_post_filter, compile_optimizer):
     
     params = locals()
     import numpy as np
@@ -97,8 +97,8 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motif
     motif_width = cwms.shape[2]
     alphas = motifs_df.get_column("alpha").to_numpy(writable=True)
 
-    hits_df, qc_df = hitcaller.fit_contribs(cwms, contribs, sequences, trim_masks, use_hypothetical_contribs, alphas, step_size_max, 
-                                            step_size_min, convergence_tol, max_steps, batch_size, step_adjust, not no_post_filter, device)
+    hits_df, qc_df = hitcaller.fit_contribs(cwms, contribs, sequences, trim_masks, use_hypothetical_contribs, alphas, step_size_max, step_size_min, 
+                                            convergence_tol, max_steps, batch_size, step_adjust, not no_post_filter, device, compile_optimizer)
 
     os.makedirs(out_dir, exist_ok=True)
     out_path_qc = os.path.join(out_dir, "peaks_qc.tsv")
@@ -310,6 +310,8 @@ def cli():
         help="The batch size used for optimization.")
     call_hits_parser.add_argument("-d", "--device", type=str, default="cuda",
         help="The pytorch device name to use. Set to `cpu` to run without a GPU.")
+    call_hits_parser.add_argument("-J", "--compile", action='store_true',
+        help="JIT-compile the optimizer for faster performance. This may not be supported on older GPUs.")
     
 
     report_parser = subparsers.add_parser("report", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
@@ -363,7 +365,7 @@ def cli():
         call_hits(args.regions, args.peaks, args.modisco_h5, args.chrom_order, args.motifs_include, args.motif_names, 
                   args.motif_alphas, args.out_dir, args.cwm_trim_threshold, args.alpha, args.step_size_max, 
                   args.step_size_min, args.convergence_tol, args.max_steps, args.batch_size, args.step_adjust, 
-                  args.device, args.mode, args.no_post_filter)
+                  args.device, args.mode, args.no_post_filter, args.compile)
 
     elif args.cmd == "report":
         if args.no_recall and not args.no_seqlets:
