@@ -372,11 +372,11 @@ def plot_logo(ax, heights, glyphs, colors=None, font_props=None, shade_bounds=No
         ax.bar(x, height, 0.95, bottom=bottom, 
                path_effects=[LogoGlyph(glyph, font_props=font_props)], color=colors[glyph])
 
-    ax.axhline(zorder=-1, linewidth=0.5, color='black',)
-
     if shade_bounds is not None:
         start, end = shade_bounds
         ax.axvspan(start - 0.5, end - 0.5, color='0.9', zorder=-1)
+
+    ax.axhline(zorder=-1, linewidth=0.5, color='black')
 
 
 LOGO_ALPHABET = 'ACGT'
