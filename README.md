@@ -147,8 +147,8 @@ Usage: `finemo call-hits -r <regions> -m <modisco_h5> -o <out_dir> [-p <peaks>] 
 - `start_untrimmed`: Hit start coordinate from trimmed CWM, zero-indexed. Absolute if peak coordinates are provided, otherwise relative to the input region.
 - `end_untrimmed`: Hit end coordinate from trimmed CWM, zero-indexed,exclusive. Absolute if peak coordinates are provided, otherwise relative to the input region.
 - `motif_name`: The hit motif name as specified in the provided tfmodisco H5 file.
-- `hit_coefficient`: The regression coefficient for the hit. Values are normalized per peak region. This is the primary hit score.
-- `hit_coefficient_global`: The regression coefficient for the hit, scaled by the overall importance of the region.
+- `hit_coefficient`: The regression coefficient for the hit, normalized per peak region.
+- `hit_coefficient_global`: The regression coefficient for the hit, scaled by the overall importance of the region. **This is the primary hit score.**
 - `hit_correlation`: The correlation between the untrimmed CWM and the contribution score of the motif hit.
 - `hit_importance`: The total absolute contribution score within the motif hit.
 - `strand`: The orientation of the hit (`+` or `-`).

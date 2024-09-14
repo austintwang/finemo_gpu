@@ -9,7 +9,6 @@ from matplotlib.patheffects import AbstractPathEffect
 from matplotlib.textpath import TextPath
 from matplotlib.transforms import Affine2D
 from matplotlib.font_manager import FontProperties
-from matplotlib import patches
 from jinja2 import Template
 
 from . import templates
