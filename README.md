@@ -133,7 +133,7 @@ Usage: `finemo call-hits -r <regions> -m <modisco_h5> -o <out_dir> [-p <peaks>] 
 #### Additional notes
 
 - The `-a/--alpha` controls the sensitivity of the hit-calling algorithm, with higher values resulting in fewer but more confident hits. This parameter represents the minimum correlation between a query contribution score window and a CWM to be considered a hit. The default value of 0.7 typically works well for chromatin accessiblity data. ChIP-Seq data may require a lower value (e.g. 0.6).
-- The `-t/--cwm-trim-threshold` parameter sets the maximum relative contribution score in trimmed-out CWM flanks. If you find that motif flanks are being trimmed too aggressively, consider lowering this value. However, a too-high value may result in closely-spaced motif instances being missed.
+- The `-t/--cwm-trim-threshold` parameter sets the maximum relative contribution score in trimmed-out CWM flanks. If you find that motif flanks are being trimmed too aggressively, consider lowering this value. However, a too-low value may result in closely-spaced motif instances being missed.
 - Set `-b/--batch-size` to the largest value your GPU memory can accommodate. **If you encounter GPU out-of-memory errors, try lowering this value.**
 - Legacy TFMoDISCo H5 files can be updated to the newer TFMoDISCo-lite format with the `modisco convert` command found in the [tfmodisco-lite](https://github.com/jmschrei/tfmodisco-lite/tree/main) package.
 
@@ -145,7 +145,7 @@ Usage: `finemo call-hits -r <regions> -m <modisco_h5> -o <out_dir> [-p <peaks>] 
 - `start`: Hit start coordinate from trimmed CWM, zero-indexed. Absolute if peak coordinates are provided, otherwise relative to the input region.
 - `end`: Hit end coordinate from trimmed CWM, zero-indexed, exclusive. Absolute if peak coordinates are provided, otherwise relative to the input region.
 - `start_untrimmed`: Hit start coordinate from trimmed CWM, zero-indexed. Absolute if peak coordinates are provided, otherwise relative to the input region.
-- `end_untrimmed`: Hit end coordinate from trimmed CWM, zero-indexed,exclusive. Absolute if peak coordinates are provided, otherwise relative to the input region.
+- `end_untrimmed`: Hit end coordinate from trimmed CWM, zero-indexed, exclusive. Absolute if peak coordinates are provided, otherwise relative to the input region.
 - `motif_name`: The hit motif name as specified in the provided tfmodisco H5 file.
 - `hit_coefficient`: The regression coefficient for the hit, normalized per peak region.
 - `hit_coefficient_global`: The regression coefficient for the hit, scaled by the overall importance of the region. **This is the primary hit score.**
