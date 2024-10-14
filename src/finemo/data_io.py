@@ -32,6 +32,13 @@ def load_mapping(path, type):
     return mapping
 
 
+def load_json(path):
+    with open(path) as f:
+        data = json.load(f)
+    
+    return data
+
+
 NARROWPEAK_SCHEMA = ["chr", "peak_start", "peak_end", "peak_name", "peak_score", 
                      "peak_strand", "peak_signal", "peak_pval", "peak_qval", "peak_summit"]
 NARROWPEAK_DTYPES = [pl.Utf8, pl.UInt32, pl.UInt32, pl.Utf8, pl.UInt32, 
@@ -328,6 +335,10 @@ def load_hits(hits_path, lazy=False):
 
     return hits_df if lazy else hits_df.collect()
 
+def load_tsv(tsv_path, lazy=False):
+    df = pl.scan_csv(tsv_path, separator='\t', quote_char=None)
+    return df if lazy else df.collect()
+
 
 def load_modisco_seqlets(modisco_h5_path, peaks_df, half_width, modisco_half_width, lazy=False):
     
@@ -504,17 +515,29 @@ def write_qc_no_peaks(qc_df, out_path):
     df.write_csv(out_path, separator="\t")
 
 
-def write_motifs(motifs_df, out_path):
-    motifs_df.write_csv(out_path, separator="\t")
+def write_tsv(df, out_path):
+    df.write_csv(out_path, separator="\t")
 
 
-def write_params(params, out_path):
+# def write_motifs(motifs_df, out_path):
+#     motifs_df.write_csv(out_path, separator="\t")
+
+
+# def write_params(params, out_path):
+#     with open(out_path, "w") as f:
+#         json.dump(params, f, indent=4)
+
+def write_json(data, out_path):
     with open(out_path, "w") as f:
-        json.dump(params, f, indent=4)
+        json.dump(data, f, indent=4)
 
 
-def write_occ_df(occ_df, out_path):
-    occ_df.write_csv(out_path, separator="\t")
+# def write_occ_df(occ_df, out_path):
+#     occ_df.write_csv(out_path, separator="\t")
+
+
+def write_np(composites_arr, out_path):
+    np.save(out_path, composites_arr)
 
 
 def write_report_data(report_df, cwms, out_dir):

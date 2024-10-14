@@ -42,7 +42,6 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motif
               convergence_tol, max_steps, batch_size, step_adjust, device, mode, no_post_filter, compile_optimizer):
     
     params = locals()
-    import numpy as np
     from . import hitcaller
     
     sequences, contribs = data_io.load_regions_npz(regions_path)
@@ -110,7 +109,7 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motif
         data_io.write_qc_no_peaks(qc_df, out_path_qc)
 
     out_path_motifs = os.path.join(out_dir, "motif_data.tsv")
-    data_io.write_motifs(motifs_df, out_path_motifs)
+    data_io.write_tsv(motifs_df, out_path_motifs)
 
     params |= {
         "region_width": region_width,
@@ -120,7 +119,35 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motif
     }
 
     out_path_params = os.path.join(out_dir, "parameters.json")
-    data_io.write_params(params, out_path_params)
+    data_io.write_json(params, out_path_params)
+
+
+def composites(hits_dir, out_dir, tol_min, tol_max, fdr_thresh, odds_thresh, counts_thresh):
+    import polars as pl
+    from . import evaluation
+
+    hits_path = os.path.join(hits_dir, "hits.tsv")
+    motifs_path = os.path.join(hits_dir, "motif_data.tsv")
+    params_path = os.path.join(hits_dir, "parameters.json")
+
+    hits_df = data_io.load_hits(hits_path)
+    motifs_df = data_io.load_tsv(motifs_path)
+    params = data_io.load_json(params_path)
+    
+    motif_names = motifs_df.filter(pl.col("motif_strand") == "+").get_column("motif_name").to_numpy()
+    motif_width = params["untrimmed_motif_width"]
+    num_regions = params["num_regions"]
+    region_len = params["region_width"]
+
+    comp_df, comp_hits_df = evaluation.discover_composites(hits_df, motifs_df, motif_names, tol_min, tol_max, 
+                                                           fdr_thresh, odds_thresh, counts_thresh, region_len, 
+                                                           motif_width, num_regions)
+    
+    os.makedirs(out_dir, exist_ok=True)
+    motifs_path = os.path.join(out_dir, "composite_motifs.tsv")
+    data_io.write_tsv(comp_df, motifs_path)
+    hits_path = os.path.join(out_dir, "composite_hits.tsv")
+    data_io.write_tsv(comp_hits_df, hits_path)
 
 
 def report(regions_path, hits_path, modisco_h5_path, peaks_path, motifs_include_path, motif_names_path, 
@@ -166,7 +193,7 @@ def report(regions_path, hits_path, modisco_h5_path, peaks_path, motifs_include_
     os.makedirs(out_dir, exist_ok=True)
     
     occ_path = os.path.join(out_dir, "motif_occurrences.tsv")
-    data_io.write_occ_df(occ_df, occ_path)
+    data_io.write_tsv(occ_df, occ_path)
 
     data_io.write_report_data(report_df, cwms, out_dir)
 
@@ -314,6 +341,26 @@ def cli():
         help="JIT-compile the optimizer for faster performance. This may not be supported on older GPUs.")
     
 
+    composites_parser = subparsers.add_parser("composites", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
+        help="Discover composite motifs from hit data.")
+    
+    composites_parser.add_argument("-H", "--hits-dir", type=str, required=True,
+        help="The output directory from the `finemo call-hits` command.")
+    composites_parser.add_argument("-o", "--out-dir", type=str, required=True,
+        help="The path to the output directory.")
+    
+    composites_parser.add_argument("-t", "--tol-min", type=int, default=0,
+        help="The minimum distance between composite motifs.")
+    composites_parser.add_argument("-T", "--tol-max", type=int, default=10,
+        help="The maximum distance between composite motifs.")
+    composites_parser.add_argument("-q", "--fdr-thresh", type=float, default=0.01,
+        help="The FDR threshold for composite motif discovery.")
+    composites_parser.add_argument("-r", "--odds-thresh", type=float, default=15,
+        help="The odds ratio threshold for composite motif discovery.")
+    composites_parser.add_argument("-c", "--counts-thresh", type=float, default=50,
+        help="The hit count threshold for composite motif discovery.")
+    
+
     report_parser = subparsers.add_parser("report", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
         help="Generate statistics and visualizations from hits and tfmodisco-lite motif data.")
     
@@ -366,6 +413,9 @@ def cli():
                   args.motif_alphas, args.out_dir, args.cwm_trim_threshold, args.alpha, args.step_size_max, 
                   args.step_size_min, args.convergence_tol, args.max_steps, args.batch_size, args.step_adjust, 
                   args.device, args.mode, args.no_post_filter, args.compile)
+        
+    elif args.cmd == "composites":
+        composites(args.hits_dir, args.out_dir, args.tol_min, args.tol_max, args.fdr_thresh, args.odds_thresh, args.counts_thresh)
 
     elif args.cmd == "report":
         if args.no_recall and not args.no_seqlets:

@@ -4,12 +4,14 @@ import importlib
 
 import numpy as np
 import polars as pl
+from scipy.stats import binom, false_discovery_control
 import matplotlib.pyplot as plt
 from matplotlib.patheffects import AbstractPathEffect
 from matplotlib.textpath import TextPath
 from matplotlib.transforms import Affine2D
 from matplotlib.font_manager import FontProperties
 from jinja2 import Template
+from tqdm import tqdm
 
 from . import templates
 
@@ -156,6 +158,213 @@ def get_cwms(regions, positions_df, motif_width):
         cwms = seqs.mean(axis=0)
 
     return cwms
+
+
+def discover_composites(hits_df, motifs_df, motif_names, tol_min, tol_max, fdr_thresh, odds_thresh, counts_thresh, region_len, motif_width, num_regions):
+    # hits_df = hits_df.head(10000) ####
+    hits_df = hits_df.with_columns(pl.col("start").cast(pl.Int32), pl.col("end").cast(pl.Int32))
+
+    names_to_idx = {n: i for i, n in enumerate(motif_names)}
+    motifs_df = (
+        motifs_df.lazy()
+        .select(
+            motif_name=pl.col("motif_name"),
+            is_revcomp=pl.col("motif_strand") == '-',
+            motif_start=pl.col("motif_start"),
+            motif_end=pl.col("motif_end"),
+        )
+    )
+
+    comp_motifs = (
+        motifs_df.join(motifs_df, how="cross")
+        .with_columns(overlap=pl.col("motif_start_right") - pl.col("motif_end") + motif_width)
+        .collect()
+    )
+    slots = np.zeros((len(motif_names), 2, len(motif_names), 2), dtype=np.int32)
+    for m in comp_motifs.iter_rows(named=True):
+        mleft = m["motif_name"]
+        mright = m["motif_name_right"]
+        sleft = int(m["is_revcomp"])
+        sright = int(m["is_revcomp_right"])
+        overlap = m["overlap"]
+        
+        num_slots = region_len - 2 * motif_width + 1 + overlap
+        # print(mleft, sleft, mright, sright, num_slots) ####
+        slots[names_to_idx[mleft], sleft, names_to_idx[mright], sright] = num_slots
+    
+    slots = (slots[:,:,:,:,None] - np.arange(tol_min, tol_max)[None,None,None,None,:]) * 2
+    
+    counts = np.zeros((len(motif_names), 2, len(motif_names), 2, tol_max - tol_min), dtype=np.int32)
+    
+    hits_by_peak = hits_df.partition_by("peak_id")
+    for p in tqdm(hits_by_peak, ncols=120, desc="Evaluating candidate composite motifs"):
+        # p.glimpse() ####
+        p = p.lazy().with_columns(is_revcomp=pl.col("strand") == '-')
+        comps = (
+            p.join(p, how="cross")
+            .select(
+                motif_left=pl.col("motif_name"),
+                motif_right=pl.col("motif_name_right"),
+                is_revcomp_left=pl.col("is_revcomp"),
+                is_revcomp_right=pl.col("is_revcomp_right"),
+                tol=pl.col("start_right") - pl.col("end"),
+            )
+            .filter((pl.col("tol") >= tol_min) & (pl.col("tol") < tol_max))
+            .collect()
+        )
+        for c in comps.iter_rows():
+            mleft, mright, sleft, sright, tol = c
+            counts[names_to_idx[mleft], int(sleft), names_to_idx[mright], int(sright), tol - tol_min] += 1
+            counts[names_to_idx[mright], int(~sright), names_to_idx[mleft], int(~sleft), tol - tol_min] += 1
+
+    counts_single = np.zeros(len(motif_names), dtype=np.int32)
+    counts_df = hits_df.group_by("motif_name").count()
+    for m, c in counts_df.iter_rows():
+        counts_single[names_to_idx[m]] = c
+
+    num_pos = region_len - motif_width + 1
+    prob_exp_reg = counts_single / (num_regions * num_pos * 2)
+    prob_exp_pair = prob_exp_reg[:,None] * prob_exp_reg[None,:]
+    slots_total = slots * num_regions
+    counts_exp = prob_exp_pair[:,None,:,None,None] * slots_total
+
+    odds_ratio = counts / counts_exp 
+    pval = binom.sf(counts, slots_total, prob_exp_pair[:,None,:,None,None])
+    qval = false_discovery_control(pval)
+    keeps = (qval <= fdr_thresh) & (odds_ratio >= odds_thresh) 
+
+    comp_key_to_name = {}
+    comp_key_to_strand = {}
+    for i in range(len(motif_names)):
+        for j in range(len(motif_names)):
+            mi = motif_names[i]
+            mj = motif_names[j]
+
+            comp_key_ff = f"{mi}#0#{mj}#0"
+            comp_key_fr = f"{mi}#0#{mj}#1"
+            comp_key_rf = f"{mi}#1#{mj}#0"
+            comp_key_rr = f"{mi}#1#{mj}#1"
+
+            target_ff = f"{mi}#0#{mj}#0"
+            target_rr = f"{mj}#0#{mi}#0"
+
+            strand_ff = "+"
+            strand_rr = "-"
+
+            if i <= j:
+                target_fr = f"{mi}#0#{mj}#1"
+                target_rf = f"{mj}#1#{mi}#0"
+
+                strand_fr = "+"
+                strand_rf = "-"
+
+            else:
+                target_fr = f"{mj}#0#{mi}#1"
+                target_rf = f"{mi}#1#{mj}#0"
+
+                strand_fr = "-"
+                strand_rf = "+"
+                
+            comp_key_to_name[comp_key_ff] = target_ff
+            comp_key_to_name[comp_key_fr] = target_fr
+            comp_key_to_name[comp_key_rf] = target_rf
+            comp_key_to_name[comp_key_rr] = target_rr
+
+            comp_key_to_strand[comp_key_ff] = strand_ff
+            comp_key_to_strand[comp_key_fr] = strand_fr
+            comp_key_to_strand[comp_key_rf] = strand_rf
+            comp_key_to_strand[comp_key_rr] = strand_rr
+
+    keeps_inds = np.argwhere(keeps)
+    records = []
+    for i, j, k, l, m in keeps_inds:
+        comp_key = f"{motif_names[i]}#{j}#{motif_names[k]}#{l}"
+        # if comp_key not in comp_key_to_name:
+        #     continue
+
+        tol = tol_min + m
+        comp_name = f"{comp_key_to_name[comp_key]}#{tol}"
+        strand = comp_key_to_strand[comp_key]
+        counts_val = counts[i,j,k,l,m]
+        counts_exp_val = counts_exp[i,j,k,l,m]
+        pval_val = pval[i,j,k,l,m]
+        qval_val = qval[i,j,k,l,m]
+        odds_ratio_val = odds_ratio[i,j,k,l,m]
+
+        motif_left = motif_names[i]
+        strand_left = "+" if j == 0 else "-"
+        motif_right = motif_names[k]
+        strand_right = "+" if l == 0 else "-"
+
+        records.append({
+            "composite_name": comp_name,
+            "strand": strand,
+            "tol": tol,
+            "counts": counts_val,
+            "counts_exp": counts_exp_val,
+            "odds_ratio": odds_ratio_val,
+            "pval": pval_val,
+            "qval": qval_val,
+            "motif_name_left": motif_left,
+            "strand_left": strand_left,
+            "motif_name_right": motif_right,
+            "strand_right": strand_right,
+        })
+
+    comp_df = pl.DataFrame(records).with_columns(pl.col("tol").cast(pl.Int32))
+    comp_df_lazy = comp_df.lazy().select(["composite_name", "strand", "motif_name_left", "motif_name_right", "strand_left", "strand_right", "tol"])
+    comp_df = comp_df.filter(pl.col("strand") == "+").drop("strand")
+
+    comps_by_peak = []
+    for p in tqdm(hits_by_peak, ncols=120, desc="Calling composite motif hits"):
+        p = p.lazy().with_columns(is_revcomp=pl.col("strand") == '-')
+        p_left = p.select(pl.all().name.suffix("_left"))
+        p_right = p.select(pl.all().name.suffix("_right"))
+        comps = (
+            p_left.join(p_right, how="cross")
+            .with_columns(
+                tol = (pl.col("start_right") - pl.col("end_left")).cast(pl.Int32),
+            )
+            # .filter((pl.col("tol") >= tol_min) & (pl.col("tol") < tol_max))
+            .join(
+                comp_df_lazy,
+                on=["motif_name_left", "motif_name_right", "strand_left", "strand_right", "tol"],
+                how="inner"
+            )
+            .select(
+                composite_name=pl.col("composite_name"),
+                strand=pl.col("strand"),
+                chr=pl.col("chr_left"),
+                start=pl.col("start_left"),
+                end=pl.col("end_right"),
+                peak_id=pl.col("peak_id_left"),
+                peak_name=pl.col("peak_name_left"),
+                start_left=pl.col("start_left"),
+                end_left=pl.col("end_left"),
+                start_untrimmed_left=pl.col("start_untrimmed_left"),
+                end_untrimmed_left=pl.col("end_untrimmed_left"),
+                motif_name_left=pl.col("motif_name_left"),
+                hit_coefficient_left=pl.col("hit_coefficient_left"),
+                hit_coefficient_global_left=pl.col("hit_coefficient_global_left"),
+                hit_correlation_left=pl.col("hit_correlation_left"),
+                hit_importance_left=pl.col("hit_importance_left"),
+                strand_left=pl.col("strand_left"),
+                start_right=pl.col("start_right"),
+                end_right=pl.col("end_right"),
+                start_untrimmed_right=pl.col("start_untrimmed_right"),
+                end_untrimmed_right=pl.col("end_untrimmed_right"),
+                motif_name_right=pl.col("motif_name_right"),
+                hit_coefficient_right=pl.col("hit_coefficient_right"),
+                hit_coefficient_global_right=pl.col("hit_coefficient_global_right"),
+                hit_correlation_right=pl.col("hit_correlation_right"),
+                hit_importance_right=pl.col("hit_importance_right"),
+            ).collect()
+        )
+        comps_by_peak.append(comps)
+
+    comp_hits_df = pl.concat(comps_by_peak)
+
+    return comp_df, comp_hits_df
 
 
 def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df, cwms_modisco, 
