@@ -552,3 +552,12 @@ def write_report_data(report_df, cwms, out_dir):
 
     report_df.write_csv(os.path.join(out_dir, "seqlet_report.tsv"), separator="\t")
 
+
+def write_composite_cwms(cwms, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
+
+    for m, v in cwms.items():
+        motif_dir = os.path.join(out_dir, m)
+        os.makedirs(motif_dir, exist_ok=True)
+        for cwm_type, cwm in v.items():
+            np.savetxt(os.path.join(motif_dir, f"{cwm_type}.txt"), cwm)

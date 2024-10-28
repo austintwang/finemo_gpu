@@ -129,37 +129,6 @@ def plot_peak_motif_indicator_heatmap(peak_hit_counts, motif_names, output_path)
     plt.close()
 
 
-def get_cwms(regions, positions_df, motif_width):
-    idx_df = (
-        positions_df
-        .select(
-            peak_idx=pl.col("peak_id"),
-            start_idx=pl.col("start_untrimmed") - pl.col("peak_region_start"),
-            is_revcomp=pl.col("is_revcomp")
-        )
-    )
-    peak_idx = idx_df.get_column('peak_idx').to_numpy()
-    start_idx = idx_df.get_column('start_idx').to_numpy()
-    is_revcomp = idx_df.get_column("is_revcomp").to_numpy().astype(bool)
-
-    row_idx = peak_idx[:,None,None]
-    pos_idx = start_idx[:,None,None] + np.zeros((1,1,motif_width), dtype=int)
-    pos_idx[~is_revcomp,:,:] += np.arange(motif_width)[None,None,:]
-    pos_idx[is_revcomp,:,:] += np.arange(motif_width)[None,None,::-1]
-    nuc_idx = np.zeros((peak_idx.shape[0],4,1), dtype=int)
-    nuc_idx[~is_revcomp,:,:] += np.arange(4)[None,:,None]
-    nuc_idx[is_revcomp,:,:] += np.arange(4)[None,::-1,None]
-
-    seqs = regions[row_idx, nuc_idx, pos_idx]
-    
-    with warnings.catch_warnings():
-        warnings.filterwarnings(action='ignore', message='invalid value encountered in divide')
-        warnings.filterwarnings(action='ignore', message='Mean of empty slice')
-        cwms = seqs.mean(axis=0)
-
-    return cwms
-
-
 def discover_composites(hits_df, motifs_df, motif_names, tol_min, tol_max, fdr_thresh, odds_thresh, counts_thresh, region_len, motif_width, num_regions):
     # hits_df = hits_df.head(10000) ####
     hits_df = hits_df.with_columns(pl.col("start").cast(pl.Int32), pl.col("end").cast(pl.Int32))
@@ -367,6 +336,37 @@ def discover_composites(hits_df, motifs_df, motif_names, tol_min, tol_max, fdr_t
     return comp_df, comp_hits_df
 
 
+def get_cwms(regions, positions_df, motif_width):
+    idx_df = (
+        positions_df
+        .select(
+            peak_idx=pl.col("peak_id"),
+            start_idx=pl.col("start_untrimmed") - pl.col("peak_region_start"),
+            is_revcomp=pl.col("is_revcomp")
+        )
+    )
+    peak_idx = idx_df.get_column('peak_idx').to_numpy()
+    start_idx = idx_df.get_column('start_idx').to_numpy()
+    is_revcomp = idx_df.get_column("is_revcomp").to_numpy().astype(bool)
+
+    row_idx = peak_idx[:,None,None]
+    pos_idx = start_idx[:,None,None] + np.zeros((1,1,motif_width), dtype=int)
+    pos_idx[~is_revcomp,:,:] += np.arange(motif_width)[None,None,:]
+    pos_idx[is_revcomp,:,:] += np.arange(motif_width)[None,None,::-1]
+    nuc_idx = np.zeros((peak_idx.shape[0],4,1), dtype=int)
+    nuc_idx[~is_revcomp,:,:] += np.arange(4)[None,:,None]
+    nuc_idx[is_revcomp,:,:] += np.arange(4)[None,::-1,None]
+
+    seqs = regions[row_idx, nuc_idx, pos_idx]
+    
+    with warnings.catch_warnings():
+        warnings.filterwarnings(action='ignore', message='invalid value encountered in divide')
+        warnings.filterwarnings(action='ignore', message='Mean of empty slice')
+        cwms = seqs.mean(axis=0)
+
+    return cwms
+
+
 def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df, cwms_modisco, 
                          motif_names, modisco_half_width, motif_width, compute_recall):
     hits_df = (
@@ -518,6 +518,69 @@ def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df, cwms
     return report_data, report_df, cwms, cwm_trim_bounds
 
 
+def get_composite_cwms(regions, comps_df, comp_hits_df, peaks_df):
+    region_len = regions.shape[2]
+    max_width = (
+        comp_hits_df
+        .select(motif_width=pl.col("end") - pl.col("start"))
+        .select(pl.max("motif_width"))
+        .item()
+    )
+
+    # print(comp_hits_df) ####
+
+    comp_hits_df = (
+        comp_hits_df
+        .lazy()
+        .with_columns(pl.col('peak_id').cast(pl.UInt32))
+        .join(
+            peaks_df.lazy(), on="peak_id", how="inner"
+        )
+        .select(
+            chr=pl.col("chr"),
+            start=pl.col("start"),
+            end=pl.col("end"),
+            is_revcomp=pl.col("strand") == '-',
+            is_revcomp_int=(pl.col("strand") == '-').cast(pl.Int32),
+            composite_name=pl.col("composite_name"),
+            peak_region_start=pl.col("peak_region_start"),
+            peak_id=pl.col("peak_id")
+        )
+        .with_columns(
+            start_untrimmed=(
+                (1 - pl.col("is_revcomp_int")) * (pl.col("start") - (pl.col("end") - pl.col("start") - max_width) // 2)
+                + pl.col("is_revcomp_int") * (pl.col("start") + (pl.col("end") - pl.col("start") - max_width) // -2)
+            ),
+            end_untrimmed=(
+                (1 - pl.col("is_revcomp_int")) * (pl.col("end") - (pl.col("end") - pl.col("start") - max_width) // -2)
+                + pl.col("is_revcomp_int") * (pl.col("end") + (pl.col("end") - pl.col("start") - max_width) // 2)
+            )
+        )
+        .filter(
+            ((pl.col("start_untrimmed") - pl.col("peak_region_start")) >= 0) 
+            & ((pl.col("start_untrimmed") - pl.col("peak_region_start") + max_width) < region_len)
+        )
+        .collect()
+    )
+
+    # print(comp_hits_df) ####
+
+    hits_by_composite_motif = comp_hits_df.partition_by("composite_name", as_dict=True)
+    cwms = {}
+
+    for m, v in hits_by_composite_motif.items():
+        cwms_fc = get_cwms(regions, v, max_width)
+        cwms_rc = cwms_fc[::-1,::-1]
+        cwms[m] = {
+            "fc": cwms_fc,
+            "rc": cwms_rc,
+        }
+
+    # print(cwms) ####
+
+    return cwms
+
+
 class LogoGlyph(AbstractPathEffect):
     def __init__(self, glyph, ref_glyph='E', font_props=None,
                  offset=(0., 0.), **kwargs):
@@ -600,7 +663,12 @@ def plot_cwms(cwms, trim_bounds, out_dir, alphabet=LOGO_ALPHABET, colors=LOGO_CO
 
             fig, ax = plt.subplots(figsize=(10,2))
 
-            plot_logo(ax, cwm, alphabet, colors=colors, font_props=font, shade_bounds=trim_bounds[m][cwm_type])
+            if trim_bounds is not None:
+                shade_bounds = trim_bounds[m][cwm_type]
+            else:
+                shade_bounds = None
+
+            plot_logo(ax, cwm, alphabet, colors=colors, font_props=font, shade_bounds=shade_bounds)
 
             for name, spine in ax.spines.items():
                 spine.set_visible(False)
@@ -637,11 +705,15 @@ def plot_hit_vs_seqlet_counts(recall_data, output_path):
     plt.close()
 
 
-def write_report(report_df, motif_names, out_path, compute_recall, use_seqlets):
+def write_report(report_df, motif_names, out_path, compute_recall, use_seqlets, composites_df):
     template_str = importlib.resources.files(templates).joinpath('report.html').read_text()
     template = Template(template_str)
+    if composites_df is not None:
+        composites_data = composites_df.iter_rows(named=True)
+    else:
+        composites_data = None
     report = template.render(report_data=report_df.iter_rows(named=True), 
-                             motif_names=motif_names, compute_recall=compute_recall, use_seqlets=use_seqlets)
+                             motif_names=motif_names, compute_recall=compute_recall, use_seqlets=use_seqlets, composites_data=composites_data)
     with open(out_path, "w") as f:
         f.write(report)
 

@@ -150,7 +150,7 @@ def composites(hits_dir, out_dir, tol_min, tol_max, fdr_thresh, odds_thresh, cou
     data_io.write_tsv(comp_hits_df, hits_path)
 
 
-def report(regions_path, hits_path, modisco_h5_path, peaks_path, motifs_include_path, motif_names_path, 
+def report(regions_path, hits_path, modisco_h5_path, peaks_path, motifs_include_path, motif_names_path, composites_dir,
            out_dir, modisco_region_width, cwm_trim_threshold, compute_recall, use_seqlets):
     from . import evaluation
 
@@ -180,6 +180,15 @@ def report(regions_path, hits_path, modisco_h5_path, peaks_path, motifs_include_
     else:
         motif_name_map = None
 
+    if composites_dir is not None:
+        composite_motifs_path = os.path.join(composites_dir, "composite_motifs.tsv")
+        composite_hits_path = os.path.join(composites_dir, "composite_hits.tsv")
+        comps_df = data_io.load_tsv(composite_motifs_path)
+        comp_hits_df = data_io.load_tsv(composite_hits_path)
+        report_composites = True
+    else:
+        report_composites = False
+
     motifs_df, cwms_modisco, trim_masks, motif_names = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, "cwm", 
                                                                                    motifs_include, motif_name_map, None, None, True)
     motif_width = cwms_modisco.shape[2]
@@ -189,6 +198,9 @@ def report(regions_path, hits_path, modisco_h5_path, peaks_path, motifs_include_
     report_data, report_df, cwms, trim_bounds = evaluation.tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df,
                                                                                 cwms_modisco, motif_names, modisco_half_width, 
                                                                                 motif_width, compute_recall)
+
+    if report_composites:
+        composite_cwms = evaluation.get_composite_cwms(regions, comps_df, comp_hits_df, peaks_df)
     
     os.makedirs(out_dir, exist_ok=True)
     
@@ -197,20 +209,28 @@ def report(regions_path, hits_path, modisco_h5_path, peaks_path, motifs_include_
 
     data_io.write_report_data(report_df, cwms, out_dir)
 
+    if report_composites:
+        composites_dir = os.path.join(out_dir, "composite_CWMs")
+        data_io.write_composite_cwms(composite_cwms, composites_dir)
+
     evaluation.plot_hit_distributions(occ_df, motif_names, out_dir)
 
-    coooc_path = os.path.join(out_dir, "motif_cooocurrence.png")
-    evaluation.plot_peak_motif_indicator_heatmap(coooc, motif_names, coooc_path)
+    # coooc_path = os.path.join(out_dir, "motif_cooocurrence.png")
+    # evaluation.plot_peak_motif_indicator_heatmap(coooc, motif_names, coooc_path)
 
     plot_dir = os.path.join(out_dir, "CWMs")
     evaluation.plot_cwms(cwms, trim_bounds, plot_dir)
+
+    if report_composites:
+        plot_dir = os.path.join(out_dir, "composite_CWMs")
+        evaluation.plot_cwms(composite_cwms, None, plot_dir)
 
     if use_seqlets:
         plot_path = os.path.join(out_dir, "hit_vs_seqlet_counts.png")
         evaluation.plot_hit_vs_seqlet_counts(report_data, plot_path)
 
     report_path = os.path.join(out_dir, "report.html")
-    evaluation.write_report(report_df, motif_names, report_path, compute_recall, use_seqlets)
+    evaluation.write_report(report_df, motif_names, report_path, compute_recall, use_seqlets, comps_df)
 
 
 def cli():
@@ -376,6 +396,8 @@ def cli():
         help="A tab-delimited file with tfmodisco motif names (e.g pos_patterns.pattern_0) in the first column to include in the report. If omitted, all motifs in the modisco H5 file are used.")
     report_parser.add_argument("-N", "--motif-names", type=str, default=None,
         help="A tab-delimited file with tfmodisco motif names (e.g pos_patterns.pattern_0) in the first column and custom names in the second column. Omitted motifs default to tfmodisco names.")
+    report_parser.add_argument("-C", "--composites-dir", type=str, default=None,
+        help="The output directory from the `finemo composites` command. If provided, composite motifs will be included in the report.")
 
     report_parser.add_argument("-o", "--out-dir", type=str, required=True,
         help="The path to the output directory.")
@@ -422,5 +444,5 @@ def cli():
             raise ValueError("The `--no-seqlets` flag must be set in conjunction with `--no-recall`.")
         
         report(args.regions, args.hits, args.modisco_h5, args.peaks, args.motifs_include, 
-               args.motif_names, args.out_dir, args.modisco_region_width, args.cwm_trim_threshold, 
-               not args.no_recall, not args.no_seqlets)
+               args.motif_names, args.composites_dir, args.out_dir, args.modisco_region_width, 
+               args.cwm_trim_threshold, not args.no_recall, not args.no_seqlets)

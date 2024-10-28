@@ -309,13 +309,13 @@
             <td class="num_col">{{ item.num_seqlets_only }}</td>
             <td class="num_col">{{ item.num_hits_restricted_only }}</td>
             {% endif %}
-            <td class="cwm"><img src="CWMs/{{ item.motif_name }}/hits_fc.png" width="360"></td>
-            <td class="cwm"><img src="CWMs/{{ item.motif_name }}/hits_rc.png" width="360"></td>
-            <td class="cwm"><img src="CWMs/{{ item.motif_name }}/modisco_fc.png" width="360"></td>
-            <td class="cwm"><img src="CWMs/{{ item.motif_name }}/modisco_rc.png" width="360"></td>
+            <td class="cwm"><img src="CWMs/{{ item.motif_name|e }}/hits_fc.png" width="360"></td>
+            <td class="cwm"><img src="CWMs/{{ item.motif_name|e }}/hits_rc.png" width="360"></td>
+            <td class="cwm"><img src="CWMs/{{ item.motif_name|e }}/modisco_fc.png" width="360"></td>
+            <td class="cwm"><img src="CWMs/{{ item.motif_name|e }}/modisco_rc.png" width="360"></td>
             {% if compute_recall %}
-            <td class="cwm"><img src="CWMs/{{ item.motif_name }}/seqlets_only.png" width="360"></td>
-            <td class="cwm"><img src="CWMs/{{ item.motif_name }}/hits_restricted_only.png" width="360"></td>
+            <td class="cwm"><img src="CWMs/{{ item.motif_name|e }}/seqlets_only.png" width="360"></td>
+            <td class="cwm"><img src="CWMs/{{ item.motif_name|e }}/hits_restricted_only.png" width="360"></td>
             {% endif %}
         </tr>
         {% endfor %}
@@ -349,19 +349,90 @@
         {% for m in motif_names %}
         <tr>
             <td><code>{{ m }}</code></td>
-            <td class="distplot"><img src="motif_hit_distributions/{{ m }}.png" width="480"></td>
+            <td class="distplot"><img src="motif_hit_distributions/{{ m|e }}.png" width="480"></td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
 
-<h3>Motif co-occurrence</h3>
+<h2>Motif cooperativity</h2>
 <p>
-    This heatmap shows the co-occurrence of motifs across peaks.
+    The following figures and statistics examine the co-occurrence of motifs across peaks.
+
+
+<!-- <h3>Peak-level motif co-occurrence</h3>
+<p>
+    This heatmap shows the peak-level co-occurrence of motifs across peaks.
     The color intensity here represents the pearson correlation between the motifs' occurrence across peaks,
     where occurence is defined as the presence of a hit for a motif in a peak.
 </p>
-<img src="motif_cooocurrence.png" width="780">
+<img src="motif_cooocurrence.png" width="780"> -->
+
+{% if composites_data %}
+<h3>Composite motif discovery</h3>
+<p>
+    The following table shows the composite motifs discovered by <code> finemo composites </code>.
+    Composite motifs are pairs of motifs that co-occur more frequently than expected by chance at a fixed spacing.
+</p>
+<p>
+    The table shows the following statistics for each composite motif:
+</p>
+<ul>
+    <li><strong>Composite Motif Name</strong>: The name of the composite motif</li>
+    <li><strong>Left Motif Name</strong>: The name of the left motif in the composite</li>
+    <li><strong>Left Motif Orientation</strong>: The orientation of the left motif in the composite</li>
+    <li><strong>Right Motif Name</strong>: The name of the right motif in the composite</li>
+    <li><strong>Right Motif Orientation</strong>: The orientation of the right motif in the composite</li>
+    <li><strong>Gap Length</strong>: The spacing between the left and right motifs</li>
+    <li><strong>Hits</strong>: The number of hits for the composite motif</li>
+    <li><strong>Expected Hits</strong>: The expected number of hits by chance for the composite motif given each constituent's hit frequency</li>
+    <li><strong>Odds Ratio</strong>: The ratio of hits over expected hits</li>
+    <li><strong>P-value</strong>: The p-value of the composite motif as determined by a binomial test</li>
+    <li><strong>Q-value</strong>: The q-value of the composite motif computed using the BH procedure</li>
+    <li><strong>Composite CWM (FC)</strong>: The forward-strand CWM of the composite motif</li>
+    <li><strong>Composite CWM (RC)</strong>: The reverse-strand CWM of the composite motif</li>
+</ul>
+
+<table class="wide_table"></table>
+    <thead>
+        <tr>
+            <th>Composite Motif Name</th>
+            <th>Left Motif Name</th>
+            <th>Left Motif Orientation</th>
+            <th>Right Motif Name</th>
+            <th>Right Motif Orientation</th>
+            <th class="num_col">Gap Length</th>
+            <th class="num_col">Hits</th>
+            <th class="num_col">Expected Hits</th>
+            <th class="num_col">Odds Ratio</th>
+            <th class="num_col">P-value</th>
+            <th class="num_col">Q-value</th>
+            <th class="cwm">Composite CWM (FC)</th>
+            <th class="cwm">Composite CWM (RC)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in composites_data %}
+        <tr>
+            <td><code>{{ item.composite_name }}</code></td>
+            <td><code>{{ item.motif_name_left }}</code></td>
+            <td>{{ item.strand_left }}</td>
+            <td><code>{{ item.motif_name_right }}</code></td>
+            <td>{{ item.strand_right }}</td>
+            <td class="num_col">{{ item.tol }}</td>
+            <td class="num_col">{{ item.counts }}</td>
+            <td class="num_col">{{ item.counts_exp }}</td>
+            <td class="num_col">{{ item.odds_ratio }}</td>
+            <td class="num_col">{{ item.pval }}</td>
+            <td class="num_col">{{ item.qval }}</td>
+            <td class="cwm"><img src="composite_CWMs/{{ item.composite_name|e }}/fc.png" width="480"></td>
+            <td class="cwm"><img src="composite_CWMs/{{ item.composite_name|e }}/rc.png" width="480"></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
 
 </body>
 </html>
