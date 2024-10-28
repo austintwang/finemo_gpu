@@ -347,10 +347,10 @@ def load_modisco_seqlets(modisco_h5_path, peaks_df, half_width, modisco_half_wid
             for ind, (pattern_name, pattern) in enumerate(sorted(metacluster.items(), key=key)):
                 pattern_tag = f'{name}.{pattern_name}'
 
-                starts = pattern['seqlets/start'][:].astype(np.uint32)
-                ends = pattern['seqlets/end'][:].astype(np.uint32)
+                starts = pattern['seqlets/start'][:]
+                ends = pattern['seqlets/end'][:]
                 is_revcomps = pattern['seqlets/is_revcomp'][:]
-                peak_ids = pattern['seqlets/example_idx'][:].astype(np.uint32)
+                peak_ids = pattern['seqlets/example_idx'][:]
 
                 n_seqlets = int(pattern['seqlets/n_seqlets'][0])
 
@@ -361,10 +361,10 @@ def load_modisco_seqlets(modisco_h5_path, peaks_df, half_width, modisco_half_wid
                 pattern_tags.extend([pattern_tag for _ in range(n_seqlets)])
 
     df_data = {
-        "seqlet_start": np.concatenate(start_lst),
-        "seqlet_end": np.concatenate(end_lst),
-        "is_revcomp": np.concatenate(is_revcomp_lst),
-        "peak_id": np.concatenate(peak_id_lst),
+        "seqlet_start": np.concatenate(start_lst, dtype=np.uint32),
+        "seqlet_end": np.concatenate(end_lst, dtype=np.uint32),
+        "is_revcomp": np.concatenate(is_revcomp_lst, dtype=bool),
+        "peak_id": np.concatenate(peak_id_lst, dtype=np.uint32),
         "motif_name": pattern_tags,
     }
     
