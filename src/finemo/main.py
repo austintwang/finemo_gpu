@@ -149,12 +149,13 @@ def report(regions_path, hits_path, modisco_h5_path, peaks_path, motifs_include_
         motifs_include = None
 
     if motif_names_path is not None:
-        motif_name_map = data_io.load_txt(motif_names_path)
+        motif_name_map = data_io.load_mapping(motif_names_path, str)
     else:
         motif_name_map = None
 
     motifs_df, cwms_modisco, trim_masks, motif_names = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, "cwm", 
                                                                                    motifs_include, motif_name_map, None, None, True)
+
     motif_width = cwms_modisco.shape[2]
 
     occ_df, coooc = evaluation.get_motif_occurences(hits_df, motif_names)
