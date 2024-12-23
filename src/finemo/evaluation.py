@@ -167,7 +167,7 @@ def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df, cwms
             peaks_df.lazy(), on="peak_id", how="inner"
         )
         .select(
-            chr=pl.col("chr"),
+            chr_id=pl.col("chr_id"),
             start_untrimmed=pl.col("start_untrimmed"),
             end_untrimmed=pl.col("end_untrimmed"),
             is_revcomp=pl.col("strand") == '-',
@@ -177,7 +177,7 @@ def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df, cwms
         )
     )
 
-    hits_unique = hits_df.unique(subset=["chr", "start_untrimmed", "motif_name", "is_revcomp"])
+    hits_unique = hits_df.unique(subset=["chr_id", "start_untrimmed", "motif_name", "is_revcomp"])
     
     region_len = regions.shape[2]
     center = region_len / 2
@@ -187,14 +187,14 @@ def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df, cwms
             ((pl.col("start_untrimmed") - pl.col("peak_region_start")) >= (center - modisco_half_width)) 
             & ((pl.col("end_untrimmed") - pl.col("peak_region_start")) <= (center + modisco_half_width))
         )
-        .unique(subset=["chr", "start_untrimmed", "motif_name", "is_revcomp"])
+        .unique(subset=["chr_id", "start_untrimmed", "motif_name", "is_revcomp"])
     )
     
     if compute_recall:
         overlaps_df = (
             hits_filtered.join(
                 seqlets_df, 
-                on=["chr", "start_untrimmed", "is_revcomp", "motif_name"],
+                on=["chr_id", "start_untrimmed", "is_revcomp", "motif_name"],
                 how="inner",
             )
             .collect()
@@ -203,7 +203,7 @@ def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df, cwms
         seqlets_only_df = (
             seqlets_df.join(
                 hits_df, 
-                on=["chr", "start_untrimmed", "is_revcomp", "motif_name"],
+                on=["chr_id", "start_untrimmed", "is_revcomp", "motif_name"],
                 how="anti",
             )
             .collect()
@@ -212,7 +212,7 @@ def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df, cwms
         hits_only_filtered_df = (
             hits_filtered.join(
                 seqlets_df, 
-                on=["chr", "start_untrimmed", "is_revcomp", "motif_name"],
+                on=["chr_id", "start_untrimmed", "is_revcomp", "motif_name"],
                 how="anti",
             )
             .collect()
@@ -234,16 +234,16 @@ def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df, cwms
     cwm_trim_bounds = {}
     dummy_df = hits_df.clear().collect()
     for m in motif_names:
-        hits = hits_by_motif.get(m, dummy_df)
-        hits_filtered = hits_fitered_by_motif.get(m, dummy_df)
+        hits = hits_by_motif.get((m,), dummy_df)
+        hits_filtered = hits_fitered_by_motif.get((m,), dummy_df)
 
         if seqlets_df is not None:
-            seqlets = seqlets_by_motif.get(m, dummy_df)
+            seqlets = seqlets_by_motif.get((m,), dummy_df)
 
         if compute_recall:
-            overlaps = overlaps_by_motif.get(m, dummy_df)
-            seqlets_only = seqlets_only_by_motif.get(m, dummy_df)
-            hits_only_filtered = hits_only_filtered_by_motif.get(m, dummy_df)
+            overlaps = overlaps_by_motif.get((m,), dummy_df)
+            seqlets_only = seqlets_only_by_motif.get((m,), dummy_df)
+            hits_only_filtered = hits_only_filtered_by_motif.get((m,), dummy_df)
 
         report_data[m] = {
             "num_hits_total": hits.height,
@@ -262,9 +262,9 @@ def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df, cwms
             }
 
         motif_data_fc = motifs_df.row(by_predicate=(pl.col("motif_name") == m) 
-                                      & (pl.col("motif_strand") == "+"), named=True)
+                                      & (pl.col("strand") == "+"), named=True)
         motif_data_rc = motifs_df.row(by_predicate=(pl.col("motif_name") == m) 
-                                      & (pl.col("motif_strand") == "-"), named=True)
+                                      & (pl.col("strand") == "-"), named=True)
 
         cwms[m] = {
             "hits_fc": get_cwms(regions, hits, motif_width),

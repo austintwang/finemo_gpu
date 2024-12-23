@@ -2,66 +2,83 @@ from . import data_io
 
 import os
 import argparse
+import warnings
 
 
-def extract_regions_bw(peaks_path, fa_path, bw_paths, out_path, region_width):
+def extract_regions_bw(peaks_path, chrom_order_path, fa_path, bw_paths, out_path, region_width):
     half_width = region_width // 2
 
-    peaks_df = data_io.load_peaks(peaks_path, None, half_width)
+    peaks_df = data_io.load_peaks(peaks_path, chrom_order_path, half_width)
     sequences, contribs = data_io.load_regions_from_bw(peaks_df, fa_path, bw_paths, half_width)
 
-    data_io.write_regions_npz(sequences, contribs, out_path)
+    data_io.write_regions_npz(sequences, contribs, out_path, peaks_df=peaks_df)
 
 
-def extract_regions_chrombpnet_h5(h5_paths, out_path, region_width):
+def extract_regions_chrombpnet_h5(peaks_path, chrom_order_path, h5_paths, out_path, region_width):
     half_width = region_width // 2
+
+    if peaks_path is not None:
+        peaks_df = data_io.load_peaks(peaks_path, chrom_order_path, half_width)
+    else:
+        peaks_df = None
 
     sequences, contribs = data_io.load_regions_from_chrombpnet_h5(h5_paths, half_width)
 
-    data_io.write_regions_npz(sequences, contribs, out_path)
+    data_io.write_regions_npz(sequences, contribs, out_path, peaks_df=peaks_df)
 
 
-def extract_regions_bpnet_h5(h5_paths, out_path, region_width):
+def extract_regions_bpnet_h5(peaks_path, chrom_order_path, h5_paths, out_path, region_width):
     half_width = region_width // 2
+
+    if peaks_path is not None:
+        peaks_df = data_io.load_peaks(peaks_path, chrom_order_path, half_width)
+    else:
+        peaks_df = None
 
     sequences, contribs = data_io.load_regions_from_bpnet_h5(h5_paths, half_width)
 
-    data_io.write_regions_npz(sequences, contribs, out_path)
+    data_io.write_regions_npz(sequences, contribs, out_path, peaks_df=peaks_df)
 
 
-def extract_regions_modisco_fmt(shaps_paths, ohe_path, out_path, region_width):
+def extract_regions_modisco_fmt(peaks_path, chrom_order_path, shaps_paths, ohe_path, out_path, region_width):
     half_width = region_width // 2
+
+    if peaks_path is not None:
+        peaks_df = data_io.load_peaks(peaks_path, chrom_order_path, half_width)
+    else:
+        peaks_df = None
 
     sequences, contribs = data_io.load_regions_from_modisco_fmt(shaps_paths, ohe_path, half_width)
 
-    data_io.write_regions_npz(sequences, contribs, out_path)
+    data_io.write_regions_npz(sequences, contribs, out_path, peaks_df=peaks_df)
 
 
 def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motifs_include_path, motif_names_path, 
-              motif_alphas_path, out_dir, cwm_trim_threshold, alpha_default, step_size_max, step_size_min, 
+              motif_lambdas_path, out_dir, cwm_trim_threshold, lambda_default, step_size_max, step_size_min, 
               convergence_tol, max_steps, batch_size, step_adjust, device, mode, no_post_filter, compile_optimizer):
     
     params = locals()
-    import numpy as np
     from . import hitcaller
+
+    if device is not None:
+        warnings.warn("The `--device` flag is deprecated and will be removed in a future version. Please use the `CUDA_VISIBLE_DEVICES` environment variable to specify the GPU device.")
     
-    sequences, contribs = data_io.load_regions_npz(regions_path)
+    sequences, contribs, peaks_df, has_peaks = data_io.load_regions_npz(regions_path)
 
     region_width = sequences.shape[2]
     if region_width % 2 != 0:
         raise ValueError(f"Region width of {region_width} is not divisible by 2.")
     
     half_width = region_width // 2
+    num_regions = contribs.shape[0]
 
     if peaks_path is not None:
+        warnings.warn("Providing a peaks file to `call-hits` is deprecated, and this option will be removed in a future version. Peaks should instead be provided in the preprocessing step to be included in `regions.npz`.")
         peaks_df = data_io.load_peaks(peaks_path, chrom_order_path, half_width)
-        num_regions = peaks_df.height
-        if (num_regions != sequences.shape[0]) or (num_regions != contribs.shape[0]):
-            raise ValueError(f"Input sequences of shape {sequences.shape} and/or " 
-                            f"input contributions of shape {contribs.shape} "
-                            f"are not compatible with region count of {num_regions}" )
-    else:
-        num_regions = contribs.shape[0]
+        has_peaks = True
+
+    if not has_peaks:
+        warnings.warn("No peak region data provided. Output hits will lack absolute genomic coordinates.")
 
     if mode == "pp":
         motif_type = "cwm"
@@ -86,31 +103,30 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motif
     else:
         motif_name_map = None
 
-    if motif_alphas_path is not None:
-        motif_alphas = data_io.load_mapping(motif_alphas_path, float)
+    if motif_lambdas_path is not None:
+        motif_lambdas = data_io.load_mapping(motif_lambdas_path, float)
     else:
-        motif_alphas = None
+        motif_lambdas = None
     
     motifs_df, cwms, trim_masks, motif_names = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, motif_type, motifs_include, 
-                                                                           motif_name_map, motif_alphas, alpha_default, True)
+                                                                           motif_name_map, motif_lambdas, lambda_default, True)
     num_motifs = cwms.shape[0]
     motif_width = cwms.shape[2]
-    alphas = motifs_df.get_column("alpha").to_numpy(writable=True)
+    lambdas = motifs_df.get_column("lambda").to_numpy(writable=True)
 
-    hits_df, qc_df = hitcaller.fit_contribs(cwms, contribs, sequences, trim_masks, use_hypothetical_contribs, alphas, step_size_max, step_size_min, 
+    hits_df, qc_df = hitcaller.fit_contribs(cwms, contribs, sequences, trim_masks, use_hypothetical_contribs, lambdas, step_size_max, step_size_min, 
                                             convergence_tol, max_steps, batch_size, step_adjust, not no_post_filter, device, compile_optimizer)
 
     os.makedirs(out_dir, exist_ok=True)
     out_path_qc = os.path.join(out_dir, "peaks_qc.tsv")
-    if peaks_path is not None:
-        data_io.write_hits(hits_df, peaks_df, motifs_df, qc_df, out_dir, motif_width)
-        data_io.write_qc(qc_df, peaks_df, out_path_qc)
-    else:
-        data_io.write_hits_no_peaks(hits_df, motifs_df, qc_df, out_dir, motif_width)
-        data_io.write_qc_no_peaks(qc_df, out_path_qc)
+    data_io.write_hits(hits_df, peaks_df, motifs_df, qc_df, out_dir, motif_width)
+    data_io.write_qc(qc_df, peaks_df, out_path_qc)
 
-    out_path_motifs = os.path.join(out_dir, "motif_data.tsv")
-    data_io.write_motifs(motifs_df, out_path_motifs)
+    out_path_motif_df = os.path.join(out_dir, "motif_data.tsv")
+    data_io.write_motifs_df(motifs_df, out_path_motif_df)
+
+    out_path_motif_cwms = os.path.join(out_dir, "motif_cwms.npy")
+    data_io.write_motif_cwms(cwms, out_path_motif_cwms)
 
     params |= {
         "region_width": region_width,
@@ -123,11 +139,11 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motif
     data_io.write_params(params, out_path_params)
 
 
-def report(regions_path, hits_path, modisco_h5_path, peaks_path, motifs_include_path, motif_names_path, 
+def report(regions_path, hits_dir, modisco_h5_path, peaks_path, motifs_include_path, motif_names_path, 
            out_dir, modisco_region_width, cwm_trim_threshold, compute_recall, use_seqlets):
-    from . import evaluation
+    from . import evaluation        
 
-    sequences, contribs = data_io.load_regions_npz(regions_path)
+    sequences, contribs, peaks_df, _ = data_io.load_regions_npz(regions_path)
     if len(contribs.shape) == 3:
         regions = contribs * sequences
     elif len(contribs.shape) == 2:
@@ -135,26 +151,54 @@ def report(regions_path, hits_path, modisco_h5_path, peaks_path, motifs_include_
 
     half_width = regions.shape[2] // 2
     modisco_half_width = modisco_region_width // 2
-    peaks_df = data_io.load_peaks(peaks_path, None, half_width)
-    hits_df = data_io.load_hits(hits_path, lazy=True)
 
-    if use_seqlets:
-        seqlets_df = data_io.load_modisco_seqlets(modisco_h5_path, peaks_df, half_width, modisco_half_width, lazy=True)
+    if peaks_path is not None:
+        warnings.warn("Providing a peaks file to `report` is deprecated, and this option will be removed in a future version. Peaks should instead be provided in the preprocessing step to be included in `regions.npz`.")
+        peaks_df = data_io.load_peaks(peaks_path, None, half_width)    
+
+    if hits_dir.endswith(".tsv"):
+        warnings.warn("Passing a hits.tsv file to `finemo report` is deprecated. Please provide the directory containing the hits.tsv file instead.")
+
+        hits_path = hits_dir
+    
+        hits_df = data_io.load_hits(hits_path, lazy=True)
+
+        if motifs_include_path is not None:
+            motifs_include = data_io.load_txt(motifs_include_path)
+        else:
+            motifs_include = None
+
+        if motif_names_path is not None:
+            motif_name_map = data_io.load_txt(motif_names_path)
+        else:
+            motif_name_map = None
+
+        motifs_df, cwms_modisco, trim_masks, motif_names = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, "cwm", 
+                                                                                    motifs_include, motif_name_map, None, None, True)
+
     else:
+        hits_df_path = os.path.join(hits_dir, "hits.tsv")
+        hits_df = data_io.load_hits(hits_df_path, lazy=True)
+
+        motifs_df_path = os.path.join(hits_dir, "motif_data.tsv")
+        motifs_df, motif_names = data_io.load_motifs_df(motifs_df_path)
+
+        cwms_modisco_path = os.path.join(hits_dir, "motif_cwms.npy")
+        cwms_modisco = data_io.load_motif_cwms(cwms_modisco_path)
+
+        params_path = os.path.join(hits_dir, "parameters.json")
+        params = data_io.load_params(params_path)
+        cwm_trim_threshold = params["cwm_trim_threshold"]
+
+    if not use_seqlets:
+        warnings.warn("Usage of the `--no-seqlets` flag is deprecated and will be removed in a future version. Please omit the `--modisco-h5` argument instead.")
         seqlets_df = None
-
-    if motifs_include_path is not None:
-        motifs_include = data_io.load_txt(motifs_include_path)
+    elif modisco_h5_path is None:
+        compute_recall = False
+        seqlets_df = None
     else:
-        motifs_include = None
+        seqlets_df = data_io.load_modisco_seqlets(modisco_h5_path, peaks_df, motifs_df, half_width, modisco_half_width, lazy=True)
 
-    if motif_names_path is not None:
-        motif_name_map = data_io.load_txt(motif_names_path)
-    else:
-        motif_name_map = None
-
-    motifs_df, cwms_modisco, trim_masks, motif_names = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, "cwm", 
-                                                                                   motifs_include, motif_name_map, None, None, True)
     motif_width = cwms_modisco.shape[2]
 
     occ_df, coooc = evaluation.get_motif_occurences(hits_df, motif_names)
@@ -178,12 +222,16 @@ def report(regions_path, hits_path, modisco_h5_path, peaks_path, motifs_include_
     plot_dir = os.path.join(out_dir, "CWMs")
     evaluation.plot_cwms(cwms, trim_bounds, plot_dir)
 
-    if use_seqlets:
+    if seqlets_df is not None:
+        seqlets_df = seqlets_df.collect()
+        seqlets_path = os.path.join(out_dir, "seqlets.tsv")
+        data_io.write_modisco_seqlets(seqlets_df, seqlets_path)
+
         plot_path = os.path.join(out_dir, "hit_vs_seqlet_counts.png")
         evaluation.plot_hit_vs_seqlet_counts(report_data, plot_path)
 
     report_path = os.path.join(out_dir, "report.html")
-    evaluation.write_report(report_df, motif_names, report_path, compute_recall, use_seqlets)
+    evaluation.write_report(report_df, motif_names, report_path, compute_recall, seqlets_df is not None)
 
 
 def cli():
@@ -196,6 +244,8 @@ def cli():
     
     extract_regions_bw_parser.add_argument("-p", "--peaks", type=str, required=True,
         help="A peak regions file in ENCODE NarrowPeak format.")
+    extract_regions_bw_parser.add_argument("-C", "--chrom-order", type=str, default=None,
+        help="A tab-delimited file with chromosome names in the first column to define sort order of chromosomes. Missing chromosomes are ordered as they appear in -p/--peaks.")
     extract_regions_bw_parser.add_argument("-f", "--fasta", type=str, required=True,
         help="A genome FASTA file. If an .fai index file doesn't exist in the same directory, it will be created.")
     extract_regions_bw_parser.add_argument("-b", "--bigwigs", type=str, required=True, nargs='+',
@@ -210,7 +260,12 @@ def cli():
 
     extract_chrombpnet_regions_h5_parser = subparsers.add_parser("extract-regions-chrombpnet-h5", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
         help="Extract sequences and contributions from ChromBPNet contributions H5 files.")
-    
+
+    extract_chrombpnet_regions_h5_parser.add_argument("-p", "--peaks", type=str, default=None,
+        help="A peak regions file in ENCODE NarrowPeak format. If omitted, downstream outputs will lack absolute genomic coordinates.")
+    extract_chrombpnet_regions_h5_parser.add_argument("-C", "--chrom-order", type=str, default=None,
+        help="A tab-delimited file with chromosome names in the first column to define sort order of chromosomes. Missing chromosomes are ordered as they appear in -p/--peaks.")
+
     extract_chrombpnet_regions_h5_parser.add_argument("-c", "--h5s", type=str, required=True, nargs='+',
         help="One or more H5 files of contribution scores, with paths delimited by whitespace. Scores are averaged across files.")
     
@@ -223,7 +278,12 @@ def cli():
     
     extract_regions_h5_parser = subparsers.add_parser("extract-regions-h5", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
         help="Extract sequences and contributions from ChromBPNet contributions H5 files. DEPRECATED: Use `extract-regions-chrombpnet-h5` instead.")
-    
+
+    extract_regions_h5_parser.add_argument("-p", "--peaks", type=str, default=None,
+        help="A peak regions file in ENCODE NarrowPeak format. If omitted, downstream outputs will lack absolute genomic coordinates.")
+    extract_regions_h5_parser.add_argument("-C", "--chrom-order", type=str, default=None,
+        help="A tab-delimited file with chromosome names in the first column to define sort order of chromosomes. Missing chromosomes are ordered as they appear in -p/--peaks.")
+
     extract_regions_h5_parser.add_argument("-c", "--h5s", type=str, required=True, nargs='+',
         help="One or more H5 files of contribution scores, with paths delimited by whitespace. Scores are averaged across files.")
     
@@ -237,6 +297,11 @@ def cli():
     extract_bpnet_regions_h5_parser = subparsers.add_parser("extract-regions-bpnet-h5", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
         help="Extract sequences and contributions from BPNet contributions H5 files.")
     
+    extract_bpnet_regions_h5_parser.add_argument("-p", "--peaks", type=str, default=None,
+        help="A peak regions file in ENCODE NarrowPeak format. If omitted, downstream outputs will lack absolute genomic coordinates.")
+    extract_bpnet_regions_h5_parser.add_argument("-C", "--chrom-order", type=str, default=None,
+        help="A tab-delimited file with chromosome names in the first column to define sort order of chromosomes. Missing chromosomes are ordered as they appear in -p/--peaks.")
+    
     extract_bpnet_regions_h5_parser.add_argument("-c", "--h5s", type=str, required=True, nargs='+',
         help="One or more H5 files of contribution scores, with paths delimited by whitespace. Scores are averaged across files.")
     
@@ -249,7 +314,12 @@ def cli():
 
     extract_regions_modisco_fmt_parser = subparsers.add_parser("extract-regions-modisco-fmt", formatter_class=argparse.ArgumentDefaultsHelpFormatter, 
         help="Extract sequences and contributions from tfmodisco-lite input files.")
-    
+
+    extract_regions_modisco_fmt_parser.add_argument("-p", "--peaks", type=str, default=None,
+        help="A peak regions file in ENCODE NarrowPeak format. If omitted, downstream outputs will lack absolute genomic coordinates.")
+    extract_regions_modisco_fmt_parser.add_argument("-C", "--chrom-order", type=str, default=None,
+        help="A tab-delimited file with chromosome names in the first column to define sort order of chromosomes. Missing chromosomes are ordered as they appear in -p/--peaks.")
+
     extract_regions_modisco_fmt_parser.add_argument("-s", "--sequences", type=str, required=True,
         help="A .npy or .npz file containing one-hot encoded sequences.")
     
@@ -270,14 +340,15 @@ def cli():
         help="The type of attributions to use for CWM's and input contribution scores, respectively. 'h' for hypothetical and 'p' for projected.")
 
     call_hits_parser.add_argument("-r", "--regions", type=str, required=True,
-        help="A .npz file of input sequences and contributions. Can be generated using `finemo extract-regions-*` subcommands.")
+        help="A .npz file of input sequences, contributions, and coordinates. Can be generated using `finemo extract-regions-*` subcommands.")
     call_hits_parser.add_argument("-m", "--modisco-h5", type=str, required=True,
         help="A tfmodisco-lite output H5 file of motif patterns.")
     
     call_hits_parser.add_argument("-p", "--peaks", type=str, default=None,
-        help="A peak regions file in ENCODE NarrowPeak format, exactly matching the regions specified in `--regions`. If omitted, outputs will lack absolute genomic coordinates.")
+        help="DEPRECATED: Please provide this file to a preprocessing `finemo extract-regions-*` subcommand instead.")
     call_hits_parser.add_argument("-C", "--chrom-order", type=str, default=None,
-        help="A tab-delimited file with chromosome names in the first column to define sort order of chromosomes. Missing chromosomes are ordered as they appear in -p/--peaks.")
+        help="DEPRECATED: Please provide this file to a preprocessing `finemo extract-regions-*` subcommand instead.")
+    
     call_hits_parser.add_argument("-I", "--motifs-include", type=str, default=None,
         help="A tab-delimited file with tfmodisco motif names (e.g pos_patterns.pattern_0) in the first column to include in hit calling. If omitted, all motifs in the modisco H5 file are used.")
     call_hits_parser.add_argument("-N", "--motif-names", type=str, default=None,
@@ -289,10 +360,14 @@ def cli():
     call_hits_parser.add_argument("-t", "--cwm-trim-threshold", type=float, default=0.3,
         help="The threshold to determine motif start and end positions within the full CWMs.")
     
-    call_hits_parser.add_argument("-a", "--alpha", type=float, default=0.7,
-        help="The L1 regularization weight.")
+    call_hits_parser.add_argument("-l", "--global-lambda", type=float, default=0.7,
+        help="The L1 regularization weight determining the sparsity of hits.")
+    call_hits_parser.add_argument("-L", "--motif-lambdas", type=str, default=None,
+        help="A tab-delimited file with tfmodisco motif names (e.g pos_patterns.pattern_0) in the first column and motif-specific lambdas in the second column. Omitted motifs default to the `--global-lambda` value.")
+    call_hits_parser.add_argument("-a", "--alpha", type=float, default=None,
+        help="DEPRECATED: Please use the `--lambda` argument instead.")
     call_hits_parser.add_argument("-A", "--motif-alphas", type=str, default=None,
-        help="A tab-delimited file with tfmodisco motif names (e.g pos_patterns.pattern_0) in the first column and motif-specific alphas in the second column. Omitted motifs default to the `--alpha` value.")
+        help="DEPRECATED: Please use the `--motif-lambdas` argument instead.")
     
     call_hits_parser.add_argument("-f", "--no-post-filter", action='store_true',
         help="Do not perform post-hit-calling filtering. By default, hits are filtered based on a minimum correlation of `alpha` with the input contributions.")
@@ -308,8 +383,8 @@ def cli():
         help="The maximum number of optimization steps.")
     call_hits_parser.add_argument("-b", "--batch-size", type=int, default=2000,
         help="The batch size used for optimization.")
-    call_hits_parser.add_argument("-d", "--device", type=str, default="cuda",
-        help="The pytorch device name to use. Set to `cpu` to run without a GPU.")
+    call_hits_parser.add_argument("-d", "--device", type=str, default=None,
+        help="DEPRECATED: Please use the `CUDA_VISIBLE_DEVICES` environment variable to specify the GPU device.")
     call_hits_parser.add_argument("-J", "--compile", action='store_true',
         help="JIT-compile the optimizer for faster performance. This may not be supported on older GPUs.")
     
@@ -318,52 +393,59 @@ def cli():
         help="Generate statistics and visualizations from hits and tfmodisco-lite motif data.")
     
     report_parser.add_argument("-r", "--regions", type=str, required=True,
-        help="A .npz file containing input sequences and contributions. Must be the same as those used for motif discovery and hit calling.")
+        help="A .npz file containing input sequences, contributions, and coordinates. Must be the same as that used for `finemo call-hits`.")
     report_parser.add_argument("-H", "--hits", type=str, required=True,
-        help="The `hits.tsv` output file generated by the `finemo call-hits` command on the regions specified in `--regions`.")
-    report_parser.add_argument("-p", "--peaks", type=str, required=True,
-        help="A file of peak regions in ENCODE NarrowPeak format, exactly matching the regions specified in `--regions`.")
-    report_parser.add_argument("-m", "--modisco-h5", type=str, required=True,
-        help="The tfmodisco-lite output H5 file of motif patterns. Must be the same as that used for hit calling unless `--no-recall` is set.")
+        help="The output directory generated by the `finemo call-hits` command on the regions specified in `--regions`.")
+    report_parser.add_argument("-p", "--peaks", type=str, default=None,
+        help="DEPRECATED: Please provide this file to a preprocessing `finemo extract-regions-*` subcommand instead.")
+    report_parser.add_argument("-m", "--modisco-h5", type=str, default=None,
+        help="The tfmodisco-lite output H5 file of motif patterns. Must be the same as that used for hit calling unless `--no-recall` is set. If omitted, seqlet-derived metrics will not be computed.")
     report_parser.add_argument("-I", "--motifs-include", type=str, default=None,
-        help="A tab-delimited file with tfmodisco motif names (e.g pos_patterns.pattern_0) in the first column to include in the report. If omitted, all motifs in the modisco H5 file are used.")
+        help="DEPRECATED: This information is now inferred from the outputs of `finemo call-hits`.")
     report_parser.add_argument("-N", "--motif-names", type=str, default=None,
-        help="A tab-delimited file with tfmodisco motif names (e.g pos_patterns.pattern_0) in the first column and custom names in the second column. Omitted motifs default to tfmodisco names.")
+        help="DEPRECATED: This information is now inferred from the outputs of `finemo call-hits`.")
 
     report_parser.add_argument("-o", "--out-dir", type=str, required=True,
-        help="The path to the output directory.")
+        help="The path to the report output directory.")
     
     report_parser.add_argument("-W", "--modisco-region-width", type=int, default=400,
         help="The width of the region around each peak summit used by tfmodisco-lite.")
-    report_parser.add_argument("-t", "--cwm-trim-threshold", type=float, default=0.3,
-        help="The threshold to determine motif start and end positions within the full CWMs. This should match the value used in `finemo call-hits`.")
+    report_parser.add_argument("-t", "--cwm-trim-threshold", type=float, default=None,
+        help="DEPRECATED: This information is now inferred from the outputs of `finemo call-hits`.")
     report_parser.add_argument("-n", "--no-recall", action='store_true',
         help="Do not compute motif recall metrics.")
     report_parser.add_argument("-s", "--no-seqlets", action='store_true',
-        help="Do not use seqlet data for comparison. Must be set in conjunction with `--no-recall`.")
+        help="DEPRECATED: Please omit the `--modisco-h5` argument instead.")
     
 
     args = parser.parse_args()
     
     if args.cmd == "extract-regions-bw":
-        extract_regions_bw(args.peaks, args.fasta, args.bigwigs, args.out_path, args.region_width)
+        extract_regions_bw(args.peaks, args.chrom_order, args.fasta, args.bigwigs, args.out_path, args.region_width)
 
     elif args.cmd == "extract-regions-chrombpnet-h5":
-        extract_regions_chrombpnet_h5(args.h5s, args.out_path, args.region_width)
+        extract_regions_chrombpnet_h5(args.peaks, args.chrom_order, args.h5s, args.out_path, args.region_width)
 
     elif args.cmd == "extract-regions-h5":
         print("WARNING: The `extract-regions-h5` command is deprecated. Use `extract-regions-chrombpnet-h5` instead.")
-        extract_regions_chrombpnet_h5(args.h5s, args.out_path, args.region_width)
+        extract_regions_chrombpnet_h5(args.peaks, args.chrom_order, args.h5s, args.out_path, args.region_width)
 
     elif args.cmd == "extract-regions-bpnet-h5":
-        extract_regions_bpnet_h5(args.h5s, args.out_path, args.region_width)
+        extract_regions_bpnet_h5(args.peaks, args.chrom_order, args.h5s, args.out_path, args.region_width)
 
     elif args.cmd == "extract-regions-modisco-fmt":
-        extract_regions_modisco_fmt(args.attributions, args.sequences, args.out_path, args.region_width)
+        extract_regions_modisco_fmt(args.peaks, args.chrom_order, args.attributions, args.sequences, args.out_path, args.region_width)
     
     elif args.cmd == "call-hits":
+        if args.alpha is not None:
+            warnings.warn("The `--alpha` flag is deprecated and will be removed in a future version. Please use the `--global-lambda` flag instead.")
+            args.global_lambda = args.alpha
+        if args.motif_alphas is not None:
+            warnings.warn("The `--motif-alphas` flag is deprecated and will be removed in a future version. Please use the `--motif-lambdas` flag instead.")
+            args.motif_lambdas = args.motif_alphas
+
         call_hits(args.regions, args.peaks, args.modisco_h5, args.chrom_order, args.motifs_include, args.motif_names, 
-                  args.motif_alphas, args.out_dir, args.cwm_trim_threshold, args.alpha, args.step_size_max, 
+                  args.motif_lambdas, args.out_dir, args.cwm_trim_threshold, args.global_lambda, args.step_size_max, 
                   args.step_size_min, args.convergence_tol, args.max_steps, args.batch_size, args.step_adjust, 
                   args.device, args.mode, args.no_post_filter, args.compile)
 

@@ -177,17 +177,15 @@
 </head>
 
 <body>
-<h1>FiNeMo hit calling report</h1>
-
-{% if not compute_recall %}
-<blockquote>
-    Seqlet recall and other statistics directly comparing hits and seqlets are not computed because the <code>-n/--no-recall</code> argument is set.
-</blockquote>
-{% endif %}
+<h1>Fi-NeMo hit calling report</h1>
 
 {% if not use_seqlets %}
 <blockquote>
-    Seqlet comparisons are not shown because the <code>-s/--no-seqlets</code> argument is set.
+    Seqlet comparisons are not shown because a TF-MoDISco H5 file with seqlet data is not provided.
+</blockquote>
+{% elif not compute_recall %}
+<blockquote>
+    Seqlet recall and other statistics directly comparing hits and seqlets are not computed because the <code>-n/--no-recall</code> argument is set.
 </blockquote>
 {% endif %}
 
@@ -303,7 +301,9 @@
             {% if compute_recall %}
             <td class="num_col">{{ item.num_hits_restricted }}</td>
             {% endif %}
+            {% if use_seqlets %}
             <td class="num_col">{{ item.num_seqlets }}</td>
+            {% endif %}
             {% if compute_recall %}
             <td class="num_col">{{ item.num_overlaps }}</td>
             <td class="num_col">{{ item.num_seqlets_only }}</td>
