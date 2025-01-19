@@ -215,6 +215,7 @@ def report(regions_path, hits_dir, modisco_h5_path, peaks_path, motifs_include_p
     data_io.write_report_data(report_df, cwms, out_dir)
 
     evaluation.plot_hit_distributions(occ_df, motif_names, out_dir)
+    evaluation.plot_completeness_distributions(hits_df, motif_names, out_dir)
 
     coooc_path = os.path.join(out_dir, "motif_cooocurrence.png")
     evaluation.plot_peak_motif_indicator_heatmap(coooc, motif_names, coooc_path)

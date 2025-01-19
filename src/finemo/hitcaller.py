@@ -151,7 +151,7 @@ class BatchLoaderHyp(BatchLoaderBase):
 
 
 def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lambdas, step_size_max, step_size_min, 
-                 convergence_tol, max_steps, batch_size, step_adjust, post_filter, device, compile_optimizer):
+                 convergence_tol, max_steps, batch_size, step_adjust, post_filter, device, compile_optimizer, eps=1.):
     """
     Call hits by fitting sparse linear model to contributions
     
@@ -207,6 +207,7 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lam
     coefficients_lst = []
     correlation_lst = []
     importance_lst = []
+    importance_sq_lst = []
     qc_lsts = {"nll": [], "dual_gap": [], "num_steps": [], "step_size": [], "global_scale": [], "peak_id": []}
 
     # Initialize buffers for optimizer
@@ -247,7 +248,7 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lam
                 batch_data = batch_loader.load_batch(load_start, load_end)
                 contribs_batch, seqs_batch, inds_batch, global_scale_batch = batch_data
 
-                importance_scale_batch = (F.conv1d(contribs_batch**2, cwm_trim_mask) + 1)**(-0.5)
+                importance_scale_batch = (F.conv1d(contribs_batch**2, cwm_trim_mask) + eps)**(-0.5)
                 importance_scale_batch = importance_scale_batch.clamp(max=10)
 
                 contribs_buf[converged,:,:] = contribs_batch
@@ -302,7 +303,8 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lam
                 # Compute hit scores 
                 coef_out = coef[converged,:,:]
                 importance_scale_out_dense = importance_scale_buf[converged,:,:]
-                xcor_scale = (importance_scale_out_dense**(-2) - 1).sqrt()
+                importance_sq = importance_scale_out_dense**(-2) - eps
+                xcor_scale = importance_sq.sqrt()
 
                 contribs_converged = contribs_buf[converged,:,:]
                 importance_sum_out_dense = F.conv1d(torch.abs(contribs_converged), cwm_trim_mask)
@@ -322,6 +324,7 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lam
 
                 ind_tuple = torch.unbind(coef_out.indices())
                 importance_out = importance_sum_out_dense[ind_tuple]
+                importance_sq_out = importance_sq[ind_tuple]
                 xcor_out = xcor_out_dense[ind_tuple]
 
                 scores_out_raw = coef_out.values()
@@ -336,6 +339,7 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lam
                 coefficients_lst.append(scores_out_raw.numpy(force=True))
                 correlation_lst.append(xcor_out.numpy(force=True))
                 importance_lst.append(importance_out.numpy(force=True))
+                importance_sq_lst.append(importance_sq_out.numpy(force=True))
 
                 qc_lsts["nll"].append(nll_out.numpy(force=True))
                 qc_lsts["dual_gap"].append(gap_out.numpy(force=True))
@@ -352,6 +356,7 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lam
     scores_coefficient = np.concatenate(coefficients_lst, axis=0)
     scores_correlation = np.concatenate(correlation_lst, axis=0)
     scores_importance = np.concatenate(importance_lst, axis=0)
+    scores_importance_sq = np.concatenate(importance_sq_lst, axis=0)
 
     hits = {
         "peak_id": hit_idxs[:,0].astype(np.uint32),
@@ -359,7 +364,8 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lam
         "hit_start": hit_idxs[:,2],
         "hit_coefficient": scores_coefficient,
         "hit_correlation": scores_correlation,
-        "hit_importance": scores_importance
+        "hit_importance": scores_importance,
+        "hit_importance_sq": scores_importance_sq,
     }
 
     qc = {k: np.concatenate(v, axis=0) for k, v in qc_lsts.items()}
