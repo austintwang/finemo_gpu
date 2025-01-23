@@ -84,6 +84,10 @@ def _to_channel_last_layout(tensor, **kwargs):
     return tensor[:,:,:,None].to(memory_format=torch.channels_last, **kwargs).squeeze(3)
 
 
+def _signed_sqrt(x):
+    return torch.sign(x) * torch.sqrt(torch.abs(x))
+
+
 class BatchLoaderBase:
     def __init__(self, contribs, sequences, l, device):
         self.contribs = contribs
@@ -151,7 +155,7 @@ class BatchLoaderHyp(BatchLoaderBase):
 
 
 def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lambdas, step_size_max, step_size_min, 
-                 convergence_tol, max_steps, batch_size, step_adjust, post_filter, device, compile_optimizer, eps=1.):
+                 convergence_tol, max_steps, batch_size, step_adjust, post_filter, device, compile_optimizer, eps=1., sqrt_transform=True):
     """
     Call hits by fitting sparse linear model to contributions
     
@@ -187,6 +191,9 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lam
     cwms = _to_channel_last_layout(cwms, device=device, dtype=torch.float32)
     cwm_trim_mask = _to_channel_last_layout(cwm_trim_mask, device=device, dtype=torch.float32)
     cwms = cwms * cwm_trim_mask
+
+    if sqrt_transform:
+        cwms = _signed_sqrt(cwms)
 
     # Initialize batch loader
     if len(contribs.shape) == 3:
@@ -247,6 +254,10 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lam
 
                 batch_data = batch_loader.load_batch(load_start, load_end)
                 contribs_batch, seqs_batch, inds_batch, global_scale_batch = batch_data
+
+                if sqrt_transform:
+                    contribs_batch = _signed_sqrt(contribs_batch)
+                    global_scale_batch = global_scale_batch.sqrt()
 
                 importance_scale_batch = (F.conv1d(contribs_batch**2, cwm_trim_mask) + eps)**(-0.5)
                 importance_scale_batch = importance_scale_batch.clamp(max=10)
