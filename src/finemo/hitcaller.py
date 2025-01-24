@@ -118,11 +118,11 @@ class BatchLoaderCompactFmt(BatchLoaderBase):
         sequences_batch = F.pad(self.sequences[start:end,:,:], pad_lens) # (b, 4, l)
         sequences_batch = _to_channel_last_layout(sequences_batch, device=self.device, dtype=torch.int8)
 
-        global_scale = ((contribs_batch**2).sum(dim=(1,2)) / self.l).sqrt()
+        # global_scale = ((contribs_batch**2).sum(dim=(1,2)) / self.l).sqrt()
 
-        contribs_batch = torch.nan_to_num(contribs_batch / global_scale[:,None,None]) * sequences_batch # (b, 4, l)
+        contribs_batch = contribs_batch * sequences_batch # (b, 4, l)
 
-        return contribs_batch, sequences_batch, inds, global_scale
+        return contribs_batch, sequences_batch, inds
 
 
 class BatchLoaderProj(BatchLoaderBase):
@@ -135,10 +135,10 @@ class BatchLoaderProj(BatchLoaderBase):
         sequences_batch = _to_channel_last_layout(sequences_batch, device=self.device, dtype=torch.int8)
         contribs_batch = contribs_hyp * sequences_batch
 
-        global_scale = ((contribs_batch**2).sum(dim=(1,2)) / self.l).sqrt()
-        contribs_batch = torch.nan_to_num(contribs_batch / global_scale[:,None,None])
+        # global_scale = ((contribs_batch**2).sum(dim=(1,2)) / self.l).sqrt()
+        # contribs_batch = torch.nan_to_num(contribs_batch / global_scale[:,None,None])
 
-        return contribs_batch, sequences_batch, inds, global_scale
+        return contribs_batch, sequences_batch, inds
     
 
 class BatchLoaderHyp(BatchLoaderBase):
@@ -148,10 +148,10 @@ class BatchLoaderHyp(BatchLoaderBase):
         contribs_batch = F.pad(self.contribs[start:end,:,:], pad_lens)
         contribs_batch = _to_channel_last_layout(contribs_batch, device=self.device, dtype=torch.float32)
 
-        global_scale = ((contribs_batch**2).sum(dim=(1,2)) / self.l).sqrt()
-        contribs_batch = torch.nan_to_num(contribs_batch / global_scale[:,None,None])
+        # global_scale = ((contribs_batch**2).sum(dim=(1,2)) / self.l).sqrt()
+        # contribs_batch = torch.nan_to_num(contribs_batch / global_scale[:,None,None])
 
-        return contribs_batch, 1, inds, global_scale
+        return contribs_batch, 1, inds
 
 
 def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lambdas, step_size_max, step_size_min, 
@@ -194,6 +194,8 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lam
 
     if sqrt_transform:
         cwms = _signed_sqrt(cwms)
+        cwm_norm = (cwms**2).sum(dim=(1,2)).sqrt()
+        cwms = cwms / cwm_norm[:,None,None]
 
     # Initialize batch loader
     if len(contribs.shape) == 3:
@@ -253,11 +255,13 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lam
                 next_ind = min(load_end, contribs.shape[0])
 
                 batch_data = batch_loader.load_batch(load_start, load_end)
-                contribs_batch, seqs_batch, inds_batch, global_scale_batch = batch_data
+                contribs_batch, seqs_batch, inds_batch = batch_data
 
                 if sqrt_transform:
                     contribs_batch = _signed_sqrt(contribs_batch)
-                    global_scale_batch = global_scale_batch.sqrt()
+                
+                global_scale_batch = ((contribs_batch**2).sum(dim=(1,2)) / l).sqrt()
+                contribs_batch = torch.nan_to_num(contribs_batch / global_scale_batch[:,None,None])
 
                 importance_scale_batch = (F.conv1d(contribs_batch**2, cwm_trim_mask) + eps)**(-0.5)
                 importance_scale_batch = importance_scale_batch.clamp(max=10)
