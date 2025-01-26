@@ -355,6 +355,7 @@
     </tbody>
 </table>
 
+{% if show_completeness %}
 <h3>Per-motif distributions of hit completeness scores</h3>
 <p>
     These plots show the distribution of completeness scores across all hits for each motif.  
@@ -375,6 +376,7 @@
         {% endfor %}
     </tbody>
 </table>
+{% endif %}
 
 <h3>Motif co-occurrence</h3>
 <p>

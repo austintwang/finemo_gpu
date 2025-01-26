@@ -452,11 +452,12 @@ def plot_hit_vs_seqlet_counts(recall_data, output_path):
     plt.close()
 
 
-def write_report(report_df, motif_names, out_path, compute_recall, use_seqlets):
+def write_report(report_df, motif_names, out_path, compute_recall, use_seqlets, show_completeness):
     template_str = importlib.resources.files(templates).joinpath('report.html').read_text()
     template = Template(template_str)
     report = template.render(report_data=report_df.iter_rows(named=True), 
-                             motif_names=motif_names, compute_recall=compute_recall, use_seqlets=use_seqlets)
+                             motif_names=motif_names, compute_recall=compute_recall, 
+                             use_seqlets=use_seqlets, show_completeness=show_completeness)
     with open(out_path, "w") as f:
         f.write(report)
 

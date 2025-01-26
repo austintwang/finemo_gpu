@@ -154,8 +154,8 @@ class BatchLoaderHyp(BatchLoaderBase):
         return contribs_batch, 1, inds
 
 
-def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lambdas, step_size_max, step_size_min, 
-                 convergence_tol, max_steps, batch_size, step_adjust, post_filter, device, compile_optimizer, eps=1., sqrt_transform=True):
+def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lambdas, step_size_max, step_size_min, sqrt_transform,
+                 convergence_tol, max_steps, batch_size, step_adjust, post_filter, device, compile_optimizer, eps=1.):
     """
     Call hits by fitting sparse linear model to contributions
     
