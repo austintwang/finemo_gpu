@@ -355,6 +355,29 @@
     </tbody>
 </table>
 
+{% if show_completeness %}
+<h3>Per-motif distributions of hit completeness scores</h3>
+<p>
+    These plots show the distribution of completeness scores across all hits for each motif.  
+</p>
+<table>
+    <thead>
+        <tr>
+            <th>Motif Name</th>
+            <th class="distplot">Completeness Score</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for m in motif_names %}
+        <tr>
+            <td><code>{{ m }}</code></td>
+            <td class="distplot"><img src="completeness_distributions/{{ m }}.png" width="480"></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
 <h3>Motif co-occurrence</h3>
 <p>
     This heatmap shows the co-occurrence of motifs across peaks.

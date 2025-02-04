@@ -341,31 +341,6 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type, motifs_incl
     return motifs_df, cwms, trim_masks, names
 
 
-HITS_DTYPES = {
-    "chr": pl.String,
-    "start": pl.Int32,
-    "end": pl.Int32,
-    "start_untrimmed": pl.Int32,
-    "end_untrimmed": pl.Int32,
-    "motif_name": pl.String,
-    "hit_coefficient": pl.Float32,
-    "hit_coefficient_global": pl.Float32,
-    "hit_correlation": pl.Float32,
-    "hit_importance": pl.Float32,
-    "strand": pl.String,
-    "peak_name": pl.String,
-    "peak_id": pl.UInt32,
-}
-
-def load_hits(hits_path, lazy=False):
-    hits_df = (
-        pl.scan_csv(hits_path, separator='\t', quote_char=None, schema=HITS_DTYPES)
-        .with_columns(pl.lit(1).alias("count"))
-    )
-
-    return hits_df if lazy else hits_df.collect()
-
-
 def load_modisco_seqlets(modisco_h5_path, peaks_df, motifs_df, half_width, modisco_half_width, lazy=False):
     
     start_lst = []
@@ -441,6 +416,35 @@ def write_modisco_seqlets(seqlets_df, out_path):
     seqlets_df.write_csv(out_path, separator="\t")
 
 
+HITS_DTYPES = {
+    "chr": pl.String,
+    "start": pl.Int32,
+    "end": pl.Int32,
+    "start_untrimmed": pl.Int32,
+    "end_untrimmed": pl.Int32,
+    "motif_name": pl.String,
+    "hit_coefficient": pl.Float32,
+    "hit_coefficient_global": pl.Float32,
+    "hit_coefficient_marginal": pl.Float32,
+    "hit_correlation": pl.Float32,
+    "hit_importance": pl.Float32,
+    "hit_importance_sq": pl.Float32,
+    "hit_completeness": pl.Float32,
+    "strand": pl.String,
+    "peak_name": pl.String,
+    "peak_id": pl.UInt32,
+    
+}
+
+def load_hits(hits_path, lazy=False):
+    hits_df = (
+        pl.scan_csv(hits_path, separator='\t', quote_char=None, schema=HITS_DTYPES)
+        .with_columns(pl.lit(1).alias("count"))
+    )
+
+    return hits_df if lazy else hits_df.collect()
+
+
 def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_dir, motif_width):
     os.makedirs(out_dir, exist_ok=True)
     out_path_tsv = os.path.join(out_dir, "hits.tsv")
@@ -465,13 +469,21 @@ def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_dir, motif_width):
             hit_coefficient_global=pl.col("hit_coefficient") * (pl.col("global_scale")**2),
             hit_correlation=pl.col("hit_correlation"),
             hit_importance=pl.col("hit_importance") * pl.col("global_scale"),
+            hit_importance_sq=pl.col("hit_importance_sq") * (pl.col("global_scale")**2),
             strand=pl.col("strand"),
             peak_name=pl.col("peak_name"),
             peak_id=pl.col("peak_id"),
+            motif_lambda = pl.col("lambda"),
             # peak_summit_distance=pl.col("hit_start") + pl.col("motif_start") - half_width,
         )
+        .with_columns(
+            hit_coefficient_marginal=pl.col("hit_importance_sq") * (pl.col("hit_correlation") - pl.col("motif_lambda")),
+        )
+        .with_columns(
+            hit_completeness=pl.col("hit_coefficient_global") / pl.col("hit_coefficient_marginal"),
+        )
         .sort(["chr_id", "start"])
-        .drop("chr_id")
+        .select(HITS_DTYPES.keys())
     )
 
     data_unique = (
@@ -486,7 +498,7 @@ def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_dir, motif_width):
             start=pl.col("start"),
             end=pl.col("end"),
             motif_name=pl.col("motif_name"),
-            score=pl.col("hit_correlation") * 1000,
+            score=pl.lit(0),
             strand=pl.col("strand")
         )
     )

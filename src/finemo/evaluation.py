@@ -101,6 +101,30 @@ def plot_hit_distributions(occ_df, motif_names, plot_dir):
     plt.close(fig)
 
 
+def plot_completeness_distributions(hits_df, motif_names, plot_dir):
+    completeness_dir = os.path.join(plot_dir, "completeness_distributions")
+    os.makedirs(completeness_dir, exist_ok=True)
+
+    data_by_motif = hits_df.select("motif_name", "hit_completeness").collect().partition_by("motif_name", as_dict=True)
+
+    for m in motif_names:
+        data = data_by_motif.get((m,), None)
+
+        fig, ax = plt.subplots(figsize=(6, 2))
+
+        if data is not None:
+            scores = data.get_column("hit_completeness").to_numpy()
+        else:
+            scores = np.array([])
+
+        ax.hist(scores, bins="auto", range=(0, 1.5))
+
+        output_path = os.path.join(completeness_dir, f"{m}.png")
+        plt.savefig(output_path, dpi=300)
+
+        plt.close(fig)
+
+
 def plot_peak_motif_indicator_heatmap(peak_hit_counts, motif_names, output_path):
     """
     Plots a simple indicator heatmap of the motifs in each peak.
@@ -428,11 +452,12 @@ def plot_hit_vs_seqlet_counts(recall_data, output_path):
     plt.close()
 
 
-def write_report(report_df, motif_names, out_path, compute_recall, use_seqlets):
+def write_report(report_df, motif_names, out_path, compute_recall, use_seqlets, show_completeness):
     template_str = importlib.resources.files(templates).joinpath('report.html').read_text()
     template = Template(template_str)
     report = template.render(report_data=report_df.iter_rows(named=True), 
-                             motif_names=motif_names, compute_recall=compute_recall, use_seqlets=use_seqlets)
+                             motif_names=motif_names, compute_recall=compute_recall, 
+                             use_seqlets=use_seqlets, show_completeness=show_completeness)
     with open(out_path, "w") as f:
         f.write(report)
 

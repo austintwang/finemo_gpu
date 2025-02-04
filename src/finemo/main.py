@@ -54,7 +54,7 @@ def extract_regions_modisco_fmt(peaks_path, chrom_order_path, shaps_paths, ohe_p
 
 
 def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motifs_include_path, motif_names_path, 
-              motif_lambdas_path, out_dir, cwm_trim_threshold, lambda_default, step_size_max, step_size_min, 
+              motif_lambdas_path, out_dir, cwm_trim_threshold, lambda_default, step_size_max, step_size_min, sqrt_transform,
               convergence_tol, max_steps, batch_size, step_adjust, device, mode, no_post_filter, compile_optimizer):
     
     params = locals()
@@ -115,7 +115,7 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motif
     lambdas = motifs_df.get_column("lambda").to_numpy(writable=True)
 
     hits_df, qc_df = hitcaller.fit_contribs(cwms, contribs, sequences, trim_masks, use_hypothetical_contribs, lambdas, step_size_max, step_size_min, 
-                                            convergence_tol, max_steps, batch_size, step_adjust, not no_post_filter, device, compile_optimizer)
+                                            sqrt_transform, convergence_tol, max_steps, batch_size, step_adjust, not no_post_filter, device, compile_optimizer)
 
     os.makedirs(out_dir, exist_ok=True)
     out_path_qc = os.path.join(out_dir, "peaks_qc.tsv")
@@ -140,7 +140,7 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motif
 
 
 def report(regions_path, hits_dir, modisco_h5_path, peaks_path, motifs_include_path, motif_names_path, 
-           out_dir, modisco_region_width, cwm_trim_threshold, compute_recall, use_seqlets):
+           out_dir, modisco_region_width, cwm_trim_threshold, compute_recall, use_seqlets, show_completeness):
     from . import evaluation        
 
     sequences, contribs, peaks_df, _ = data_io.load_regions_npz(regions_path)
@@ -216,6 +216,9 @@ def report(regions_path, hits_dir, modisco_h5_path, peaks_path, motifs_include_p
 
     evaluation.plot_hit_distributions(occ_df, motif_names, out_dir)
 
+    if show_completeness:
+        evaluation.plot_completeness_distributions(hits_df, motif_names, out_dir)
+
     coooc_path = os.path.join(out_dir, "motif_cooocurrence.png")
     evaluation.plot_peak_motif_indicator_heatmap(coooc, motif_names, coooc_path)
 
@@ -231,7 +234,7 @@ def report(regions_path, hits_dir, modisco_h5_path, peaks_path, motifs_include_p
         evaluation.plot_hit_vs_seqlet_counts(report_data, plot_path)
 
     report_path = os.path.join(out_dir, "report.html")
-    evaluation.write_report(report_df, motif_names, report_path, compute_recall, seqlets_df is not None)
+    evaluation.write_report(report_df, motif_names, report_path, compute_recall, seqlets_df is not None, show_completeness)
 
 
 def cli():
@@ -371,6 +374,8 @@ def cli():
     
     call_hits_parser.add_argument("-f", "--no-post-filter", action='store_true',
         help="Do not perform post-hit-calling filtering. By default, hits are filtered based on a minimum correlation of `alpha` with the input contributions.")
+    call_hits_parser.add_argument("-q", "--sqrt-transform", action='store_true',
+        help="Apply a signed square root transform to the input contributions and CWMs before hit calling.")
     call_hits_parser.add_argument("-s", "--step-size-max", type=float, default=3.,
         help="The maximum optimizer step size.")
     call_hits_parser.add_argument("-i", "--step-size-min", type=float, default=0.08,
@@ -416,6 +421,8 @@ def cli():
         help="Do not compute motif recall metrics.")
     report_parser.add_argument("-s", "--no-seqlets", action='store_true',
         help="DEPRECATED: Please omit the `--modisco-h5` argument instead.")
+    report_parser.add_argument("-c", "--show-completeness", action='store_true',
+        help="Show hit completeness metrics in the report.")
     
 
     args = parser.parse_args()
@@ -446,8 +453,8 @@ def cli():
 
         call_hits(args.regions, args.peaks, args.modisco_h5, args.chrom_order, args.motifs_include, args.motif_names, 
                   args.motif_lambdas, args.out_dir, args.cwm_trim_threshold, args.global_lambda, args.step_size_max, 
-                  args.step_size_min, args.convergence_tol, args.max_steps, args.batch_size, args.step_adjust, 
-                  args.device, args.mode, args.no_post_filter, args.compile)
+                  args.step_size_min, args.sqrt_transform, args.convergence_tol, args.max_steps, args.batch_size, 
+                  args.step_adjust, args.device, args.mode, args.no_post_filter, args.compile)
 
     elif args.cmd == "report":
         if args.no_recall and not args.no_seqlets:
@@ -455,4 +462,4 @@ def cli():
         
         report(args.regions, args.hits, args.modisco_h5, args.peaks, args.motifs_include, 
                args.motif_names, args.out_dir, args.modisco_region_width, args.cwm_trim_threshold, 
-               not args.no_recall, not args.no_seqlets)
+               not args.no_recall, not args.no_seqlets, args.show_completeness)
