@@ -5,13 +5,13 @@
 A Docker image is available [here](https://hub.docker.com/repository/docker/kundajelab/finemo_gpu/general). This is useful for running in containerized environments, such as in a Kubernetes cluster. To pull the image, run the following command:
 
 ```
-docker pull kundajelab/finemo_gpu
+docker pull kundajelab/finemo_gpu:dev
 ```
 
 To run the image, use the following command:
 
 ```
-docker run -it --rm kundajelab/finemo_gpu finemo <args>
+docker run -it --rm kundajelab/finemo_gpu:dev finemo <args>
 ```
 
 ## Rebuilding the Docker Image
