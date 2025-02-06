@@ -67,7 +67,7 @@ FiNeMo includes a command-line utility named `finemo`. Here, we describe basic u
 The following commands transform input contributions and sequences into a compressed `.npz` file for quick loading. This file contains:
 
 - `sequences`: A one-hot-encoded sequence array (`np.int8`) with dimensions `(n, 4, w)`, where `n` is the number of regions, and `w` is the width of each region. Bases are ordered as ACGT.
-- `contribs`: A contribution score array (`np.float16`) with dimensions `(n, 4, w)` for hypothetical scores or `(n, w)` for projected scores only.
+- `contributions`: A contribution score array (`np.float16`) with dimensions `(n, 4, w)` for hypothetical scores or `(n, w)` for projected scores only.
 
 If peak region coordinates are provided, the output also includes:
 
