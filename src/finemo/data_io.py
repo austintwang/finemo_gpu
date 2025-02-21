@@ -270,8 +270,7 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type, motifs_incl
                 continue
 
             metacluster = modisco_results[name]
-            key = lambda x: int(x[0].split("_")[-1])
-            for ind, (pattern_name, pattern) in enumerate(sorted(metacluster.items(), key=key)):
+            for ind, (pattern_name, pattern) in enumerate(sorted(metacluster.items(), key=_motif_name_sort_key)):
                 pattern_tag = f'{name}.{pattern_name}'
 
                 if motifs_include is not None and pattern_tag not in motifs_include:
