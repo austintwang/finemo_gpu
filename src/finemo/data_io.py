@@ -230,15 +230,12 @@ def softmax(x, temp=100):
     return exp / np.sum(exp, axis=0, keepdims=True)
 
 
-FINAL_STR = chr(sys.maxunicode) * 100
-
 def _motif_name_sort_key(name):
     if name.startwith("pattern_"):
         pattern_num = int(name[0].split("_")[-1])
-        return (FINAL_STR, pattern_num)
+        return (chr(sys.maxunicode), pattern_num)
     else:
         return (name,)
-
 
 MODISCO_PATTERN_GROUPS = ['pos_patterns', 'neg_patterns']
 
