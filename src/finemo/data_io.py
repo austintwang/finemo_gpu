@@ -1,7 +1,6 @@
 import json
 import os
 import warnings
-import sys
 from contextlib import ExitStack
 
 import numpy as np
@@ -233,9 +232,9 @@ def softmax(x, temp=100):
 def _motif_name_sort_key(name):
     if name.startwith("pattern_"):
         pattern_num = int(name[0].split("_")[-1])
-        return (chr(sys.maxunicode), pattern_num)
+        return (pattern_num,)
     else:
-        return (name,)
+        return (-1, name)
 
 MODISCO_PATTERN_GROUPS = ['pos_patterns', 'neg_patterns']
 
