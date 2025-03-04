@@ -229,7 +229,8 @@ def softmax(x, temp=100):
     return exp / np.sum(exp, axis=0, keepdims=True)
 
 
-def _motif_name_sort_key(name):
+def _motif_name_sort_key(data):
+    name = data[0]
     if name.startswith("pattern_"):
         pattern_num = int(name[0].split("_")[-1])
         return (pattern_num,)
