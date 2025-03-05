@@ -232,7 +232,7 @@ def softmax(x, temp=100):
 def _motif_name_sort_key(data):
     name = data[0]
     if name.startswith("pattern_"):
-        pattern_num = int(name[0].split("_")[-1])
+        pattern_num = int(name.split("_")[-1])
         return (pattern_num,)
     else:
         return (-1, name)
