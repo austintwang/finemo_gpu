@@ -415,7 +415,7 @@ def cli():
     
     report_parser.add_argument("-W", "--modisco-region-width", type=int, default=400,
         help="The width of the region around each peak summit used by tfmodisco-lite.")
-    report_parser.add_argument("-t", "--cwm-trim-threshold", type=float, default=None,
+    report_parser.add_argument("-t", "--cwm-trim-threshold", type=float, default=0.3,
         help="DEPRECATED: This information is now inferred from the outputs of `finemo call-hits`.")
     report_parser.add_argument("-n", "--no-recall", action='store_true',
         help="Do not compute motif recall metrics.")
