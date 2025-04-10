@@ -214,7 +214,7 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lam
     # Intialize output container objects
     hit_idxs_lst = []
     coefficients_lst = []
-    correlation_lst = []
+    similarity_lst = []
     importance_lst = []
     importance_sq_lst = []
     qc_lsts = {"nll": [], "dual_gap": [], "num_steps": [], "step_size": [], "global_scale": [], "peak_id": []}
@@ -352,7 +352,7 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lam
 
                 hit_idxs_lst.append(hit_idxs_out.numpy(force=True).T)
                 coefficients_lst.append(scores_out_raw.numpy(force=True))
-                correlation_lst.append(xcor_out.numpy(force=True))
+                similarity_lst.append(xcor_out.numpy(force=True))
                 importance_lst.append(importance_out.numpy(force=True))
                 importance_sq_lst.append(importance_sq_out.numpy(force=True))
 
@@ -369,7 +369,7 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lam
     # Merge outputs into arrays
     hit_idxs = np.concatenate(hit_idxs_lst, axis=0)
     scores_coefficient = np.concatenate(coefficients_lst, axis=0)
-    scores_correlation = np.concatenate(correlation_lst, axis=0)
+    scores_similarity = np.concatenate(similarity_lst, axis=0)
     scores_importance = np.concatenate(importance_lst, axis=0)
     scores_importance_sq = np.concatenate(importance_sq_lst, axis=0)
 
@@ -378,7 +378,7 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lam
         "motif_id": hit_idxs[:,1].astype(np.uint32),
         "hit_start": hit_idxs[:,2],
         "hit_coefficient": scores_coefficient,
-        "hit_correlation": scores_correlation,
+        "hit_similarity": scores_similarity,
         "hit_importance": scores_importance,
         "hit_importance_sq": scores_importance_sq,
     }

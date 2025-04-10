@@ -140,7 +140,7 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motif
 
 
 def report(regions_path, hits_dir, modisco_h5_path, peaks_path, motifs_include_path, motif_names_path, 
-           out_dir, modisco_region_width, cwm_trim_threshold, compute_recall, use_seqlets, show_completeness):
+           out_dir, modisco_region_width, cwm_trim_threshold, compute_recall, use_seqlets):
     from . import evaluation        
 
     sequences, contribs, peaks_df, _ = data_io.load_regions_npz(regions_path)
@@ -216,9 +216,6 @@ def report(regions_path, hits_dir, modisco_h5_path, peaks_path, motifs_include_p
 
     evaluation.plot_hit_distributions(occ_df, motif_names, out_dir)
 
-    if show_completeness:
-        evaluation.plot_completeness_distributions(hits_df, motif_names, out_dir)
-
     coooc_path = os.path.join(out_dir, "motif_cooocurrence.png")
     evaluation.plot_peak_motif_indicator_heatmap(coooc, motif_names, coooc_path)
 
@@ -234,7 +231,7 @@ def report(regions_path, hits_dir, modisco_h5_path, peaks_path, motifs_include_p
         evaluation.plot_hit_vs_seqlet_counts(report_data, plot_path)
 
     report_path = os.path.join(out_dir, "report.html")
-    evaluation.write_report(report_df, motif_names, report_path, compute_recall, seqlets_df is not None, show_completeness)
+    evaluation.write_report(report_df, motif_names, report_path, compute_recall, seqlets_df is not None)
 
 
 def cli():
@@ -373,7 +370,7 @@ def cli():
         help="DEPRECATED: Please use the `--motif-lambdas` argument instead.")
     
     call_hits_parser.add_argument("-f", "--no-post-filter", action='store_true',
-        help="Do not perform post-hit-calling filtering. By default, hits are filtered based on a minimum correlation of `alpha` with the input contributions.")
+        help="Do not perform post-hit-calling filtering. By default, hits are filtered based on a minimum cosine similarity of `lambda` with the input contributions.")
     call_hits_parser.add_argument("-q", "--sqrt-transform", action='store_true',
         help="Apply a signed square root transform to the input contributions and CWMs before hit calling.")
     call_hits_parser.add_argument("-s", "--step-size-max", type=float, default=3.,
@@ -421,8 +418,6 @@ def cli():
         help="Do not compute motif recall metrics.")
     report_parser.add_argument("-s", "--no-seqlets", action='store_true',
         help="DEPRECATED: Please omit the `--modisco-h5` argument instead.")
-    report_parser.add_argument("-c", "--show-completeness", action='store_true',
-        help="Show hit completeness metrics in the report.")
     
 
     args = parser.parse_args()
@@ -462,4 +457,4 @@ def cli():
         
         report(args.regions, args.hits, args.modisco_h5, args.peaks, args.motifs_include, 
                args.motif_names, args.out_dir, args.modisco_region_width, args.cwm_trim_threshold, 
-               not args.no_recall, not args.no_seqlets, args.show_completeness)
+               not args.no_recall, not args.no_seqlets)

@@ -432,11 +432,10 @@ HITS_DTYPES = {
     "motif_name": pl.String,
     "hit_coefficient": pl.Float32,
     "hit_coefficient_global": pl.Float32,
-    "hit_coefficient_marginal": pl.Float32,
+    "hit_similarity": pl.Float32,
     "hit_correlation": pl.Float32,
     "hit_importance": pl.Float32,
     "hit_importance_sq": pl.Float32,
-    "hit_completeness": pl.Float32,
     "strand": pl.String,
     "peak_name": pl.String,
     "peak_id": pl.UInt32,
@@ -474,20 +473,14 @@ def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_dir, motif_width):
             motif_name=pl.col("motif_name"),
             hit_coefficient=pl.col("hit_coefficient"),
             hit_coefficient_global=pl.col("hit_coefficient") * (pl.col("global_scale")**2),
-            hit_correlation=pl.col("hit_correlation"),
+            hit_similarity=pl.col("hit_similarity"),
+            hit_correlation=pl.col("hit_similarity"),
             hit_importance=pl.col("hit_importance") * pl.col("global_scale"),
             hit_importance_sq=pl.col("hit_importance_sq") * (pl.col("global_scale")**2),
             strand=pl.col("strand"),
             peak_name=pl.col("peak_name"),
             peak_id=pl.col("peak_id"),
             motif_lambda = pl.col("lambda"),
-            # peak_summit_distance=pl.col("hit_start") + pl.col("motif_start") - half_width,
-        )
-        .with_columns(
-            hit_coefficient_marginal=pl.col("hit_importance_sq") * (pl.col("hit_correlation") - pl.col("motif_lambda")),
-        )
-        .with_columns(
-            hit_completeness=pl.col("hit_coefficient_global") / pl.col("hit_coefficient_marginal"),
         )
         .sort(["chr_id", "start"])
         .select(HITS_DTYPES.keys())
