@@ -5,16 +5,16 @@ channels:
   - bioconda
   - nodefaults
 dependencies:
-  - pytorch::pytorch=2.1.0
-  - pytorch::pytorch-cuda=11.8
-  - conda-forge::python=3.10
-  - conda-forge::numpy=1.26.0
-  - conda-forge::scipy=1.11.3
-  - conda-forge::polars=0.19.12
-  - conda-forge::matplotlib-base=3.8.1
-  - conda-forge::h5py=3.10.0
-  - conda-forge::hdf5plugin=4.2.0
-  - conda-forge::tqdm=4.66.1
-  - conda-forge::jinja2=3.1.2
-  - bioconda::pybigwig=0.3.22
-  - bioconda::pyfaidx=0.7.2.1
+  - pytorch=2.5.1
+  - pytorch-cuda=12.4
+  - python=3.11
+  - numpy=2.2.0
+  - scipy=1.14.1
+  - polars=1.17.1
+  - matplotlib-base=3.10.0
+  - h5py=3.12.1
+  - hdf5plugin=5.0.0
+  - tqdm=4.67.1
+  - jinja2=3.1.4
+  - pybigwig=0.3.23
+  - pyfaidx=0.8.1.3

@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 
 def prox_grad_step(coefficients, importance_scale, cwms, contribs, sequences, 
-                   alphas, step_sizes):
+                   lambdas, step_sizes):
     """
     Proximal gradient descent optimization step for non-negative lasso
 
@@ -18,7 +18,7 @@ def prox_grad_step(coefficients, importance_scale, cwms, contribs, sequences,
     cwms: (m, 4, w)
     contribs: (b, 4, l)
     sequences: (b, 4, l) or dummy scalar
-    alphas: (1, m, 1)
+    lambdas: (1, m, 1)
 
     For details on proximal gradient descent: https://yuxinchen2020.github.io/ele520_math_data/lectures/lasso_algorithm_extension.pdf, slide 22 
     For details on duality gap computation: https://stanford.edu/~boyd/papers/pdf/l1_ls.pdf, Section III
@@ -36,23 +36,23 @@ def prox_grad_step(coefficients, importance_scale, cwms, contribs, sequences,
     nll = (residuals**2).sum(dim=(1,2)) # (b)
     
     # Compute duality gap
-    dual_norm = (ngrad / alphas).amax(dim=(1,2)) # (b)
+    dual_norm = (ngrad / lambdas).amax(dim=(1,2)) # (b)
     dual_scale = (torch.clamp(1 / dual_norm, max=1.)**2 + 1) / 2 # (b)
     nll_scaled = nll * dual_scale # (b)
 
     dual_diff = (residuals * contribs).sum(dim=(1,2)) # (b)
-    l1_term = (torch.abs(coefficients).sum(dim=2, keepdim=True) * alphas).sum(dim=(1,2)) # (b)
-    # l1_term = torch.linalg.vector_norm((coefficients * alphas), ord=1, dim=(1,2)) # (b)
+    l1_term = (torch.abs(coefficients).sum(dim=2, keepdim=True) * lambdas).sum(dim=(1,2)) # (b)
+    # l1_term = torch.linalg.vector_norm((coefficients * lambdas), ord=1, dim=(1,2)) # (b)
     dual_gap = (nll_scaled - dual_diff + l1_term).abs() # (b)
 
     # Compute proximal gradient descent step
-    c_next = coefficients + step_sizes * (ngrad - alphas) # (b, m, l - w + 1)
+    c_next = coefficients + step_sizes * (ngrad - lambdas) # (b, m, l - w + 1)
     c_next = F.relu(c_next) # (b, m, l - w + 1)
 
     return c_next, dual_gap, nll
 
 
-def optimizer_step(cwms, contribs, importance_scale, sequences, coef_inter, coef, i, step_sizes, l, alphas):
+def optimizer_step(cwms, contribs, importance_scale, sequences, coef_inter, coef, i, step_sizes, l, lambdas):
     """
     Non-negative lasso optimizer step with momentum. 
 
@@ -69,7 +69,7 @@ def optimizer_step(cwms, contribs, importance_scale, sequences, coef_inter, coef
 
     # Proximal gradient descent step
     coef, gap, nll = prox_grad_step(coef_inter, importance_scale, cwms, contribs, sequences, 
-                                    alphas, step_sizes)
+                                    lambdas, step_sizes)
     gap = gap / l
     nll = nll / (2 * l)
 
@@ -82,6 +82,10 @@ def optimizer_step(cwms, contribs, importance_scale, sequences, coef_inter, coef
 
 def _to_channel_last_layout(tensor, **kwargs):
     return tensor[:,:,:,None].to(memory_format=torch.channels_last, **kwargs).squeeze(3)
+
+
+def _signed_sqrt(x):
+    return torch.sign(x) * torch.sqrt(torch.abs(x))
 
 
 class BatchLoaderBase:
@@ -114,11 +118,11 @@ class BatchLoaderCompactFmt(BatchLoaderBase):
         sequences_batch = F.pad(self.sequences[start:end,:,:], pad_lens) # (b, 4, l)
         sequences_batch = _to_channel_last_layout(sequences_batch, device=self.device, dtype=torch.int8)
 
-        global_scale = ((contribs_batch**2).sum(dim=(1,2)) / self.l).sqrt()
+        # global_scale = ((contribs_batch**2).sum(dim=(1,2)) / self.l).sqrt()
 
-        contribs_batch = torch.nan_to_num(contribs_batch / global_scale[:,None,None]) * sequences_batch # (b, 4, l)
+        contribs_batch = contribs_batch * sequences_batch # (b, 4, l)
 
-        return contribs_batch, sequences_batch, inds, global_scale
+        return contribs_batch, sequences_batch, inds
 
 
 class BatchLoaderProj(BatchLoaderBase):
@@ -131,10 +135,10 @@ class BatchLoaderProj(BatchLoaderBase):
         sequences_batch = _to_channel_last_layout(sequences_batch, device=self.device, dtype=torch.int8)
         contribs_batch = contribs_hyp * sequences_batch
 
-        global_scale = ((contribs_batch**2).sum(dim=(1,2)) / self.l).sqrt()
-        contribs_batch = torch.nan_to_num(contribs_batch / global_scale[:,None,None])
+        # global_scale = ((contribs_batch**2).sum(dim=(1,2)) / self.l).sqrt()
+        # contribs_batch = torch.nan_to_num(contribs_batch / global_scale[:,None,None])
 
-        return contribs_batch, sequences_batch, inds, global_scale
+        return contribs_batch, sequences_batch, inds
     
 
 class BatchLoaderHyp(BatchLoaderBase):
@@ -144,14 +148,14 @@ class BatchLoaderHyp(BatchLoaderBase):
         contribs_batch = F.pad(self.contribs[start:end,:,:], pad_lens)
         contribs_batch = _to_channel_last_layout(contribs_batch, device=self.device, dtype=torch.float32)
 
-        global_scale = ((contribs_batch**2).sum(dim=(1,2)) / self.l).sqrt()
-        contribs_batch = torch.nan_to_num(contribs_batch / global_scale[:,None,None])
+        # global_scale = ((contribs_batch**2).sum(dim=(1,2)) / self.l).sqrt()
+        # contribs_batch = torch.nan_to_num(contribs_batch / global_scale[:,None,None])
 
-        return contribs_batch, 1, inds, global_scale
+        return contribs_batch, 1, inds
 
 
-def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alphas, step_size_max, step_size_min, 
-                 convergence_tol, max_steps, batch_size, step_adjust, post_filter, device, compile_optimizer):
+def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, lambdas, step_size_max, step_size_min, sqrt_transform,
+                 convergence_tol, max_steps, batch_size, step_adjust, post_filter, device, compile_optimizer, eps=1.):
     """
     Call hits by fitting sparse linear model to contributions
     
@@ -164,7 +168,15 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
     n, _, l = sequences.shape
 
     b = batch_size
+
+    if device is None:
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+        else:
+            device = torch.device("cpu")
+            warnings.warn("No GPU available. Running on CPU.", RuntimeWarning)
     
+    # Compile optimizer if requested
     global optimizer_step
     if compile_optimizer:
         optimizer_step = torch.compile(optimizer_step, fullgraph=True)
@@ -174,11 +186,16 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
     contribs = torch.from_numpy(contribs)
     sequences = torch.from_numpy(sequences)
     cwm_trim_mask = torch.from_numpy(cwm_trim_mask)[:,None,:].repeat(1,4,1)
-    alphas = torch.from_numpy(alphas)[None,:,None].to(device=device, dtype=torch.float32)
+    lambdas = torch.from_numpy(lambdas)[None,:,None].to(device=device, dtype=torch.float32)
 
     cwms = _to_channel_last_layout(cwms, device=device, dtype=torch.float32)
     cwm_trim_mask = _to_channel_last_layout(cwm_trim_mask, device=device, dtype=torch.float32)
     cwms = cwms * cwm_trim_mask
+
+    if sqrt_transform:
+        cwms = _signed_sqrt(cwms)
+        cwm_norm = (cwms**2).sum(dim=(1,2)).sqrt()
+        cwms = cwms / cwm_norm[:,None,None]
 
     # Initialize batch loader
     if len(contribs.shape) == 3:
@@ -197,8 +214,9 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
     # Intialize output container objects
     hit_idxs_lst = []
     coefficients_lst = []
-    correlation_lst = []
+    similarity_lst = []
     importance_lst = []
+    importance_sq_lst = []
     qc_lsts = {"nll": [], "dual_gap": [], "num_steps": [], "step_size": [], "global_scale": [], "peak_id": []}
 
     # Initialize buffers for optimizer
@@ -237,9 +255,15 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
                 next_ind = min(load_end, contribs.shape[0])
 
                 batch_data = batch_loader.load_batch(load_start, load_end)
-                contribs_batch, seqs_batch, inds_batch, global_scale_batch = batch_data
+                contribs_batch, seqs_batch, inds_batch = batch_data
 
-                importance_scale_batch = (F.conv1d(contribs_batch**2, cwm_trim_mask) + 1)**(-0.5)
+                if sqrt_transform:
+                    contribs_batch = _signed_sqrt(contribs_batch)
+                
+                global_scale_batch = ((contribs_batch**2).sum(dim=(1,2)) / l).sqrt()
+                contribs_batch = torch.nan_to_num(contribs_batch / global_scale_batch[:,None,None])
+
+                importance_scale_batch = (F.conv1d(contribs_batch**2, cwm_trim_mask) + eps)**(-0.5)
                 importance_scale_batch = importance_scale_batch.clamp(max=10)
 
                 contribs_buf[converged,:,:] = contribs_batch
@@ -259,7 +283,7 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
 
             # Optimization step
             coef_inter, coef, gap, nll = optimizer_step(cwms, contribs_buf, importance_scale_buf, seqs_buf, coef_inter, coef, 
-                                               i, step_sizes, l, alphas)
+                                               i, step_sizes, l, lambdas)
             i += 1
 
             # Assess convergence of each peak being optimized. Reset diverged peaks with lower step size.
@@ -294,7 +318,8 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
                 # Compute hit scores 
                 coef_out = coef[converged,:,:]
                 importance_scale_out_dense = importance_scale_buf[converged,:,:]
-                xcor_scale = (importance_scale_out_dense**(-2) - 1).sqrt()
+                importance_sq = importance_scale_out_dense**(-2) - eps
+                xcor_scale = importance_sq.sqrt()
 
                 contribs_converged = contribs_buf[converged,:,:]
                 importance_sum_out_dense = F.conv1d(torch.abs(contribs_converged), cwm_trim_mask)
@@ -303,7 +328,7 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
                 xcor_out_dense = xcov_out_dense / xcor_scale
 
                 if post_filter:
-                    coef_out = coef_out * (xcor_out_dense >= alphas)
+                    coef_out = coef_out * (xcor_out_dense >= lambdas)
 
                 # Extract hit coordinates
                 coef_out = coef_out.to_sparse()
@@ -314,6 +339,7 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
 
                 ind_tuple = torch.unbind(coef_out.indices())
                 importance_out = importance_sum_out_dense[ind_tuple]
+                importance_sq_out = importance_sq[ind_tuple]
                 xcor_out = xcor_out_dense[ind_tuple]
 
                 scores_out_raw = coef_out.values()
@@ -326,8 +352,9 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
 
                 hit_idxs_lst.append(hit_idxs_out.numpy(force=True).T)
                 coefficients_lst.append(scores_out_raw.numpy(force=True))
-                correlation_lst.append(xcor_out.numpy(force=True))
+                similarity_lst.append(xcor_out.numpy(force=True))
                 importance_lst.append(importance_out.numpy(force=True))
+                importance_sq_lst.append(importance_sq_out.numpy(force=True))
 
                 qc_lsts["nll"].append(nll_out.numpy(force=True))
                 qc_lsts["dual_gap"].append(gap_out.numpy(force=True))
@@ -342,16 +369,18 @@ def fit_contribs(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical, alp
     # Merge outputs into arrays
     hit_idxs = np.concatenate(hit_idxs_lst, axis=0)
     scores_coefficient = np.concatenate(coefficients_lst, axis=0)
-    scores_correlation = np.concatenate(correlation_lst, axis=0)
+    scores_similarity = np.concatenate(similarity_lst, axis=0)
     scores_importance = np.concatenate(importance_lst, axis=0)
+    scores_importance_sq = np.concatenate(importance_sq_lst, axis=0)
 
     hits = {
         "peak_id": hit_idxs[:,0].astype(np.uint32),
         "motif_id": hit_idxs[:,1].astype(np.uint32),
         "hit_start": hit_idxs[:,2],
         "hit_coefficient": scores_coefficient,
-        "hit_correlation": scores_correlation,
-        "hit_importance": scores_importance
+        "hit_similarity": scores_similarity,
+        "hit_importance": scores_importance,
+        "hit_importance_sq": scores_importance_sq,
     }
 
     qc = {k: np.concatenate(v, axis=0) for k, v in qc_lsts.items()}

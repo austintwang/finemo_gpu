@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FiNeMo Report</title>
+    <title>Fi-NeMo Report</title>
     <style>
         /* Adapted from https://github.com/oxalorg/sakura/ */
         html {
@@ -177,17 +177,15 @@
 </head>
 
 <body>
-<h1>FiNeMo hit calling report</h1>
-
-{% if not compute_recall %}
-<blockquote>
-    Seqlet recall and other statistics directly comparing hits and seqlets are not computed because the <code>-n/--no-recall</code> argument is set.
-</blockquote>
-{% endif %}
+<h1>Fi-NeMo hit calling report</h1>
 
 {% if not use_seqlets %}
 <blockquote>
-    Seqlet comparisons are not shown because the <code>-s/--no-seqlets</code> argument is set.
+    Seqlet comparisons are not shown because a TF-MoDISco H5 file with seqlet data is not provided.
+</blockquote>
+{% elif not compute_recall %}
+<blockquote>
+    Seqlet recall and other statistics directly comparing hits and seqlets are not computed because the <code>-n/--no-recall</code> argument is set.
 </blockquote>
 {% endif %}
 
@@ -215,9 +213,9 @@
     The following statistics report the number of hits, seqlets, and their relationships: 
 </p>
 <ul>
-    <li><strong>Hits</strong>: The number of hits called by FiNeMo</li>
+    <li><strong>Hits</strong>: The number of hits called by Fi-NeMo</li>
     {% if compute_recall %}
-    <li><strong>Restricted Hits</strong>: The number of FiNeMo hits within the TF-MoDISco input regions</li>
+    <li><strong>Restricted Hits</strong>: The number of Fi-NeMo hits within the TF-MoDISco input regions</li>
     {% endif %}
     {% if use_seqlets %}
     <li><strong>Seqlets</strong>: The number of unique TF-MoDISco seqlets</li>
@@ -228,7 +226,7 @@
     <li><strong>Additional Restricted Hits</strong>: The number of hits within the TF-MoDISco input regions that are not identified as seqlets by TF-MoDISco</li>
     <li><strong>Seqlet Recall</strong>: The fraction of seqlets that are called as hits</li>
     {% endif %}
-    <li><strong>Hit-Seqlet CWM Correlation</strong>: The Pearson correlation between the hit CWM and the TF-MoDISco CWM</li>
+    <li><strong>Hit-Seqlet CWM Similarity</strong>: The cosine similarity between the hit CWM and the TF-MoDISco CWM</li>
 </ul>
 <p>
     Note that the seqlet counts here may be lower than those shown in the tfmodisco-lite report due to double-counting in overlapping regions.
@@ -257,7 +255,7 @@
     The plots span the full untrimmed motif, with the trimmed motif shaded.
 </p>
 <p>
-    The hit-seqlet correlation is the Pearson correlation between the additional-restricted-hits CWM and the seqlet CWM. 
+    The hit-seqlet similarity is the cosine similarity between the additional-restricted-hits CWM and the seqlet CWM. 
     This statistic measures the similarity between hits that were missed by TF-MoDISco and the seqlets used to construct the motif.
 </p>
 
@@ -268,7 +266,7 @@
             {% if compute_recall %}
             <th class="num_col">Seqlet Recall</th>
             {% endif %}
-            <th class="num_col">Hit-Seqlet CWM Correlation</th>
+            <th class="num_col">Hit-Seqlet CWM Similarity</th>
             <th class="num_col">Hits</th>
             {% if compute_recall %}
             <th class="num_col">Restricted Hits</th>
@@ -298,12 +296,14 @@
             {% if compute_recall %}
             <td class="num_col">{{ '%0.3f'| format(item.seqlet_recall|float) }}</td>
             {% endif %}
-            <td class="num_col">{{ '%0.3f'| format(item.cwm_correlation|float) }}</td>
+            <td class="num_col">{{ '%0.3f'| format(item.cwm_similarity|float) }}</td>
             <td class="num_col">{{ item.num_hits_total }}</td>
             {% if compute_recall %}
             <td class="num_col">{{ item.num_hits_restricted }}</td>
             {% endif %}
+            {% if use_seqlets %}
             <td class="num_col">{{ item.num_seqlets }}</td>
+            {% endif %}
             {% if compute_recall %}
             <td class="num_col">{{ item.num_overlaps }}</td>
             <td class="num_col">{{ item.num_seqlets_only }}</td>
@@ -358,7 +358,7 @@
 <h3>Motif co-occurrence</h3>
 <p>
     This heatmap shows the co-occurrence of motifs across peaks.
-    The color intensity here represents the pearson correlation between the motifs' occurrence across peaks,
+    The color intensity here represents the cosine similarity between the motifs' occurrence across peaks,
     where occurence is defined as the presence of a hit for a motif in a peak.
 </p>
 <img src="motif_cooocurrence.png" width="780">
