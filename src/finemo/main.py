@@ -216,8 +216,7 @@ def report(regions_path, hits_dir, modisco_h5_path, peaks_path, motifs_include_p
 
     evaluation.plot_hit_distributions(occ_df, motif_names, out_dir)
 
-    coooc_path = os.path.join(out_dir, "motif_cooocurrence.png")
-    evaluation.plot_peak_motif_indicator_heatmap(coooc, motif_names, coooc_path)
+    evaluation.plot_peak_motif_indicator_heatmap(coooc, motif_names, out_dir)
 
     plot_dir = os.path.join(out_dir, "CWMs")
     evaluation.plot_cwms(cwms, trim_bounds, plot_dir)
@@ -227,8 +226,7 @@ def report(regions_path, hits_dir, modisco_h5_path, peaks_path, motifs_include_p
         seqlets_path = os.path.join(out_dir, "seqlets.tsv")
         data_io.write_modisco_seqlets(seqlets_df, seqlets_path)
 
-        plot_path = os.path.join(out_dir, "hit_vs_seqlet_counts.png")
-        evaluation.plot_hit_vs_seqlet_counts(report_data, plot_path)
+        evaluation.plot_hit_vs_seqlet_counts(report_data, out_dir)
 
     report_path = os.path.join(out_dir, "report.html")
     evaluation.write_report(report_df, motif_names, report_path, compute_recall, seqlets_df is not None)
