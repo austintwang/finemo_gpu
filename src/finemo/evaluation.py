@@ -77,8 +77,10 @@ def plot_hit_distributions(occ_df, motif_names, plot_dir):
         y[unique] = freq
         ax.bar(x, y)
 
-        output_path = os.path.join(motifs_dir, f"{m}.png")
-        plt.savefig(output_path, dpi=300)
+        output_path_png = os.path.join(motifs_dir, f"{m}.png")
+        plt.savefig(output_path_png, dpi=300)
+        output_path_svg = os.path.join(motifs_dir, f"{m}.svg")
+        plt.savefig(output_path_svg)
 
         plt.close(fig)
     
@@ -95,13 +97,15 @@ def plot_hit_distributions(occ_df, motif_names, plot_dir):
     ax.set_xlabel("Motifs per peak")
     ax.set_ylabel("Frequency")
 
-    output_path = os.path.join(plot_dir, "total_hit_distribution.png")
-    plt.savefig(output_path, dpi=300)
+    output_path_png = os.path.join(plot_dir, "total_hit_distribution.png")
+    plt.savefig(output_path_png, dpi=300)
+    output_path_svg = os.path.join(plot_dir, "total_hit_distribution.svg")
+    plt.savefig(output_path_svg, dpi=300)
 
     plt.close(fig)
 
 
-def plot_peak_motif_indicator_heatmap(peak_hit_counts, motif_names, output_path):
+def plot_peak_motif_indicator_heatmap(peak_hit_counts, motif_names, output_dir):
     """
     Plots a simple indicator heatmap of the motifs in each peak.
     """
@@ -122,7 +126,10 @@ def plot_peak_motif_indicator_heatmap(peak_hit_counts, motif_names, output_path)
     ax.set_xlabel("Motif i")
     ax.set_ylabel("Motif j")
 
-    plt.savefig(output_path, dpi=300)
+    output_path_png = os.path.join(output_dir, "motif_cooocurrence.png")
+    plt.savefig(output_path_png, dpi=300)
+    output_path_svg = os.path.join(output_dir, "motif_cooocurrence.svg")
+    plt.savefig(output_path_svg)
 
     plt.close()
 
@@ -393,8 +400,6 @@ def plot_cwms(cwms, trim_bounds, out_dir, alphabet=LOGO_ALPHABET, colors=LOGO_CO
         motif_dir = os.path.join(out_dir, m)
         os.makedirs(motif_dir, exist_ok=True)
         for cwm_type, cwm in v.items():
-            output_path = os.path.join(motif_dir, f"{cwm_type}.png")
-
             fig, ax = plt.subplots(figsize=(10,2))
 
             plot_logo(ax, cwm, alphabet, colors=colors, font_props=font, shade_bounds=trim_bounds[m][cwm_type])
@@ -402,11 +407,15 @@ def plot_cwms(cwms, trim_bounds, out_dir, alphabet=LOGO_ALPHABET, colors=LOGO_CO
             for name, spine in ax.spines.items():
                 spine.set_visible(False)
             
-            plt.savefig(output_path, dpi=100)
+            output_path_png = os.path.join(motif_dir, f"{cwm_type}.png")
+            plt.savefig(output_path_png, dpi=100)
+            output_path_svg = os.path.join(motif_dir, f"{cwm_type}.svg")
+            plt.savefig(output_path_svg)
+
             plt.close(fig)
 
 
-def plot_hit_vs_seqlet_counts(recall_data, output_path):
+def plot_hit_vs_seqlet_counts(recall_data, output_dir):
     x = []
     y = []
     m = []
@@ -430,7 +439,11 @@ def plot_hit_vs_seqlet_counts(recall_data, output_path):
     ax.set_xlabel("Hits per motif")
     ax.set_ylabel("Seqlets per motif")
 
-    plt.savefig(output_path, dpi=300)
+    output_path_png = os.path.join(output_dir, "hit_vs_seqlet_counts.png")
+    plt.savefig(output_path_png, dpi=300)
+    output_path_svg = os.path.join(output_dir, "hit_vs_seqlet_counts.svg")
+    plt.savefig(output_path_svg)
+
     plt.close()
 
 
