@@ -214,7 +214,9 @@ def report(regions_path, hits_dir, modisco_h5_path, peaks_path, motifs_include_p
 
     data_io.write_report_data(report_df, cwms, out_dir)
 
-    evaluation.plot_hit_distributions(occ_df, motif_names, out_dir)
+    evaluation.plot_hit_stat_distributions(hits_df, motif_names, out_dir)
+
+    evaluation.plot_hit_peak_distributions(occ_df, motif_names, out_dir)
 
     evaluation.plot_peak_motif_indicator_heatmap(coooc, motif_names, out_dir)
 
