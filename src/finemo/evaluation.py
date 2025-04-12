@@ -62,12 +62,56 @@ def get_motif_occurences(hits_df, motif_names):
     return occ_df, coocc
 
 
-def plot_hit_distributions(occ_df, motif_names, plot_dir):
+def plot_hit_stat_distributions(hits_df, motif_names, plot_dir):
+    hits_df = hits_df.collect()
+    hits_by_motif = hits_df.partition_by("motif_name", as_dict=True)
+    dummy_df = hits_df.clear()
+
+    motifs_dir = os.path.join(plot_dir, "motif_stat_distributions")
+    os.makedirs(motifs_dir, exist_ok=True)
+    for m in motif_names:
+        hits = hits_by_motif.get((m,), dummy_df)
+        coefficients = hits.get_column("hit_coefficient_global").to_numpy()
+        similarities = hits.get_column("hit_similarity").to_numpy()
+        importances = hits.get_column("hit_importance").to_numpy()
+
+        fig, ax = plt.subplots(figsize=(5, 2))
+
+        ax.hist(coefficients, bins=50)
+
+        output_path_png = os.path.join(motifs_dir, f"{m}_coefficients.png")
+        plt.savefig(output_path_png, dpi=300)
+        output_path_svg = os.path.join(motifs_dir, f"{m}_coefficients.svg")
+        plt.savefig(output_path_svg)
+        plt.close(fig)
+
+        fig, ax = plt.subplots(figsize=(5, 2))
+
+        ax.hist(similarities, bins=50)
+
+        output_path_png = os.path.join(motifs_dir, f"{m}_similarities.png")
+        plt.savefig(output_path_png, dpi=300)
+        output_path_svg = os.path.join(motifs_dir, f"{m}_similarities.svg")
+        plt.savefig(output_path_svg)
+        plt.close(fig)
+
+        fig, ax = plt.subplots(figsize=(5, 2))
+
+        ax.hist(importances, bins=50)
+
+        output_path_png = os.path.join(motifs_dir, f"{m}_importances.png")
+        plt.savefig(output_path_png, dpi=300)
+        output_path_svg = os.path.join(motifs_dir, f"{m}_importances.svg")
+        plt.savefig(output_path_svg)
+        plt.close(fig)
+
+
+def plot_hit_peak_distributions(occ_df, motif_names, plot_dir):
     motifs_dir = os.path.join(plot_dir, "motif_hit_distributions")
     os.makedirs(motifs_dir, exist_ok=True)
 
     for m in motif_names:
-        fig, ax = plt.subplots(figsize=(6, 2))
+        fig, ax = plt.subplots(figsize=(5, 2))
 
         unique, counts = np.unique(occ_df.get_column(m), return_counts=True)
         freq = counts / counts.sum()
@@ -94,7 +138,7 @@ def plot_hit_distributions(occ_df, motif_names, plot_dir):
     y[unique] = freq
     ax.bar(x, y)
 
-    ax.set_xlabel("Motifs per peak")
+    ax.set_xlabel("Total hits per region")
     ax.set_ylabel("Frequency")
 
     output_path_png = os.path.join(plot_dir, "total_hit_distribution.png")

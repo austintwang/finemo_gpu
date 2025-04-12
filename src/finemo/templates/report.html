@@ -170,6 +170,7 @@
         }
 
         .distplot img {
+            max-width: unset;
             margin-bottom: 0
         }
         
@@ -322,34 +323,46 @@
     </tbody>
 </table>
 
-<h2>Hit distributions</h2>
+<h2>Hit statistic distributions</h2>
 <p>
-    The following figures visualize the distribution of hits across motifs and peaks. 
+    The following figures visualize the distribution of hit statistics across motifs and regions. 
 </p>
 
-<h3>Overall distribution of hits per peak</h3>
+<h3>Overall distribution of hit counts per region</h3>
 <p>
-    This plot shows the distribution of hit counts per peak for any motif.
-    The number of peaks with no hits should be near zero. 
+    This plot shows the distribution of hit counts per region for any motif.
+    The number of regions with no hits should be near zero. 
 </p>
 <img src="total_hit_distribution.svg" width="780">
 
-<h3>Per-motif distributions of hits per peak</h3>
+<h3>Per-motif distributions of hit statistics</h3>
 <p>
-    These plots show the distribution of hit counts per peak for each motif.
+    These plots show the distribution of hit statistics for each motif, specifically:
+    <ul>
+        <li><strong>Hits Per Region</strong>: The number of hits per region for each motif</li>
+        <li><strong>Hit Coefficient</strong>: The the distribution of hit coefficients for each motif</li>
+        <li><strong>Hit Similarity</strong>: The distribution of hit-CWM similarity for each motif</li>
+        <li><strong>Hit Importance</strong>: The distribution of the total importance of hits for each motif</li>
+    </ul>
 </p>
 <table>
     <thead>
         <tr>
             <th>Motif Name</th>
-            <th class="distplot">Hits Per Peak</th>
+            <th class="distplot">Hits Per Region</th>
+            <th class="distplot">Hit Coefficient</th>
+            <th class="distplot">Hit Similarity</th>
+            <th class="distplot">Hit Importance</th>
         </tr>
     </thead>
     <tbody>
         {% for m in motif_names %}
         <tr>
             <td><code>{{ m }}</code></td>
-            <td class="distplot"><img src="motif_hit_distributions/{{ m }}.svg" width="480"></td>
+            <td class="distplot"><img src="motif_hit_distributions/{{ m }}.svg" width="360"></td>
+            <td class="distplot"><img src="motif_stat_distributions/{{ m }}_coefficients.svg" width="360"></td>
+            <td class="distplot"><img src="motif_stat_distributions/{{ m }}_similarities.svg" width="360"></td>
+            <td class="distplot"><img src="motif_stat_distributions/{{ m }}_importances.svg" width="360"></td>
         </tr>
         {% endfor %}
     </tbody>
@@ -357,9 +370,9 @@
 
 <h3>Motif co-occurrence</h3>
 <p>
-    This heatmap shows the co-occurrence of motifs across peaks.
-    The color intensity here represents the cosine similarity between the motifs' occurrence across peaks,
-    where occurence is defined as the presence of a hit for a motif in a peak.
+    This heatmap shows the co-occurrence of motifs across regions.
+    The color intensity here represents the cosine similarity between the motifs' occurrence across regions,
+    where occurence is defined as the presence of a hit for a motif in a region.
 </p>
 <img src="motif_cooocurrence.svg" width="780">
 
