@@ -11,7 +11,7 @@ from numba.types import Array, uint32, int32, float32
         Array(int32, 1, 'C', readonly=True), 
         Array(int32, 1, 'C', readonly=True), 
         Array(float32, 1, 'C', readonly=True)
-    )
+    ), cache=True
 )
 def _collapse_hits(chrom_ids, starts, ends, similarities):
     n = chrom_ids.shape[0]
