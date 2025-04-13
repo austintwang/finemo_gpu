@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "finemo"
 description = "Identification of regulatory elements from neural network contribution scores for DNA."
 keywords = ["deep learning", "genomics"]
-version = "0.31"
+version = "0.32"
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [
@@ -17,6 +17,7 @@ dependencies = [
     "numpy",
     "scipy",
     "torch",
+    "numba",
     "polars>=1.0",
     "matplotlib",
     "h5py",

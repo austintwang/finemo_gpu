@@ -234,6 +234,15 @@ def report(regions_path, hits_dir, modisco_h5_path, peaks_path, motifs_include_p
     evaluation.write_report(report_df, motif_names, report_path, compute_recall, seqlets_df is not None)
 
 
+def collapse_hits(hits_path, out_path, overlap):
+    from . import postprocessing
+
+    hits_df = data_io.load_hits(hits_path, lazy=False)
+    hits_collapsed_df = postprocessing.collapse_hits(hits_df, overlap)
+
+    data_io.write_hits_processed(hits_collapsed_df, out_path, schema=data_io.HITS_COLLAPSED_DTYPES)
+
+
 def cli():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(required=True, dest='cmd')
@@ -418,6 +427,17 @@ def cli():
         help="Do not compute motif recall metrics.")
     report_parser.add_argument("-s", "--no-seqlets", action='store_true',
         help="DEPRECATED: Please omit the `--modisco-h5` argument instead.")
+
+
+    collapse_hits_parser = subparsers.add_parser("collapse-hits", formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        help="Identify best hit among sets of overlapping hits by motif similarity.")
+    
+    collapse_hits_parser.add_argument("-i", "--hits", type=str, required=True,
+        help="The `hits.tsv` or `hits_unique.tsv` file from `call-hits`.")
+    collapse_hits_parser.add_argument("-o", "--out-path", type=str, required=True,
+        help="The path to the output .tsv file with an additional \"is_primary\" column.")
+    collapse_hits_parser.add_argument("-O", "--overlap", type=int, default=3,
+        help="The minimum number of base pairs to consider as overlapping.")
     
 
     args = parser.parse_args()
@@ -458,3 +478,7 @@ def cli():
         report(args.regions, args.hits, args.modisco_h5, args.peaks, args.motifs_include, 
                args.motif_names, args.out_dir, args.modisco_region_width, args.cwm_trim_threshold, 
                not args.no_recall, not args.no_seqlets)
+
+    elif args.cmd == "collapse-hits":
+        collapse_hits(args.hits, args.out_path, args.overlap)
+
