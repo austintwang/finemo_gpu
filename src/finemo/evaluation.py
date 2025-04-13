@@ -77,7 +77,7 @@ def plot_hit_stat_distributions(hits_df, motif_names, plot_dir):
 
         fig, ax = plt.subplots(figsize=(5, 2))
 
-        ax.hist(coefficients, bins=50)
+        ax.hist(coefficients, bins=50, density=True)
 
         output_path_png = os.path.join(motifs_dir, f"{m}_coefficients.png")
         plt.savefig(output_path_png, dpi=300)
@@ -87,7 +87,7 @@ def plot_hit_stat_distributions(hits_df, motif_names, plot_dir):
 
         fig, ax = plt.subplots(figsize=(5, 2))
 
-        ax.hist(similarities, bins=50)
+        ax.hist(similarities, bins=50, density=True)
 
         output_path_png = os.path.join(motifs_dir, f"{m}_similarities.png")
         plt.savefig(output_path_png, dpi=300)
@@ -97,7 +97,7 @@ def plot_hit_stat_distributions(hits_df, motif_names, plot_dir):
 
         fig, ax = plt.subplots(figsize=(5, 2))
 
-        ax.hist(importances, bins=50)
+        ax.hist(importances, bins=50, density=True)
 
         output_path_png = os.path.join(motifs_dir, f"{m}_importances.png")
         plt.savefig(output_path_png, dpi=300)

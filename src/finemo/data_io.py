@@ -209,7 +209,6 @@ def write_regions_npz(sequences, contributions, out_path, peaks_df=None):
                             chr=chr_arr, chr_id=chr_id_arr, start=start_arr, peak_id=peak_id_arr, peak_name=peak_name_arr)
 
 
-
 def trim_motif(cwm, trim_threshold):
     """
     Adapted from https://github.com/jmschrei/tfmodisco-lite/blob/570535ee5ccf43d670e898d92d63af43d68c38c5/modiscolite/report.py#L213-L236
@@ -439,16 +438,22 @@ HITS_DTYPES = {
     "strand": pl.String,
     "peak_name": pl.String,
     "peak_id": pl.UInt32,
-    
 }
+HITS_COLLAPSED_DTYPES = HITS_DTYPES | {"is_primary": pl.UInt32}
 
-def load_hits(hits_path, lazy=False):
+
+def load_hits(hits_path, lazy=False, schema=HITS_DTYPES):
     hits_df = (
-        pl.scan_csv(hits_path, separator='\t', quote_char=None, schema=HITS_DTYPES)
+        pl.scan_csv(hits_path, separator='\t', quote_char=None, schema=schema)
         .with_columns(pl.lit(1).alias("count"))
     )
 
     return hits_df if lazy else hits_df.collect()
+
+
+def write_hits_processed(hits_df, out_path, schema=HITS_DTYPES):
+    hits_df = hits_df.select(schema.keys())
+    hits_df.write_csv(out_path, separator="\t")
 
 
 def write_hits(hits_df, peaks_df, motifs_df, qc_df, out_dir, motif_width):

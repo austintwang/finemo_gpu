@@ -8,6 +8,7 @@ dependencies:
   - pytorch=2.5.1
   - pytorch-cuda=12.4
   - python=3.11
+  - numba=0.61.2
   - numpy=2.2.0
   - scipy=1.14.1
   - polars=1.17.1
