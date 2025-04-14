@@ -70,3 +70,32 @@ def collapse_hits(hits_df, overlap):
     )
 
     return df_out
+
+
+def intersect_hits(hits_dfs, relaxed):
+    if relaxed:
+        join_cols = [
+            "chr", "start_untrimmed", "end_untrimmed",
+            "motif_name", "strand"
+        ]
+    else:
+        join_cols = [
+            "chr", "start", "end", "start_untrimmed", "end_untrimmed",
+            "motif_name", "strand", "peak_name", "peak_id"
+        ]
+
+    if len(hits_dfs) < 1:
+        raise ValueError("At least one hits dataframe required")
+
+    hits_df = hits_dfs[0]
+    for i in range(1, len(hits_dfs)):
+        hits_df = hits_df.join(
+            hits_dfs[i],
+            on=join_cols,
+            how="inner",
+            suffix=f"_{i}",
+            join_nulls=True,
+            coalesce=True
+        )
+
+    return hits_df

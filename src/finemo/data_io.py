@@ -452,7 +452,8 @@ def load_hits(hits_path, lazy=False, schema=HITS_DTYPES):
 
 
 def write_hits_processed(hits_df, out_path, schema=HITS_DTYPES):
-    hits_df = hits_df.select(schema.keys())
+    if schema is not None:
+        hits_df = hits_df.select(schema.keys())
     hits_df.write_csv(out_path, separator="\t")
 
 

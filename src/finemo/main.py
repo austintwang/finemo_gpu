@@ -243,6 +243,15 @@ def collapse_hits(hits_path, out_path, overlap):
     data_io.write_hits_processed(hits_collapsed_df, out_path, schema=data_io.HITS_COLLAPSED_DTYPES)
 
 
+def intersect_hits(hits_paths, out_path, relaxed):
+    from . import postprocessing
+
+    hits_dfs = [data_io.load_hits(hits_path, lazy=False) for hits_path in hits_paths]
+    hits_df = postprocessing.intersect_hits(hits_dfs, relaxed)
+
+    data_io.write_hits_processed(hits_df, out_path, schema=None)
+
+
 def cli():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(required=True, dest='cmd')
@@ -430,7 +439,7 @@ def cli():
 
 
     collapse_hits_parser = subparsers.add_parser("collapse-hits", formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        help="Identify best hit among sets of overlapping hits by motif similarity.")
+        help="Identify best hit by motif similarity among sets of overlapping hits.")
     
     collapse_hits_parser.add_argument("-i", "--hits", type=str, required=True,
         help="The `hits.tsv` or `hits_unique.tsv` file from `call-hits`.")
@@ -439,6 +448,17 @@ def cli():
     collapse_hits_parser.add_argument("-O", "--overlap", type=int, default=3,
         help="The minimum number of base pairs to consider as overlapping.")
     
+
+    intersect_hits_parser = subparsers.add_parser("intersect-hits", formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        help="Intersect hits across multiple runs.")
+    
+    intersect_hits_parser.add_argument("-i", "--hits", type=str, required=True, nargs='+',
+        help="One or more hits.tsv or hits_unique.tsv files, with paths delimited by whitespace.")
+    intersect_hits_parser.add_argument("-o", "--out-path", type=str, required=True,
+        help="The path to the output .tsv file. Duplicate columns are suffixed with the positional index of the input file.")
+    intersect_hits_parser.add_argument("-r", "--relaxed", action='store_true',
+        help="Use relaxed intersection criteria, using only motif names and untrimmed coordinates. By default, the intersection assumes consistent region definitions and motif trimming. This option is not recommended if genomic coordinates are unavailable.")
+
 
     args = parser.parse_args()
     
@@ -481,4 +501,7 @@ def cli():
 
     elif args.cmd == "collapse-hits":
         collapse_hits(args.hits, args.out_path, args.overlap)
+
+    elif args.cmd == "intersect-hits":
+        intersect_hits(args.hits, args.out_path, args.relaxed)
 
