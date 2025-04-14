@@ -133,7 +133,7 @@ Usage: `finemo call-hits -r <regions> -m <modisco_h5> -o <out_dir> [-p <peaks>] 
 - `-r/--regions`: A `.npz` file of input sequences, contributions, and coordinates. Created with a `finemo extract-regions-*` command.
 - `-m/--modisco-h5`: A tfmodisco-lite output H5 file of motif patterns.
 - `-o/--out-dir`: The path to the output directory.
-- `-t/--cwm-trim-threshold`: The threshold to determine motif start and end positions within the full CWMs. Default is 0.3.
+- `-t/--cwm-trim-threshold`: The threshold to determine motif start and end positions within the full CWMs. Default is 0.3. If you need finer control over motif trimming, check out the `-T/--cwm-trim-thresholds` and `-R/--cwm-trim-coords` options.
 - `-l/--global-lambda`: The L1 regularization weight determining the sparsity of hits. Default is 0.7.
 - `-b/--batch-size`: The batch size used for optimization. Default is 2000.
 - `-J/--compile`: Enable JIT compilation for faster execution. This option may not work on older GPUs.
