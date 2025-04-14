@@ -32,6 +32,17 @@ def load_mapping(path, type):
 
     return mapping
 
+def load_mapping_tuple(path, type):
+    mapping = {}
+    with open(path) as f:
+        for line in f:
+            entries = line.rstrip("\n").split("\t")
+            key = entries[0]
+            val = entries[1:]
+            mapping[key] = tuple(type(i) for i in val)
+
+    return mapping
+
 
 NARROWPEAK_SCHEMA = ["chr", "peak_start", "peak_end", "peak_name", "peak_score", 
                      "peak_strand", "peak_signal", "peak_pval", "peak_qval", "peak_summit"]
@@ -238,8 +249,8 @@ def _motif_name_sort_key(data):
 
 MODISCO_PATTERN_GROUPS = ['pos_patterns', 'neg_patterns']
 
-def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type, motifs_include, 
-                        motif_name_map, motif_lambdas, motif_lambda_default, include_rc):
+def load_modisco_motifs(modisco_h5_path, trim_coords, trim_thresholds, trim_threshold_default, motif_type, 
+                        motifs_include, motif_name_map, motif_lambdas, motif_lambda_default, include_rc):
     """
     Adapted from https://github.com/jmschrei/tfmodisco-lite/blob/570535ee5ccf43d670e898d92d63af43d68c38c5/modiscolite/report.py#L252-L272
     """
@@ -256,6 +267,11 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type, motifs_incl
 
     if motif_lambdas is None:
         motif_lambdas = {}
+
+    if trim_coords is None:
+        trim_coords = {}
+    if trim_thresholds is None:
+        trim_thresholds = {}
 
     if len(motif_name_map.values()) != len(set(motif_name_map.values())):
         raise ValueError("Specified motif names are not unique")
@@ -281,8 +297,15 @@ def load_modisco_motifs(modisco_h5_path, trim_threshold, motif_type, motifs_incl
 
                 cwm_fwd = cwm_raw / cwm_norm
                 cwm_rev = cwm_fwd[::-1,::-1]
-                start_fwd, end_fwd = trim_motif(cwm_fwd, trim_threshold)
-                start_rev, end_rev = trim_motif(cwm_rev, trim_threshold)
+
+                if pattern_tag in trim_coords:
+                    start_fwd, end_fwd = trim_coords[pattern_tag]
+                else:
+                    trim_threshold = trim_thresholds.get(pattern_tag, trim_threshold_default)
+                    start_fwd, end_fwd = trim_motif(cwm_fwd, trim_threshold)
+
+                cwm_len = cwm_fwd.shape[1]
+                start_rev, end_rev = cwm_len - end_fwd, cwm_len - start_fwd
                 
                 trim_mask_fwd = np.zeros(cwm_fwd.shape[1], dtype=np.int8)
                 trim_mask_fwd[start_fwd:end_fwd] = 1
