@@ -37,7 +37,7 @@ def _collapse_hits(chrom_ids, starts, ends, similarities):
     return out
 
 
-def collapse_hits(hits_df, overlap):
+def collapse_hits(hits_df, overlap_frac):
     chroms = hits_df["chr"].unique(maintain_order=True)
 
     if not chroms.is_empty():
@@ -46,15 +46,15 @@ def collapse_hits(hits_df, overlap):
         }
         df = hits_df.select(
             chrom_id=pl.col("chr").replace_strict(chrom_to_id, return_dtype=pl.UInt32),
-            start_trim=pl.col("start") * 2 + overlap,
-            end_trim=pl.col("end") * 2 - overlap,
+            start_trim=pl.col("start") * 2 + ((pl.col("end") - pl.col("start")) * overlap_frac).cast(pl.Int32),
+            end_trim=pl.col("end") * 2 - ((pl.col("end") - pl.col("start")) * overlap_frac).cast(pl.Int32),
             similarity=pl.col("hit_similarity")
         )
     else:
         df = hits_df.select(
             chrom_id=pl.col("peak_id"),
-            start_trim=pl.col("start") * 2 + overlap,
-            end_trim=pl.col("end") * 2 - overlap,
+            start_trim=pl.col("start") * 2 + ((pl.col("end") - pl.col("start")) * overlap_frac).cast(pl.Int32),
+            end_trim=pl.col("end") * 2 - ((pl.col("end") - pl.col("start")) * overlap_frac).cast(pl.Int32),
             similarity=pl.col("hit_similarity")
         )
 
