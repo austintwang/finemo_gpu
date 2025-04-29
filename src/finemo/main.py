@@ -245,11 +245,11 @@ def report(regions_path, hits_dir, modisco_h5_path, peaks_path, motifs_include_p
     evaluation.write_report(report_df, motif_names, report_path, compute_recall, seqlets_df is not None)
 
 
-def collapse_hits(hits_path, out_path, overlap):
+def collapse_hits(hits_path, out_path, overlap_frac):
     from . import postprocessing
 
     hits_df = data_io.load_hits(hits_path, lazy=False)
-    hits_collapsed_df = postprocessing.collapse_hits(hits_df, overlap)
+    hits_collapsed_df = postprocessing.collapse_hits(hits_df, overlap_frac)
 
     data_io.write_hits_processed(hits_collapsed_df, out_path, schema=data_io.HITS_COLLAPSED_DTYPES)
 
@@ -460,8 +460,8 @@ def cli():
         help="The `hits.tsv` or `hits_unique.tsv` file from `call-hits`.")
     collapse_hits_parser.add_argument("-o", "--out-path", type=str, required=True,
         help="The path to the output .tsv file with an additional \"is_primary\" column.")
-    collapse_hits_parser.add_argument("-O", "--overlap", type=int, default=3,
-        help="The minimum number of base pairs to consider as overlapping.")
+    collapse_hits_parser.add_argument("-O", "--overlap-frac", type=float, default=0.2,
+        help="The threshold for determining overlapping hits. For two hits with lengths x and y, the minimum overlap is defined as `overlap_frac * (x + y) / 2`. The default value of 0.2 means that two hits must overlap by at least 20% of their average lengths to be considered overlapping.")
     
 
     intersect_hits_parser = subparsers.add_parser("intersect-hits", formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -515,7 +515,7 @@ def cli():
                not args.no_recall, not args.no_seqlets)
 
     elif args.cmd == "collapse-hits":
-        collapse_hits(args.hits, args.out_path, args.overlap)
+        collapse_hits(args.hits, args.out_path, args.overlap_frac)
 
     elif args.cmd == "intersect-hits":
         intersect_hits(args.hits, args.out_path, args.relaxed)
