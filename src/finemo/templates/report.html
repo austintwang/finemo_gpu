@@ -323,6 +323,18 @@
     </tbody>
 </table>
 
+{% if compute_recall %}
+
+<h3>Seqlet-hit confusion matrix</h3>
+<p>
+    This heatmap shows the prevalence of motifs whose (untrimmed) hits overlap with TF-MoDISco seqlets of other motifs.
+    The vertical axis shows the motif of the seqlet, while the horizontal axis shows the motif of the hit.
+    The color intensity here represents an estimator of the expected number of bases of hit overlap per base of seqlet. 
+</p>
+<img src="seqlet_confusion.svg" width="780">
+
+{% endif %}
+
 <h2>Hit statistic distributions</h2>
 <p>
     The following figures visualize the distribution of hit statistics across motifs and regions. 

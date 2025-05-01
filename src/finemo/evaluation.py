@@ -160,7 +160,7 @@ def plot_peak_motif_indicator_heatmap(peak_hit_counts, motif_names, output_dir):
     fig, ax = plt.subplots(figsize=(8, 8))
     
     # Plot the heatmap
-    ax.imshow(matrix, interpolation="nearest", aspect="auto", cmap="Greens")
+    cax = ax.imshow(matrix, interpolation="nearest", aspect="equal", cmap="Greens")
 
     # Set axes on heatmap
     ax.set_yticks(np.arange(len(motif_keys)))
@@ -170,9 +170,43 @@ def plot_peak_motif_indicator_heatmap(peak_hit_counts, motif_names, output_dir):
     ax.set_xlabel("Motif i")
     ax.set_ylabel("Motif j")
 
+    ax.tick_params(axis='both', labelsize=8)
+
+    cbar = fig.colorbar(cax, ax=ax, orientation="vertical", shrink=0.6, aspect=30)
+    cbar.ax.tick_params(labelsize=8) 
+    
     output_path_png = os.path.join(output_dir, "motif_cooocurrence.png")
     plt.savefig(output_path_png, dpi=300)
     output_path_svg = os.path.join(output_dir, "motif_cooocurrence.svg")
+    plt.savefig(output_path_svg)
+
+    plt.close()
+
+
+def plot_seqlet_confusion_heatmap(seqlet_confusion, motif_names, output_dir):
+    motif_keys = [abbreviate_motif_name(m) for m in motif_names]
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+    
+    # Plot the heatmap
+    cax = ax.imshow(seqlet_confusion, interpolation="nearest", aspect="equal", cmap="Blues")
+
+    # Set axes on heatmap
+    ax.set_yticks(np.arange(len(motif_keys)))
+    ax.set_yticklabels(motif_keys)
+    ax.set_xticks(np.arange(len(motif_keys)))
+    ax.set_xticklabels(motif_keys, rotation=90)
+    ax.set_xlabel("Hit motif")
+    ax.set_ylabel("Seqlet motif")
+
+    ax.tick_params(axis='both', labelsize=8)
+
+    cbar = fig.colorbar(cax, ax=ax, orientation="vertical", shrink=0.6, aspect=30)
+    cbar.ax.tick_params(labelsize=8) 
+
+    output_path_png = os.path.join(output_dir, "seqlet_confusion.png")
+    plt.savefig(output_path_png, dpi=300)
+    output_path_svg = os.path.join(output_dir, "seqlet_confusion.svg")
     plt.savefig(output_path_svg)
 
     plt.close()
@@ -364,6 +398,87 @@ def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df, cwms
     report_df = pl.from_dicts(records)
 
     return report_data, report_df, cwms, cwm_trim_bounds
+
+
+def seqlet_confusion(hits_df, seqlets_df, peaks_df, motif_names, motif_width):
+    bin_size = motif_width - 1
+
+    hits_binned = (
+        hits_df
+        .with_columns(
+            peak_id=pl.col('peak_id').cast(pl.UInt32),
+            is_revcomp=pl.col("strand") == '-'
+        )
+        .join(
+            peaks_df.lazy(), on="peak_id", how="inner"
+        )
+        .unique(subset=["chr_id", "start_untrimmed", "motif_name", "is_revcomp"])
+        .select(
+            chr_id=pl.col("chr_id"),
+            start_bin=pl.col("start_untrimmed") // bin_size,
+            end_bin=pl.col("end_untrimmed") // bin_size,
+            motif_name=pl.col("motif_name")
+        )
+    )
+
+    seqlets_binned = (
+        seqlets_df
+        .select(
+            chr_id=pl.col("chr_id"),
+            start_bin=pl.col("start_untrimmed") // bin_size,
+            end_bin=pl.col("end_untrimmed") // bin_size,
+            motif_name=pl.col("motif_name")
+        )
+    )
+
+    overlaps_df = (
+        seqlets_binned.join(
+            hits_binned, 
+            on=["chr_id", "start_bin", "end_bin"],
+            how="inner",
+            suffix="_hits"
+        )
+    )
+
+    seqlet_counts = seqlets_binned.group_by("motif_name").len(name="num_seqlets")
+    overlap_counts = overlaps_df.group_by(["motif_name", "motif_name_hits"]).len(name="num_overlaps")
+
+    num_motifs = len(motif_names)
+    confusion_mat = np.zeros((num_motifs, num_motifs), dtype=np.float32)
+    name_to_idx = {m: i for i, m in enumerate(motif_names)}
+
+    confusion_df = (
+        overlap_counts
+        .join(
+            seqlet_counts,
+            on="motif_name",
+            how="inner"
+        )
+        .select(
+            motif_name_seqlets=pl.col("motif_name"),
+            motif_name_hits=pl.col("motif_name_hits"),
+            frac_overlap=pl.col("num_overlaps") / pl.col("num_seqlets"),
+        )
+        .collect()
+    )
+
+    confusion_idx_df = (
+        confusion_df
+        .select(
+            row_idx=pl.col("motif_name_seqlets").replace_strict(name_to_idx),
+            col_idx=pl.col("motif_name_hits").replace_strict(name_to_idx),
+            frac_overlap=pl.col("frac_overlap")
+        )
+    )
+
+    row_idx = confusion_idx_df["row_idx"].to_numpy()
+    col_idx = confusion_idx_df["col_idx"].to_numpy()
+    frac_overlap = confusion_idx_df["frac_overlap"].to_numpy()
+
+    confusion_mat[row_idx, col_idx] = frac_overlap
+    
+    return confusion_df, confusion_mat
+
 
 
 class LogoGlyph(AbstractPathEffect):
