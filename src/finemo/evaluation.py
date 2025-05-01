@@ -401,7 +401,7 @@ def tfmodisco_comparison(regions, hits_df, peaks_df, seqlets_df, motifs_df, cwms
 
 
 def seqlet_confusion(hits_df, seqlets_df, peaks_df, motif_names, motif_width):
-    bin_size = motif_width - 1
+    bin_size = motif_width
 
     hits_binned = (
         hits_df
