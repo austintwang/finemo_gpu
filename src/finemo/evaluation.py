@@ -157,7 +157,7 @@ def plot_peak_motif_indicator_heatmap(peak_hit_counts, motif_names, output_dir):
     matrix = peak_hit_counts * cov_norm[:,None] * cov_norm[None,:]
     motif_keys = [abbreviate_motif_name(m) for m in motif_names]
 
-    fig, ax = plt.subplots(figsize=(8, 8))
+    fig, ax = plt.subplots(figsize=(8, 8), layout='constrained')
     
     # Plot the heatmap
     cax = ax.imshow(matrix, interpolation="nearest", aspect="equal", cmap="Greens")
@@ -186,7 +186,7 @@ def plot_peak_motif_indicator_heatmap(peak_hit_counts, motif_names, output_dir):
 def plot_seqlet_confusion_heatmap(seqlet_confusion, motif_names, output_dir):
     motif_keys = [abbreviate_motif_name(m) for m in motif_names]
 
-    fig, ax = plt.subplots(figsize=(8, 8))
+    fig, ax = plt.subplots(figsize=(8, 8), layout='constrained')
     
     # Plot the heatmap
     cax = ax.imshow(seqlet_confusion, interpolation="nearest", aspect="equal", cmap="Blues")
@@ -579,7 +579,7 @@ def plot_hit_vs_seqlet_counts(recall_data, output_dir):
 
     lim = max(np.amax(x), np.amax(y))
 
-    fig, ax = plt.subplots(figsize=(8,8))
+    fig, ax = plt.subplots(figsize=(8,8), layout='constrained')
     ax.axline((0, 0), (lim, lim), color="0.3", linewidth=0.7, linestyle=(0, (5, 5)))
     ax.scatter(x, y, s=5)
     for i, txt in enumerate(m):
