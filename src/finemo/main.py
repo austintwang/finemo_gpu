@@ -218,6 +218,9 @@ def report(regions_path, hits_dir, modisco_h5_path, peaks_path, motifs_include_p
                                                                                 cwms_modisco, motif_names, modisco_half_width, 
                                                                                 motif_width, compute_recall)
     
+    if seqlets_df is not None:
+        confusion_df, confusion_mat = evaluation.seqlet_confusion(hits_df, seqlets_df, peaks_df, motif_names, motif_width)
+    
     os.makedirs(out_dir, exist_ok=True)
     
     occ_path = os.path.join(out_dir, "motif_occurrences.tsv")
@@ -239,7 +242,11 @@ def report(regions_path, hits_dir, modisco_h5_path, peaks_path, motifs_include_p
         seqlets_path = os.path.join(out_dir, "seqlets.tsv")
         data_io.write_modisco_seqlets(seqlets_df, seqlets_path)
 
+        seqlet_confusion_path = os.path.join(out_dir, "seqlet_confusion.tsv")
+        data_io.write_seqlet_confusion_df(confusion_df, seqlet_confusion_path)
+
         evaluation.plot_hit_vs_seqlet_counts(report_data, out_dir)
+        evaluation.plot_seqlet_confusion_heatmap(confusion_mat, motif_names, out_dir)
 
     report_path = os.path.join(out_dir, "report.html")
     evaluation.write_report(report_df, motif_names, report_path, compute_recall, seqlets_df is not None)

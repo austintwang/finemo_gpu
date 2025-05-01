@@ -595,6 +595,10 @@ def write_occ_df(occ_df, out_path):
     occ_df.write_csv(out_path, separator="\t")
 
 
+def write_seqlet_confusion_df(seqlet_confusion_df, out_path):
+    seqlet_confusion_df.write_csv(out_path, separator="\t")
+
+
 def write_report_data(report_df, cwms, out_dir):
     cwms_dir = os.path.join(out_dir, "CWMs")
     os.makedirs(cwms_dir, exist_ok=True)
