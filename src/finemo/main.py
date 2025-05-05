@@ -152,7 +152,7 @@ def call_hits(regions_path, peaks_path, modisco_h5_path, chrom_order_path, motif
 
 def report(regions_path, hits_dir, modisco_h5_path, peaks_path, motifs_include_path, motif_names_path, 
            out_dir, modisco_region_width, cwm_trim_threshold, compute_recall, use_seqlets):
-    from . import evaluation        
+    from . import evaluation, visualization     
 
     sequences, contribs, peaks_df, _ = data_io.load_regions_npz(regions_path)
     if len(contribs.shape) == 3:
@@ -228,14 +228,12 @@ def report(regions_path, hits_dir, modisco_h5_path, peaks_path, motifs_include_p
 
     data_io.write_report_data(report_df, cwms, out_dir)
 
-    evaluation.plot_hit_stat_distributions(hits_df, motif_names, out_dir)
-
-    evaluation.plot_hit_peak_distributions(occ_df, motif_names, out_dir)
-
-    evaluation.plot_peak_motif_indicator_heatmap(coooc, motif_names, out_dir)
+    visualization.plot_hit_stat_distributions(hits_df, motif_names, out_dir)
+    visualization.plot_hit_peak_distributions(occ_df, motif_names, out_dir)
+    visualization.plot_peak_motif_indicator_heatmap(coooc, motif_names, out_dir)
 
     plot_dir = os.path.join(out_dir, "CWMs")
-    evaluation.plot_cwms(cwms, trim_bounds, plot_dir)
+    visualization.plot_cwms(cwms, trim_bounds, plot_dir)
 
     if seqlets_df is not None:
         seqlets_df = seqlets_df.collect()
@@ -245,11 +243,11 @@ def report(regions_path, hits_dir, modisco_h5_path, peaks_path, motifs_include_p
         seqlet_confusion_path = os.path.join(out_dir, "seqlet_confusion.tsv")
         data_io.write_seqlet_confusion_df(confusion_df, seqlet_confusion_path)
 
-        evaluation.plot_hit_vs_seqlet_counts(report_data, out_dir)
-        evaluation.plot_seqlet_confusion_heatmap(confusion_mat, motif_names, out_dir)
+        visualization.plot_hit_vs_seqlet_counts(report_data, out_dir)
+        visualization.plot_seqlet_confusion_heatmap(confusion_mat, motif_names, out_dir)
 
     report_path = os.path.join(out_dir, "report.html")
-    evaluation.write_report(report_df, motif_names, report_path, compute_recall, seqlets_df is not None)
+    visualization.write_report(report_df, motif_names, report_path, compute_recall, seqlets_df is not None)
 
 
 def collapse_hits(hits_path, out_path, overlap_frac):
