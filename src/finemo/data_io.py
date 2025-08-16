@@ -129,6 +129,31 @@ def load_regions_from_bw(peaks, fa_path, bw_paths, half_width):
     return sequences, contribs
 
 
+def extract_sequences_from_fa(fa_path, peaks, half_width):
+    num_peaks = peaks.height
+
+    sequences = np.zeros((num_peaks, 4, half_width * 2), dtype=np.int8)
+
+    genome = pyfaidx.Fasta(fa_path, one_based_attributes=False)
+
+    for ind, row in enumerate(peaks.iter_rows(named=True)):
+        chrom = row["chr"]
+        start = row["peak_region_start"]
+        end = start + 2 * half_width
+        
+        sequence_data = genome[chrom][start:end]
+        sequence = sequence_data.seq
+        start_adj = sequence_data.start
+        end_adj = sequence_data.end
+        a = start_adj - start
+        b = end_adj - start
+
+        if b > a:
+            sequences[ind,:,a:b] = one_hot_encode(sequence)
+    
+    return sequences
+
+
 def load_regions_from_chrombpnet_h5(h5_paths, half_width):
     with ExitStack() as stack:
         h5s = [stack.enter_context(h5py.File(i)) for i in h5_paths]

@@ -14,7 +14,9 @@ def extract_regions_bw(peaks_path, chrom_order_path, fa_path, bw_paths, out_path
     data_io.write_regions_npz(sequences, contribs, out_path, peaks_df=peaks_df)
 
 
-def extract_regions_chrombpnet_h5(peaks_path, chrom_order_path, h5_paths, out_path, region_width):
+def extract_regions_chrombpnet_h5(peaks_path, chrom_order_path, fa_path, h5_paths, out_path, region_width):
+    import numpy as np
+
     half_width = region_width // 2
 
     if peaks_path is not None:
@@ -23,6 +25,11 @@ def extract_regions_chrombpnet_h5(peaks_path, chrom_order_path, h5_paths, out_pa
         peaks_df = None
 
     sequences, contribs = data_io.load_regions_from_chrombpnet_h5(h5_paths, half_width)
+
+    if fa_path is not None and peaks_df is not None:
+        seqs_from_fa = data_io.extract_sequences_from_fa(fa_path, peaks_df, half_width)
+        if not np.array_equal(sequences, seqs_from_fa):
+            raise ValueError("Sequences extracted from FASTA file do not match those extracted from H5 files. Please ensure your peak coordinates are consistent with your input H5 file.")
 
     data_io.write_regions_npz(sequences, contribs, out_path, peaks_df=peaks_df)
 
