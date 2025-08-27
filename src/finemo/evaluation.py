@@ -140,6 +140,12 @@ def get_cwms(regions, positions_df, motif_width):
     start_idx = idx_df.get_column('start_idx').to_numpy()
     is_revcomp = idx_df.get_column("is_revcomp").to_numpy().astype(bool)
 
+    # Ignore hits outside of region
+    valid_mask = (start_idx >= 0) & (start_idx + motif_width <= regions.shape[2])
+    peak_idx = peak_idx[valid_mask]
+    start_idx = start_idx[valid_mask]
+    is_revcomp = is_revcomp[valid_mask]
+
     row_idx = peak_idx[:,None,None]
     pos_idx = start_idx[:,None,None] + np.zeros((1,1,motif_width), dtype=int)
     pos_idx[~is_revcomp,:,:] += np.arange(motif_width)[None,None,:]
