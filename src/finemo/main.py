@@ -53,10 +53,10 @@ def extract_regions_modisco_fmt(peaks_path, chrom_order_path, shaps_paths, ohe_p
     data_io.write_regions_npz(sequences, contribs, out_path, peaks_df=peaks_df)
 
 
-def tune_alphas(regions_path, modisco_h5_path, motifs_include_path, p_vals, out_dir, cwm_trim_threshold, batch_size, device, mode):
+def tune_alphas(regions_path, modisco_h5_path, motifs_include_path, motif_names_path, p_vals, out_dir, cwm_trim_threshold, batch_size, device, mode):
     from . import hitcaller
 
-    sequences, contribs = data_io.load_regions_npz(regions_path)
+    sequences, contribs, _, _ = data_io.load_regions_npz(regions_path)
     
     if mode == "pp":
         motif_type = "cwm"
@@ -76,41 +76,15 @@ def tune_alphas(regions_path, modisco_h5_path, motifs_include_path, p_vals, out_
     else:
         motifs_include = None
 
-    motifs_df, cwms, trim_masks, motif_names = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, motif_type, 
-                                                                           motifs_include, None, None, None, False)
-
-    alphas = hitcaller.calibrate_alphas(cwms, contribs, sequences, trim_masks, use_hypothetical_contribs, p_vals, batch_size, device)
-
-    data_io.write_alphas(alphas, p_vals, motif_names, out_dir)
-
-
-def tune_alphas(regions_path, modisco_h5_path, motifs_include_path, p_vals, out_dir, cwm_trim_threshold, batch_size, device, mode):
-    from . import hitcaller
-
-    sequences, contribs = data_io.load_regions_npz(regions_path)
-    
-    if mode == "pp":
-        motif_type = "cwm"
-        use_hypothetical_contribs = False
-    elif mode == "ph":
-        motif_type = "cwm"
-        use_hypothetical_contribs = True
-    elif mode == "hp":
-        motif_type = "hcwm"
-        use_hypothetical_contribs = False
-    elif mode == "hh":
-        motif_type = "hcwm"
-        use_hypothetical_contribs = True
-
-    if motifs_include_path is not None:
-        motifs_include = data_io.load_txt(motifs_include_path)
+    if motif_names_path is not None:
+        motif_name_map = data_io.load_mapping(motif_names_path, str)
     else:
-        motifs_include = None
+        motif_name_map = None
 
-    motifs_df, cwms, trim_masks, motif_names = data_io.load_modisco_motifs(modisco_h5_path, cwm_trim_threshold, motif_type, 
-                                                                           motifs_include, None, None, None, False)
+    motifs_df, cwms_modisco, trim_masks, motif_names = data_io.load_modisco_motifs(modisco_h5_path, None, None, cwm_trim_threshold, "cwm", 
+                                                                                    motifs_include, motif_name_map, None, None, True)
 
-    alphas = hitcaller.calibrate_alphas(cwms, contribs, sequences, trim_masks, use_hypothetical_contribs, p_vals, batch_size, device)
+    alphas = hitcaller.calibrate_alphas(cwms_modisco, contribs, sequences, trim_masks, use_hypothetical_contribs, p_vals, batch_size, device)
 
     data_io.write_alphas(alphas, p_vals, motif_names, out_dir)
 
@@ -442,6 +416,8 @@ def cli():
     
     tune_alphas_parser.add_argument("-I", "--motifs-include", type=str, default=None,
         help="A tab-delimited file with tfmodisco motif names (e.g pos_patterns.pattern_0) in the first column to include. If omitted, all motifs in the modisco H5 file are used.")
+    tune_alphas_parser.add_argument("-N", "--motif-names", type=str, default=None,
+        help="A tab-delimited file with tfmodisco motif names (e.g pos_patterns.pattern_0) in the first column and custom names in the second column. Omitted motifs default to tfmodisco names.")
     
     tune_alphas_parser.add_argument("-o", "--out-dir", type=str, required=True,
         help="The path to the output directory.")
@@ -590,7 +566,7 @@ def cli():
         extract_regions_modisco_fmt(args.peaks, args.chrom_order, args.attributions, args.sequences, args.out_path, args.region_width)
 
     elif args.cmd == "tune-alphas":
-        tune_alphas(args.regions, args.modisco_h5, args.motifs_include, args.p_vals, args.out_dir, args.cwm_trim_threshold, 
+        tune_alphas(args.regions, args.modisco_h5, args.motifs_include, args.motif_names, args.p_vals, args.out_dir, args.cwm_trim_threshold, 
                     args.batch_size, args.device, args.mode)
     
     elif args.cmd == "call-hits":
