@@ -441,18 +441,40 @@ def calibrate_alphas(cwms, contribs, sequences, cwm_trim_mask, use_hypothetical,
         load_end = min(load_start + b, n)
 
         batch_data = batch_loader.load_batch(load_start, load_end)
-        contribs_batch, _, _, _ = batch_data
+        contribs_batch, _, _ = batch_data
         contribs_batch = contribs_batch[:,:,:l_crop]
         contribs_tile = contribs_batch.permute(0, 2, 1).reshape(-1, w * 4)
         covs = torch.mm(contribs_tile, cwm_tile)
         contrib_vars = torch.mm(contribs_tile**2, cwm_trim_mask_tile)
-        corrs = covs * (contrib_vars + 1)**(-0.5)
+        corrs = covs * (contrib_vars)**(-0.5)
 
         corrs_lst.append(corrs.cpu())
 
     corrs = torch.cat(corrs_lst, dim=0).to(device=device)
 
     cutoffs = torch.quantile(corrs, quantiles, dim=0, interpolation='higher')
+    
+    # Check for out-of-bounds quantile cutoffs (mapping to edges of corrs)
+    corrs_min = torch.min(corrs, dim=0)[0]
+    corrs_max = torch.max(corrs, dim=0)[0]
+    
+    # Check if any cutoff equals the minimum or maximum correlation values
+    at_min = torch.any(cutoffs == corrs_min, dim=1)
+    at_max = torch.any(cutoffs == corrs_max, dim=1)
+    
+    if torch.any(at_min):
+        min_quantiles = quantiles[at_min]
+        min_p_vals = 1 - min_quantiles  # Convert back to original p-values
+        warnings.warn(f"Quantile cutoffs at minimum correlation values detected for quantiles: {min_quantiles.cpu().numpy()} "
+                     f"(corresponding to p-values: {min_p_vals.cpu().numpy()}). "
+                     f"This may indicate insufficient data or extreme quantile values.", RuntimeWarning)
+    
+    if torch.any(at_max):
+        max_quantiles = quantiles[at_max]
+        max_p_vals = 1 - max_quantiles  # Convert back to original p-values
+        warnings.warn(f"Quantile cutoffs at maximum correlation values detected for quantiles: {max_quantiles.cpu().numpy()} "
+                     f"(corresponding to p-values: {max_p_vals.cpu().numpy()}). "
+                     f"This may indicate insufficient data or extreme quantile values.", RuntimeWarning)
 
     return cutoffs.numpy(force=True)
 
