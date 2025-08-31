@@ -20,7 +20,7 @@ The algorithm represents contribution scores as weighted combinations of motif c
 
 Fi-NeMo solves motif instance calling as an optimization problem that reconstructs contribution score tracks as sparse linear combinations of motif CWMs, formulated as an L1-regularized linear model. This competitive assignment encourages overlapping motif instances to be resolved in a meaningful way, with stronger matches receiving higher coefficients while weaker or redundant matches are suppressed.
 
-![Methods diagram](/assets/methods.svg | width=100)
+![Methods diagram](/assets/methods.svg)
 
 ## References
 
