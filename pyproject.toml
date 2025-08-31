@@ -6,12 +6,12 @@ build-backend = "setuptools.build_meta"
 name = "finemo"
 description = "Identification of regulatory elements from neural network contribution scores for DNA."
 keywords = ["deep learning", "genomics"]
-version = "0.36"
+version = "0.40"
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [
     {name = "Austin Wang", email = "austin.wang1357@gmail.com"},
-    {name = "Anshul Kundaje"}
+    {name = "Anshul Kundaje", email = "akundaje@stanford.edu"}
 ]
 dependencies = [
     "numpy",
@@ -34,3 +34,6 @@ finemo = "finemo.main:cli"
 [project.urls]
 Homepage = "https://github.com/austintwang/finemo_gpu"
 Repository = "https://github.com/austintwang/finemo_gpu.git"
+
+[tool.ruff]
+ignore = ["F722"]
