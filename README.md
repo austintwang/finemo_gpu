@@ -4,7 +4,7 @@
 
 ## Overview
 
-Fi-NeMo implements a competitive optimization approach using proximal gradient descent to identify motif instances by solving a sparse linear reconstruction problem. Unlike traditional sequence-based methods, Fi-NeMo leverages context-aware importance scores from deep neural networks to accurately map transcription factor binding sites, enabling the discovery of both high-confidence canonical motifs and low-prevalence cofactor motifs that are often missed by conventional approaches.
+Fi-NeMo implements a competitive optimization approach using proximal gradient descent to identify motif instances by solving a sparse linear reconstruction problem. Unlike traditional sequence-based methods, Fi-NeMo leverages context-aware importance scores from deep neural networks to comprehensively map transcription factor binding sites, enabling the identification of both high-confidence canonical motifs and low-prevalence cofactor motifs that are often missed by conventional approaches.
 
 The algorithm represents contribution scores as weighted combinations of motif contribution weight matrices (CWMs) at specific genomic positions. This competitive assignment process more closely reflects the biological reality of transcription factors competing for binding sites, resulting in superior sensitivity and specificity compared to sequence-only methods.
 
@@ -18,9 +18,9 @@ The algorithm represents contribution scores as weighted combinations of motif c
 
 ## Method
 
-Fi-NeMo solves motif instance calling as an optimization problem that reconstructs contribution score tracks as sparse linear combinations of motif CWMs. The algorithm formulates this as an L1-regularized linear model.
+Fi-NeMo solves motif instance calling as an optimization problem that reconstructs contribution score tracks as sparse linear combinations of motif CWMs, formulated as an L1-regularized linear model. This competitive assignment encourages overlapping motif instances to be resolved in a meaningful way, with stronger matches receiving higher coefficients while weaker or redundant matches are suppressed.
 
-This competitive assignment encourages overlapping motif instances to be resolved in a meaningful way, with stronger matches receiving higher coefficients while weaker or redundant matches are suppressed.
+![Methods diagram](/assets/methods.svg | width=100)
 
 ## References
 
@@ -92,7 +92,7 @@ Recommended:
 
 Fi-NeMo provides a command-line utility named `finemo` for motif instance calling and analysis. The typical workflow involves three main steps:
 
-1. **Preprocessing**: Transform input contributions and sequences into a compressed format
+1. **Preprocessing**: Transform input contributions and sequences into a unified format
 2. **Hit Calling**: Identify motif instances using the Fi-NeMo algorithm  
 3. **Reporting and Analysis**: Generate visualizations and perform post-processing
 
