@@ -92,7 +92,7 @@ Recommended:
 
 ## API Documentation
 
-For detailed Python API documentation, see: https://www.austintwang.com/finemo_gpu/finemo.html
+For Fi-NeMo's Python API documentation, see: https://www.austintwang.com/finemo_gpu/finemo.html
 
 ## Command-Line Usage
 

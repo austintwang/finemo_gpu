@@ -62,3 +62,19 @@ TF-MoDISco : https://github.com/jmschrei/tfmodisco-lite
 BPNet : https://github.com/kundajelab/bpnet-refactor
 ChromBPNet: https://github.com/kundajelab/chrombpnet
 """
+
+from . import data_io
+from . import hitcaller
+from . import evaluation
+from . import visualization
+from . import postprocessing
+from . import main
+
+__all__ = [
+    "data_io",
+    "hitcaller",
+    "evaluation",
+    "visualization",
+    "postprocessing",
+    "main",
+]

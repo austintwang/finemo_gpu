@@ -679,9 +679,6 @@ def cli() -> None:
     - Motif hit calling using the Fi-NeMo algorithm
     - Report generation and visualization
     - Post-processing operations (hit collapsing, intersection)
-
-    The CLI supports comprehensive workflows for transcription factor motif
-    analysis from raw genomic data to publication-ready visualizations.
     """
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(required=True, dest="cmd")
