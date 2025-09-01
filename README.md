@@ -90,7 +90,11 @@ Recommended:
 
 - Peak region coordinates in uncompressed [ENCODE NarrowPeak](https://genome.ucsc.edu/FAQ/FAQformat.html#format12) format.
 
-## Usage
+## API Documentation
+
+For detailed Python API documentation, see: https://www.austintwang.com/finemo_gpu/finemo.html
+
+## Command-Line Usage
 
 Fi-NeMo provides a command-line utility named `finemo` for motif instance calling and analysis. The typical workflow involves three main steps:
 
