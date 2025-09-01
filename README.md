@@ -1,6 +1,6 @@
-# Fi-NeMo: Finding Neural network Motifs
+# Fi-NeMo: Finding Neural Network Motifs
 
-**Fi-NeMo** (**Fi**nding **Ne**ural network **Mo**tifs) is a GPU-accelerated motif instance calling tool for identifying transcription factor binding sites from neural network contribution scores.
+**Fi-NeMo** (**Fi**nding **Ne**ural Network **Mo**tifs) is a GPU-accelerated motif instance calling tool for identifying transcription factor binding sites from neural network contribution scores.
 
 ## Overview
 
@@ -260,7 +260,6 @@ Usage: `finemo call-hits -r <regions> -m <modisco_h5> -o <out_dir> [-p <peaks>] 
 #### Important Notes
 
 - **Scale Invariance**: Hit calling depends on motif and contribution score shapes, not absolute magnitudes. Use `hit_coefficient_global` or `hit_importance` for importance-based thresholding.
-- **Competitive Assignment**: Overlapping motif candidates compete; only the best-fitting motif at each position receives a non-zero coefficient.
 - **Legacy Format Support**: Convert older TF-MoDISco files using `modisco convert` from [tfmodisco-lite](https://github.com/jmschrei/tfmodisco-lite).
 
 ### Output reporting and post-processing

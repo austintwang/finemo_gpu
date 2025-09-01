@@ -1,4 +1,4 @@
-"""Fi-NeMo: Finding Neural network Motifs.
+"""Fi-NeMo: Finding Neural Network Motifs.
 
 A GPU-accelerated motif instance calling tool for identifying transcription factor
 binding sites from neural network contribution scores.
