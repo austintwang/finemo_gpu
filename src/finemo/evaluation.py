@@ -2,7 +2,7 @@
 
 This module provides functions for:
 - Computing motif occurrence statistics and co-occurrence patterns
-- Evaluating motif discovery quality against TF-MoDISCo results
+- Evaluating motif discovery quality against TF-MoDISco results
 - Analyzing hit calling performance and recall metrics
 - Generating confusion matrices for seqlet-hit comparisons
 """
@@ -176,10 +176,10 @@ def tfmodisco_comparison(
     Dict[str, Dict[str, Float[ndarray, "4 W"]]],
     Dict[str, Dict[str, Tuple[int, int]]],
 ]:
-    """Compare Fi-NeMo hits with TF-MoDISCo seqlets and compute evaluation metrics.
+    """Compare Fi-NeMo hits with TF-MoDISco seqlets and compute evaluation metrics.
 
     This function performs comprehensive comparison between Fi-NeMo hit calls
-    and TF-MoDISCo seqlets, computing recall metrics, CWM similarities,
+    and TF-MoDISco seqlets, computing recall metrics, CWM similarities,
     and extracting contribution weight matrices for visualization.
 
     Parameters
@@ -194,14 +194,14 @@ def tfmodisco_comparison(
         Peak metadata with columns:
         - peak_id, chr_id, peak_region_start
     seqlets_df : Optional[pl.DataFrame]
-        TF-MoDISCo seqlets with columns:
+        TF-MoDISco seqlets with columns:
         - chr_id, start_untrimmed, is_revcomp, motif_name
         If None, only basic hit statistics are computed.
     motifs_df : pl.DataFrame
         Motif metadata with columns:
         - motif_name, strand, motif_id, motif_start, motif_end
     cwms_modisco : Float[ndarray, "M 4 W"]
-        TF-MoDISCo contribution weight matrices.
+        TF-MoDISco contribution weight matrices.
         Shape: (n_modisco_motifs, 4, motif_width)
     motif_names : List[str]
         Names of motifs to analyze.
@@ -223,7 +223,7 @@ def tfmodisco_comparison(
     cwms : Dict[str, Dict[str, Float[ndarray, "4 W"]]]
         Extracted CWMs for each motif and condition:
         - hits_fc, hits_rc: Forward/reverse complement hits
-        - modisco_fc, modisco_rc: TF-MoDISCo forward/reverse
+        - modisco_fc, modisco_rc: TF-MoDISco forward/reverse
         - seqlets_only, hits_restricted_only: Non-overlapping instances
     cwm_trim_bounds : Dict[str, Dict[str, Tuple[int, int]]]
         Trimming boundaries for each CWM type and motif.
@@ -231,7 +231,7 @@ def tfmodisco_comparison(
     Notes
     -----
     - Hits are filtered to central region defined by modisco_half_width
-    - CWM similarity is computed as normalized dot product between hit and TF-MoDISCo CWMs
+    - CWM similarity is computed as normalized dot product between hit and TF-MoDISco CWMs
     - Recall metrics require both hits_df and seqlets_df to be non-empty
     - Missing motifs are handled gracefully with empty DataFrames
 
@@ -427,10 +427,10 @@ def seqlet_confusion(
     motif_names: List[str],
     motif_width: int,
 ) -> Tuple[pl.DataFrame, Float[ndarray, "M M"]]:
-    """Compute confusion matrix between TF-MoDISCo seqlets and Fi-NeMo hits.
+    """Compute confusion matrix between TF-MoDISco seqlets and Fi-NeMo hits.
 
     This function creates a confusion matrix showing the overlap between
-    TF-MoDISCo seqlets (ground truth) and Fi-NeMo hits across different motifs.
+    TF-MoDISco seqlets (ground truth) and Fi-NeMo hits across different motifs.
     Overlap frequencies are estimated using binned genomic coordinates.
 
     Parameters
@@ -439,7 +439,7 @@ def seqlet_confusion(
         Fi-NeMo hit calls with required columns:
         - peak_id, start_untrimmed, end_untrimmed, strand, motif_name
     seqlets_df : pl.DataFrame
-        TF-MoDISCo seqlets with required columns:
+        TF-MoDISco seqlets with required columns:
         - chr_id, start_untrimmed, end_untrimmed, motif_name
     peaks_df : pl.DataFrame
         Peak metadata for joining coordinates:

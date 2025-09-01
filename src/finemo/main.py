@@ -7,7 +7,7 @@ This module provides the command-line interface for all Fi-NeMo operations:
 - Post-processing operations (hit collapsing, intersection)
 
 The CLI supports multiple input formats including bigWig, HDF5 (ChromBPNet/BPNet),
-and TF-MoDISCo format.
+and TF-MoDISco format.
 """
 
 from . import data_io
@@ -137,7 +137,7 @@ def extract_regions_modisco_fmt(
     out_path: str,
     region_width: int,
 ) -> None:
-    """Extract genomic regions and contribution scores from TF-MoDISCo format files.
+    """Extract genomic regions and contribution scores from TF-MoDISco format files.
 
     Parameters
     ----------
@@ -407,7 +407,7 @@ def report(
     """Generate comprehensive HTML report with statistics and visualizations.
 
     This function creates detailed analysis reports comparing Fi-NeMo hit calling
-    results with TF-MoDISCo seqlets, including performance metrics, distribution
+    results with TF-MoDISco seqlets, including performance metrics, distribution
     plots, and motif visualization. The report provides insights into hit calling
     quality and motif discovery accuracy.
 
@@ -418,7 +418,7 @@ def report(
     hits_dir : str
         Path to directory containing Fi-NeMo hit calling outputs.
     modisco_h5_path : str, optional
-        Path to TF-MoDISCo H5 file. If None, seqlet comparisons are skipped.
+        Path to TF-MoDISco H5 file. If None, seqlet comparisons are skipped.
     peaks_path : str, optional
         DEPRECATED. Peak coordinates should be included in regions file.
     motifs_include_path : str, optional
@@ -428,11 +428,11 @@ def report(
     out_dir : str
         Output directory for report files.
     modisco_region_width : int
-        Width of regions used by TF-MoDISCo (needed for coordinate conversion).
+        Width of regions used by TF-MoDISco (needed for coordinate conversion).
     cwm_trim_threshold : float
         DEPRECATED. This information is inferred from hit calling outputs.
     compute_recall : bool
-        Whether to compute recall metrics against TF-MoDISCo seqlets.
+        Whether to compute recall metrics against TF-MoDISco seqlets.
     use_seqlets : bool
         Whether to include seqlet-based comparisons in the report.
 
@@ -674,7 +674,7 @@ def cli() -> None:
     """Command-line interface for the Fi-NeMo motif instance calling pipeline.
 
     This function provides the main entry point for all Fi-NeMo operations including:
-    - Data preprocessing from various formats (bigWig, HDF5, TF-MoDISCo)
+    - Data preprocessing from various formats (bigWig, HDF5, TF-MoDISco)
     - Motif hit calling using the Fi-NeMo algorithm
     - Report generation and visualization
     - Post-processing operations (hit collapsing, intersection)

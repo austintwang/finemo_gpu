@@ -5,7 +5,7 @@ This module handles loading and processing of various genomic data formats inclu
 - Genome sequences (FASTA format)
 - Contribution scores (bigWig, HDF5 formats)
 - Neural network model outputs
-- Motif data from TF-MoDISCo
+- Motif data from TF-MoDISco
 - Hit calling results
 
 The module supports multiple input formats used for contribution scores
@@ -454,7 +454,7 @@ def load_npy_or_npz(path: str) -> ndarray:
 def load_regions_from_modisco_fmt(
     shaps_paths: List[str], ohe_path: str, half_width: int
 ) -> Tuple[Int[ndarray, "N 4 L"], Float[ndarray, "N 4 L"]]:
-    """Load genomic sequences and contribution scores from TF-MoDISCo format files.
+    """Load genomic sequences and contribution scores from TF-MoDISco format files.
 
     Parameters
     ----------
@@ -708,7 +708,7 @@ def softmax(x: Float[ndarray, "4 W"], temp: float = 100) -> Float[ndarray, "4 W"
 
 
 def _motif_name_sort_key(data: Tuple[str, Any]) -> Union[Tuple[int], Tuple[int, str]]:
-    """Generate sort key for TF-MoDISCo motif names.
+    """Generate sort key for TF-MoDISco motif names.
 
     This function creates a sort key that orders motifs by pattern number,
     with non-standard patterns sorted to the end.
@@ -753,16 +753,16 @@ def load_modisco_motifs(
     motif_lambda_default: float,
     include_rc: bool,
 ) -> Tuple[pl.DataFrame, Float[ndarray, "M 4 W"], Int[ndarray, "M W"], ndarray]:
-    """Load motif data from TF-MoDISCo HDF5 file with customizable processing options.
+    """Load motif data from TF-MoDISco HDF5 file with customizable processing options.
 
     This function extracts contribution weight matrices and associated metadata from
-    TF-MoDISCo results, with support for custom naming, trimming, and regularization
+    TF-MoDISco results, with support for custom naming, trimming, and regularization
     parameters.
 
     Parameters
     ----------
     modisco_h5_path : str
-        Path to TF-MoDISCo HDF5 results file containing pattern groups.
+        Path to TF-MoDISco HDF5 results file containing pattern groups.
     trim_coords : Optional[Dict[str, Tuple[int, int]]]
         Manual trim coordinates for specific motifs {motif_name: (start, end)}.
         Takes precedence over automatic trimming based on thresholds.
@@ -972,16 +972,16 @@ def load_modisco_seqlets(
     modisco_half_width: int,
     lazy: bool = False,
 ) -> Union[pl.DataFrame, pl.LazyFrame]:
-    """Load seqlet data from TF-MoDISCo HDF5 file and convert to genomic coordinates.
+    """Load seqlet data from TF-MoDISco HDF5 file and convert to genomic coordinates.
 
-    This function extracts seqlet instances from TF-MoDISCo results and converts
+    This function extracts seqlet instances from TF-MoDISco results and converts
     their relative positions to absolute genomic coordinates using peak region
     information.
 
     Parameters
     ----------
     modisco_h5_path : str
-        Path to TF-MoDISCo HDF5 results file containing seqlet data.
+        Path to TF-MoDISco HDF5 results file containing seqlet data.
     peaks_df : pl.DataFrame
         DataFrame containing peak region information with columns:
         'peak_id', 'chr', 'chr_id', 'peak_region_start'.
@@ -991,7 +991,7 @@ def load_modisco_seqlets(
     half_width : int
         Half-width of the current analysis regions.
     modisco_half_width : int
-        Half-width of the regions used in the original TF-MoDISCo analysis.
+        Half-width of the regions used in the original TF-MoDISco analysis.
         Used to calculate coordinate offsets.
     lazy : bool, default False
         If True, returns a LazyFrame for efficient chaining of operations.
@@ -1019,7 +1019,7 @@ def load_modisco_seqlets(
     motif name, and reverse complement status to avoid redundant instances.
 
     The coordinate transformation accounts for differences in region sizes
-    between the original TF-MoDISCo analysis and the current analysis.
+    between the original TF-MoDISco analysis and the current analysis.
     """
 
     start_lst = []
@@ -1107,7 +1107,7 @@ def load_modisco_seqlets(
 def write_modisco_seqlets(
     seqlets_df: Union[pl.DataFrame, pl.LazyFrame], out_path: str
 ) -> None:
-    """Write TF-MoDISCo seqlets to TSV file.
+    """Write TF-MoDISco seqlets to TSV file.
 
     Parameters
     ----------

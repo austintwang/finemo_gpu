@@ -11,7 +11,7 @@ weight matrices (CWMs) at specific genomic positions.
 Key Features
 ------------
 - GPU-accelerated hit calling using PyTorch
-- Support for multiple input formats (bigWig, HDF5, TF-MoDISCo)
+- Support for multiple input formats (bigWig, HDF5, TF-MoDISco)
 - Competitive motif instance assignment
 - Comprehensive evaluation and visualization tools
 - Post-processing utilities for hit refinement
@@ -58,6 +58,6 @@ Basic hit calling workflow:
 
 See Also
 --------
-TF-MoDISCo : https://github.com/jmschrei/tfmodisco-lite
+TF-MoDISco : https://github.com/jmschrei/tfmodisco-lite
 BPNet : https://github.com/kundajelab/bpnet-refactor
 """

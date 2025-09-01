@@ -28,9 +28,9 @@ from . import templates
 
 
 def abbreviate_motif_name(name: str) -> str:
-    """Convert TF-MoDISCo motif names to abbreviated format.
+    """Convert TF-MoDISco motif names to abbreviated format.
 
-    Converts full TF-MoDISCo pattern names to shorter, more readable format
+    Converts full TF-MoDISco pattern names to shorter, more readable format
     for display in plots and reports.
 
     Parameters
@@ -277,7 +277,7 @@ def plot_seqlet_confusion_heatmap(
 ) -> None:
     """Plot confusion matrix heatmap comparing seqlets to hit calls.
 
-    Creates a heatmap showing the overlap between TF-MoDISCo seqlets and
+    Creates a heatmap showing the overlap between TF-MoDISco seqlets and
     Fi-NeMo hit calls. Rows represent seqlet motifs, columns represent hit motifs.
 
     Parameters
@@ -578,7 +578,7 @@ def plot_hit_vs_seqlet_counts(
     """Plot scatter plot comparing hit counts to seqlet counts per motif.
 
     Creates a log-log scatter plot showing the relationship between the number
-    of hits called by Fi-NeMo and the number of seqlets identified by TF-MoDISCo
+    of hits called by Fi-NeMo and the number of seqlets identified by TF-MoDISco
     for each motif. Includes diagonal reference line and motif annotations.
 
     Parameters
@@ -660,7 +660,7 @@ def write_report(
         Whether recall metrics were computed and should be included
         in the report template.
     use_seqlets : bool
-        Whether TF-MoDISCo seqlet data was used in the analysis
+        Whether TF-MoDISco seqlet data was used in the analysis
         and should be referenced in the report.
 
     Notes

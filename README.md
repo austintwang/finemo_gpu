@@ -14,7 +14,7 @@ The algorithm represents contribution scores as weighted combinations of motif c
 - **Competitive motif assignment**: Biologically-motivated algorithm that resolves similar motifs
 - **Context-aware analysis**: Leverages neural network importance scores for improved sensitivity and specificity
 - **Comprehensive evaluation**: Built-in tools for assessing and visualizing motif discovery quality and hit calling performance
-- **Multiple input formats**: Support for bigWig, HDF5, and TF-MoDISCo output formats
+- **Multiple input formats**: Support for bigWig, HDF5, and TF-MoDISco output formats
 
 ## Method
 
@@ -30,7 +30,7 @@ Fi-NeMo is described in:
 > Tseng, Ramalingam, Wang, Schreiber, et al. "Decoding predictive motif lexicons and syntax from deep learning models of transcription factor binding profiles." (manuscript in preparation)
 
 Related tools:
-- [TF-MoDISCo](https://github.com/jmschrei/tfmodisco-lite): *De novo* motif discovery from importance scores
+- [TF-MoDISco](https://github.com/jmschrei/tfmodisco-lite): *De novo* motif discovery from importance scores
 - [BPNet](https://github.com/kundajelab/bpnet-refactor): Deep learning models for TF binding prediction
 - [ChromBPNet](https://github.com/kundajelab/chrombpnet): Deep learning models for chromatin accessibility prediction
 
@@ -164,7 +164,7 @@ Usage: `finemo extract-regions-modisco-fmt -s <sequences> -a <attributions> -o <
 
 #### `finemo call-hits`
 
-Identify motif instances in input regions using the Fi-NeMo competitive optimization algorithm. This is the core functionality that leverages TF-MoDISCo CWMs to find motif occurrences in contribution score data.
+Identify motif instances in input regions using the Fi-NeMo competitive optimization algorithm. This is the core functionality that leverages TF-MoDISco CWMs to find motif occurrences in contribution score data.
 
 Usage: `finemo call-hits -r <regions> -m <modisco_h5> -o <out_dir> [-p <peaks>] [-t <cwm_trim_threshold>] [-l <global_lambda>] [-b <batch_size>] [-J]`
 
@@ -257,14 +257,14 @@ Usage: `finemo call-hits -r <regions> -m <modisco_h5> -o <out_dir> [-p <peaks>] 
 
 - **Scale Invariance**: Hit calling depends on motif and contribution score shapes, not absolute magnitudes. Use `hit_coefficient_global` or `hit_importance` for importance-based thresholding.
 - **Competitive Assignment**: Overlapping motif candidates compete; only the best-fitting motif at each position receives a non-zero coefficient.
-- **Legacy Format Support**: Convert older TF-MoDISCo files using `modisco convert` from [tfmodisco-lite](https://github.com/jmschrei/tfmodisco-lite).
+- **Legacy Format Support**: Convert older TF-MoDISco files using `modisco convert` from [tfmodisco-lite](https://github.com/jmschrei/tfmodisco-lite).
 
 ### Output reporting and post-processing
 
 #### `finemo report`
 
-Generate an HTML report (`report.html`) visualizing TF-MoDISCo seqlet recall and hit distributions.
-If `-n/--no-recall` is not set, the regions used for hit calling must exactly match those used during the TF-MoDISCo motif discovery process.
+Generate an HTML report (`report.html`) visualizing TF-MoDISco seqlet recall and hit distributions.
+If `-n/--no-recall` is not set, the regions used for hit calling must exactly match those used during the TF-MoDISco motif discovery process.
 This command does not utilize the GPU.
 
 Usage: `finemo report -r <regions> -H <hits> -o <out_dir> [-m <modisco_h5>] [-W <modisco_region_width>] [-n]`
