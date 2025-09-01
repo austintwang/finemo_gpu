@@ -418,16 +418,16 @@ def fit_contribs(
     cwm_trim_mask: Float[ndarray, "M W"],
     use_hypothetical: bool,
     lambdas: Float[ndarray, " M"],
-    step_size_max: float,
-    step_size_min: float,
-    sqrt_transform: bool,
-    convergence_tol: float,
-    max_steps: int,
-    batch_size: int,
-    step_adjust: float,
-    post_filter: bool,
-    device: Optional[torch.device],
-    compile_optimizer: bool,
+    step_size_max: float = 3.0,
+    step_size_min: float = 0.08,
+    sqrt_transform: bool = False,
+    convergence_tol: float = 0.0005,
+    max_steps: int = 10000,
+    batch_size: int = 2000,
+    step_adjust: float = 0.7,
+    post_filter: bool = True,
+    device: Optional[torch.device] = None,
+    compile_optimizer: bool = False,
     eps: float = 1.0,
 ) -> Tuple[pl.DataFrame, pl.DataFrame]:
     """Call motif hits by fitting sparse linear model to contribution scores.
@@ -454,25 +454,25 @@ def fit_contribs(
         projected scores (False).
     lambdas : Float[ndarray, "M"]
         L1 regularization weights for each motif.
-    step_size_max : float
+    step_size_max : float, default 3.0
         Maximum optimization step size.
-    step_size_min : float
+    step_size_min : float, default 0.08
         Minimum optimization step size (for convergence failure detection).
-    sqrt_transform : bool
+    sqrt_transform : bool, default False
         Whether to apply signed square root transformation to inputs.
-    convergence_tol : float
+    convergence_tol : float, default 0.0005
         Convergence tolerance based on duality gap.
-    max_steps : int
+    max_steps : int, default 10000
         Maximum number of optimization steps.
-    batch_size : int
+    batch_size : int, default 2000
         Number of regions to process simultaneously.
-    step_adjust : float
+    step_adjust : float, default 0.7
         Factor to reduce step size when optimization diverges.
-    post_filter : bool
+    post_filter : bool, default True
         Whether to filter hits based on similarity threshold.
     device : torch.device, optional
         Target device for computation. Auto-detected if None.
-    compile_optimizer : bool
+    compile_optimizer : bool, default False
         Whether to JIT compile the optimizer for speed.
     eps : float, default 1.0
         Small constant for numerical stability.

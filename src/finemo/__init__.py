@@ -18,12 +18,12 @@ Key Features
 
 Modules
 -------
-hitcaller : Core Fi-NeMo algorithm implementation
-data_io : Data input/output utilities
-main : Command-line interface
-evaluation : Performance assessment tools
-visualization : Plotting and report generation
-postprocessing : Hit refinement and analysis
+- hitcaller : Core Fi-NeMo algorithm implementation
+- data_io : Data input/output utilities
+- main : Command-line interface
+- evaluation : Performance assessment tools
+- visualization : Plotting and report generation
+- postprocessing : Hit refinement and analysis
 
 Examples
 --------
@@ -60,4 +60,5 @@ See Also
 --------
 TF-MoDISco : https://github.com/jmschrei/tfmodisco-lite
 BPNet : https://github.com/kundajelab/bpnet-refactor
+ChromBPNet: https://github.com/kundajelab/chrombpnet
 """

@@ -15,6 +15,7 @@ from . import data_io
 import os
 import argparse
 import warnings
+import inspect
 from typing import Optional, List
 
 import polars as pl
@@ -26,7 +27,7 @@ def extract_regions_bw(
     fa_path: str,
     bw_paths: List[str],
     out_path: str,
-    region_width: int,
+    region_width: int = 1000,
 ) -> None:
     """Extract genomic regions and contribution scores from bigWig and FASTA files.
 
@@ -42,7 +43,7 @@ def extract_regions_bw(
         List of bigWig file paths containing contribution scores.
     out_path : str
         Output path for NPZ file.
-    region_width : int
+    region_width : int, default 1000
         Width of regions to extract around peak summits.
 
     Notes
@@ -66,7 +67,7 @@ def extract_regions_chrombpnet_h5(
     chrom_order_path: Optional[str],
     h5_paths: List[str],
     out_path: str,
-    region_width: int,
+    region_width: int = 1000,
 ) -> None:
     """Extract genomic regions and contribution scores from ChromBPNet HDF5 files.
 
@@ -80,7 +81,7 @@ def extract_regions_chrombpnet_h5(
         List of ChromBPNet HDF5 file paths.
     out_path : str
         Output path for NPZ file.
-    region_width : int
+    region_width : int, default 1000
         Width of regions to extract around peak summits.
     """
     half_width = region_width // 2
@@ -100,7 +101,7 @@ def extract_regions_bpnet_h5(
     chrom_order_path: Optional[str],
     h5_paths: List[str],
     out_path: str,
-    region_width: int,
+    region_width: int = 1000,
 ) -> None:
     """Extract genomic regions and contribution scores from BPNet HDF5 files.
 
@@ -114,7 +115,7 @@ def extract_regions_bpnet_h5(
         List of BPNet HDF5 file paths.
     out_path : str
         Output path for NPZ file.
-    region_width : int
+    region_width : int, default 1000
         Width of regions to extract around peak summits.
     """
     half_width = region_width // 2
@@ -135,7 +136,7 @@ def extract_regions_modisco_fmt(
     shaps_paths: List[str],
     ohe_path: str,
     out_path: str,
-    region_width: int,
+    region_width: int = 1000,
 ) -> None:
     """Extract genomic regions and contribution scores from TF-MoDISco format files.
 
@@ -151,7 +152,7 @@ def extract_regions_modisco_fmt(
         Path to .npy/.npz file containing one-hot encoded sequences.
     out_path : str
         Output path for NPZ file.
-    region_width : int
+    region_width : int, default 1000
         Width of regions to extract around peak summits.
     """
     half_width = region_width // 2
@@ -177,21 +178,21 @@ def call_hits(
     motif_names_path: Optional[str],
     motif_lambdas_path: Optional[str],
     out_dir: str,
-    cwm_trim_coords_path: Optional[str],
-    cwm_trim_thresholds_path: Optional[str],
-    cwm_trim_threshold_default: float,
-    lambda_default: float,
-    step_size_max: float,
-    step_size_min: float,
-    sqrt_transform: bool,
-    convergence_tol: float,
-    max_steps: int,
-    batch_size: int,
-    step_adjust: float,
-    device: Optional[str],
-    mode: str,
-    no_post_filter: bool,
-    compile_optimizer: bool,
+    cwm_trim_coords_path: Optional[str] = None,
+    cwm_trim_thresholds_path: Optional[str] = None,
+    cwm_trim_threshold_default: float = 0.3,
+    lambda_default: float = 0.7,
+    step_size_max: float = 3.0,
+    step_size_min: float = 0.08,
+    sqrt_transform: bool = False,
+    convergence_tol: float = 0.0005,
+    max_steps: int = 10000,
+    batch_size: int = 2000,
+    step_adjust: float = 0.7,
+    device: Optional[str] = None,
+    mode: str = "pp",
+    no_post_filter: bool = False,
+    compile_optimizer: bool = False,
 ) -> None:
     """Call motif hits using the Fi-NeMo algorithm on preprocessed genomic regions.
 
@@ -224,31 +225,31 @@ def call_hits(
         Path to file specifying custom motif trimming coordinates.
     cwm_trim_thresholds_path : str, optional
         Path to file specifying custom motif trimming thresholds.
-    cwm_trim_threshold_default : float
-        Default threshold for motif trimming (typically 0.3).
-    lambda_default : float
-        Default L1 regularization weight (typically 0.7).
-    step_size_max : float
+    cwm_trim_threshold_default : float, default 0.3
+        Default threshold for motif trimming.
+    lambda_default : float, default 0.7
+        Default L1 regularization weight.
+    step_size_max : float, default 3.0
         Maximum optimization step size.
-    step_size_min : float
+    step_size_min : float, default 0.08
         Minimum optimization step size.
-    sqrt_transform : bool
+    sqrt_transform : bool, default False
         Whether to apply signed square root transform to contributions.
-    convergence_tol : float
+    convergence_tol : float, default 0.0005
         Convergence tolerance for duality gap.
-    max_steps : int
+    max_steps : int, default 10000
         Maximum number of optimization steps.
-    batch_size : int
+    batch_size : int, default 2000
         Batch size for GPU processing.
-    step_adjust : float
+    step_adjust : float, default 0.7
         Step size adjustment factor on divergence.
     device : str, optional
         DEPRECATED. Use CUDA_VISIBLE_DEVICES environment variable instead.
-    mode : str
+    mode : str, default "pp"
         Contribution type mode ('pp', 'ph', 'hp', 'hh') where 'p'=projected, 'h'=hypothetical.
-    no_post_filter : bool
+    no_post_filter : bool, default False
         If True, skip post-hit-calling similarity filtering.
-    compile_optimizer : bool
+    compile_optimizer : bool, default False
         Whether to JIT-compile the optimizer for speed.
 
     Notes
@@ -399,10 +400,10 @@ def report(
     motifs_include_path: Optional[str],
     motif_names_path: Optional[str],
     out_dir: str,
-    modisco_region_width: int,
-    cwm_trim_threshold: float,
-    compute_recall: bool,
-    use_seqlets: bool,
+    modisco_region_width: int = 400,
+    cwm_trim_threshold: float = 0.3,
+    compute_recall: bool = True,
+    use_seqlets: bool = True,
 ) -> None:
     """Generate comprehensive HTML report with statistics and visualizations.
 
@@ -427,13 +428,13 @@ def report(
         DEPRECATED. This information is inferred from hit calling outputs.
     out_dir : str
         Output directory for report files.
-    modisco_region_width : int
+    modisco_region_width : int, default 400
         Width of regions used by TF-MoDISco (needed for coordinate conversion).
-    cwm_trim_threshold : float
+    cwm_trim_threshold : float, default 0.3
         DEPRECATED. This information is inferred from hit calling outputs.
-    compute_recall : bool
+    compute_recall : bool, default True
         Whether to compute recall metrics against TF-MoDISco seqlets.
-    use_seqlets : bool
+    use_seqlets : bool, default True
         Whether to include seqlet-based comparisons in the report.
 
     Notes
@@ -603,7 +604,7 @@ def report(
     )
 
 
-def collapse_hits(hits_path: str, out_path: str, overlap_frac: float) -> None:
+def collapse_hits(hits_path: str, out_path: str, overlap_frac: float = 0.2) -> None:
     """Collapse overlapping hits by selecting the best hit per overlapping group.
 
     This function processes a set of motif hits and identifies overlapping hits,
@@ -617,7 +618,7 @@ def collapse_hits(hits_path: str, out_path: str, overlap_frac: float) -> None:
         Path to input TSV file containing hit data (hits.tsv or hits_unique.tsv).
     out_path : str
         Path to output TSV file with additional 'is_primary' column.
-    overlap_frac : float
+    overlap_frac : float, default 0.2
         Minimum fractional overlap for considering hits as overlapping.
         For hits of lengths x and y, minimum overlap = overlap_frac * (x + y) / 2.
 
@@ -637,7 +638,7 @@ def collapse_hits(hits_path: str, out_path: str, overlap_frac: float) -> None:
     )
 
 
-def intersect_hits(hits_paths: List[str], out_path: str, relaxed: bool) -> None:
+def intersect_hits(hits_paths: List[str], out_path: str, relaxed: bool = False) -> None:
     """Find intersection of hits across multiple Fi-NeMo runs.
 
     This function identifies motif hits that are consistently called across
@@ -651,7 +652,7 @@ def intersect_hits(hits_paths: List[str], out_path: str, relaxed: bool) -> None:
     out_path : str
         Path to output TSV file containing intersection results.
         Duplicate columns are suffixed with run index.
-    relaxed : bool
+    relaxed : bool, default False
         If True, uses relaxed intersection criteria based only on motif names
         and untrimmed coordinates. If False, assumes consistent region definitions
         and motif trimming across runs.
@@ -733,7 +734,9 @@ def cli() -> None:
         "-w",
         "--region-width",
         type=int,
-        default=1000,
+        default=inspect.signature(extract_regions_bw)
+        .parameters["region_width"]
+        .default,
         help="The width of the input region centered around each peak summit.",
     )
 
@@ -779,7 +782,9 @@ def cli() -> None:
         "-w",
         "--region-width",
         type=int,
-        default=1000,
+        default=inspect.signature(extract_regions_chrombpnet_h5)
+        .parameters["region_width"]
+        .default,
         help="The width of the input region centered around each peak summit.",
     )
 
@@ -825,7 +830,9 @@ def cli() -> None:
         "-w",
         "--region-width",
         type=int,
-        default=1000,
+        default=inspect.signature(extract_regions_chrombpnet_h5)
+        .parameters["region_width"]
+        .default,
         help="The width of the input region centered around each peak summit.",
     )
 
@@ -871,7 +878,9 @@ def cli() -> None:
         "-w",
         "--region-width",
         type=int,
-        default=1000,
+        default=inspect.signature(extract_regions_bpnet_h5)
+        .parameters["region_width"]
+        .default,
         help="The width of the input region centered around each peak summit.",
     )
 
@@ -925,7 +934,9 @@ def cli() -> None:
         "-w",
         "--region-width",
         type=int,
-        default=1000,
+        default=inspect.signature(extract_regions_modisco_fmt)
+        .parameters["region_width"]
+        .default,
         help="The width of the input region centered around each peak summit.",
     )
 
@@ -939,7 +950,7 @@ def cli() -> None:
         "-M",
         "--mode",
         type=str,
-        default="pp",
+        default=inspect.signature(call_hits).parameters["mode"].default,
         choices={"pp", "ph", "hp", "hh"},
         help="The type of attributions to use for CWM's and input contribution scores, respectively. 'h' for hypothetical and 'p' for projected.",
     )
@@ -1001,7 +1012,9 @@ def cli() -> None:
         "-t",
         "--cwm-trim-threshold",
         type=float,
-        default=0.3,
+        default=inspect.signature(call_hits)
+        .parameters["cwm_trim_threshold_default"]
+        .default,
         help="The default threshold to determine motif start and end positions within the full CWMs.",
     )
     call_hits_parser.add_argument(
@@ -1023,7 +1036,7 @@ def cli() -> None:
         "-l",
         "--global-lambda",
         type=float,
-        default=0.7,
+        default=inspect.signature(call_hits).parameters["lambda_default"].default,
         help="The default L1 regularization weight determining the sparsity of hits.",
     )
     call_hits_parser.add_argument(
@@ -1064,42 +1077,42 @@ def cli() -> None:
         "-s",
         "--step-size-max",
         type=float,
-        default=3.0,
+        default=inspect.signature(call_hits).parameters["step_size_max"].default,
         help="The maximum optimizer step size.",
     )
     call_hits_parser.add_argument(
         "-i",
         "--step-size-min",
         type=float,
-        default=0.08,
+        default=inspect.signature(call_hits).parameters["step_size_min"].default,
         help="The minimum optimizer step size.",
     )
     call_hits_parser.add_argument(
         "-j",
         "--step-adjust",
         type=float,
-        default=0.7,
+        default=inspect.signature(call_hits).parameters["step_adjust"].default,
         help="The optimizer step size adjustment factor. If the optimizer diverges, the step size is multiplicatively adjusted by this factor",
     )
     call_hits_parser.add_argument(
         "-c",
         "--convergence-tol",
         type=float,
-        default=0.0005,
+        default=inspect.signature(call_hits).parameters["convergence_tol"].default,
         help="The tolerance for determining convergence. The optimizer exits when the duality gap is less than the tolerance.",
     )
     call_hits_parser.add_argument(
         "-S",
         "--max-steps",
         type=int,
-        default=10000,
+        default=inspect.signature(call_hits).parameters["max_steps"].default,
         help="The maximum number of optimization steps.",
     )
     call_hits_parser.add_argument(
         "-b",
         "--batch-size",
         type=int,
-        default=2000,
+        default=inspect.signature(call_hits).parameters["batch_size"].default,
         help="The batch size used for optimization.",
     )
     call_hits_parser.add_argument(
@@ -1177,14 +1190,14 @@ def cli() -> None:
         "-W",
         "--modisco-region-width",
         type=int,
-        default=400,
+        default=inspect.signature(report).parameters["modisco_region_width"].default,
         help="The width of the region around each peak summit used by tfmodisco-lite.",
     )
     report_parser.add_argument(
         "-t",
         "--cwm-trim-threshold",
         type=float,
-        default=0.3,
+        default=inspect.signature(report).parameters["cwm_trim_threshold"].default,
         help="DEPRECATED: This information is now inferred from the outputs of `finemo call-hits`.",
     )
     report_parser.add_argument(
@@ -1224,7 +1237,7 @@ def cli() -> None:
         "-O",
         "--overlap-frac",
         type=float,
-        default=0.2,
+        default=inspect.signature(collapse_hits).parameters["overlap_frac"].default,
         help="The threshold for determining overlapping hits. For two hits with lengths x and y, the minimum overlap is defined as `overlap_frac * (x + y) / 2`. The default value of 0.2 means that two hits must overlap by at least 20% of their average lengths to be considered overlapping.",
     )
 
