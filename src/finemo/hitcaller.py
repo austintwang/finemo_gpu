@@ -24,9 +24,6 @@ from jaxtyping import Float, Int, Bool
 
 from tqdm import tqdm
 
-# Type aliases for tensor operations
-ArrayLike = Union[ndarray, torch.Tensor]
-
 
 def prox_grad_step(
     coefficients: Float[Tensor, "B M P"],
@@ -44,8 +41,12 @@ def prox_grad_step(
     The goal is to represent contribution scores as a sparse linear combination
     of motif contribution weight matrices (CWMs).
 
-    B = batch size, M = number of motifs, L = sequence length, W = motif width.
-    P = L - W + 1 (the number of positions with coefficients).
+    Dimension notation:
+    - B = batch size (number of regions processed simultaneously)
+    - M = number of motifs
+    - L = sequence length
+    - W = motif width (length of each motif)
+    - P = L - W + 1 (number of valid motif positions)
 
     Parameters
     ----------
@@ -67,12 +68,12 @@ def prox_grad_step(
 
     Returns
     -------
-    c_next : Float[Tensor, "B M P"], shape (b, m, l - w + 1)
-        Updated coefficient matrix after the optimization step.
-    dual_gap : Float[Tensor, "B"]
-        Duality gap for convergence assessment.
-    nll : Float[Tensor, "B"]
-        Negative log likelihood (proportional to MSE).
+    c_next : Float[Tensor, "B M P"]
+        Updated coefficient matrix after the optimization step (shape: batch_size × motifs × positions).
+    dual_gap : Float[Tensor, " B"]
+        Duality gap for convergence assessment (shape: batch_size).
+    nll : Float[Tensor, " B"]
+        Negative log likelihood (proportional to MSE, shape: batch_size).
 
     Notes
     -----
@@ -89,31 +90,31 @@ def prox_grad_step(
     """
     # Forward pass: convolution operations require specific tensor layouts
     coef_adj = coefficients * importance_scale
-    pred_unmasked = F.conv_transpose1d(coef_adj, cwms)  # (b, 4, l)
+    pred_unmasked = F.conv_transpose1d(coef_adj, cwms)  # (B, 4, L)
     pred = (
         pred_unmasked * sequences
-    )  # (b, 4, l), element-wise masking for projected mode
+    )  # (B, 4, L), element-wise masking for projected mode
 
     # Compute gradient * -1
-    residuals = contribs - pred  # (b, 4, l)
-    ngrad = F.conv1d(residuals, cwms) * importance_scale  # (b, m, l - w + 1)
+    residuals = contribs - pred  # (B, 4, L)
+    ngrad = F.conv1d(residuals, cwms) * importance_scale  # (B, M, P)
 
     # Negative log likelihood (proportional to MSE)
-    nll = (residuals**2).sum(dim=(1, 2))  # (b)
+    nll = (residuals**2).sum(dim=(1, 2))  # (B)
 
     # Compute duality gap for convergence assessment
-    dual_norm = (ngrad / lambdas).amax(dim=(1, 2))  # (b)
-    dual_scale = (torch.clamp(1 / dual_norm, max=1.0) ** 2 + 1) / 2  # (b)
-    nll_scaled = nll * dual_scale  # (b)
+    dual_norm = (ngrad / lambdas).amax(dim=(1, 2))  # (B)
+    dual_scale = (torch.clamp(1 / dual_norm, max=1.0) ** 2 + 1) / 2  # (B)
+    nll_scaled = nll * dual_scale  # (B)
 
-    dual_diff = (residuals * contribs).sum(dim=(1, 2))  # (b)
+    dual_diff = (residuals * contribs).sum(dim=(1, 2))  # (B)
     l1_term = (torch.abs(coefficients).sum(dim=2, keepdim=True) * lambdas).sum(
         dim=(1, 2)
-    )  # (b)
-    dual_gap = (nll_scaled - dual_diff + l1_term).abs()  # (b)
+    )  # (B)
+    dual_gap = (nll_scaled - dual_diff + l1_term).abs()  # (B)
 
     # Compute proximal gradient descent step
-    c_next = coefficients + step_sizes * (ngrad - lambdas)  # (b, m, l - w + 1)
+    c_next = coefficients + step_sizes * (ngrad - lambdas)  # (B, M, P)
     c_next = F.relu(c_next)  # Ensure non-negativity constraint
 
     return c_next, dual_gap, nll
@@ -128,7 +129,7 @@ def optimizer_step(
     coef: Float[Tensor, "B M P"],
     i: Float[Tensor, "B 1 1"],
     step_sizes: Float[Tensor, "B 1 1"],
-    sequence_length: int,
+    L: int,
     lambdas: Float[Tensor, "1 M 1"],
 ) -> Tuple[
     Float[Tensor, "B M P"],
@@ -142,8 +143,12 @@ def optimizer_step(
     to improve convergence speed while maintaining the non-negative constraint
     on coefficients.
 
-    B = batch size, M = number of motifs, L = sequence length, W = motif width.
-    P = L - W + 1 (the number of positions with coefficients).
+    Dimension notation:
+    - B = batch size (number of regions processed simultaneously)
+    - M = number of motifs
+    - L = sequence length
+    - W = motif width (length of each motif)
+    - P = L - W + 1 (number of valid motif positions)
 
     Parameters
     ----------
@@ -163,7 +168,7 @@ def optimizer_step(
         Iteration counter for each batch element.
     step_sizes :  Float[Tensor, "B 1 1"]
         Step sizes for optimization.
-    sequence_length : int
+    L : int
         Sequence length for normalization.
     lambdas : Float[Tensor, "1 M 1"]
         Regularization parameters.
@@ -171,13 +176,13 @@ def optimizer_step(
     Returns
     -------
     coef_inter : Float[Tensor, "B M P"]
-        Updated intermediate coefficients with momentum.
+        Updated intermediate coefficients with momentum (shape: batch_size × motifs × positions).
     coef : Float[Tensor, "B M P"]
-        Updated coefficient matrix.
+        Updated coefficient matrix (shape: batch_size × motifs × positions).
     gap : Float[Tensor, " B"]
-        Normalized duality gap.
+        Normalized duality gap (shape: batch_size).
     nll : Float[Tensor, " B"]
-        Normalized negative log likelihood.
+        Normalized negative log likelihood (shape: batch_size).
 
     Notes
     -----
@@ -195,8 +200,8 @@ def optimizer_step(
     coef, gap, nll = prox_grad_step(
         coef_inter, importance_scale, cwms, contribs, sequences, lambdas, step_sizes
     )
-    gap = gap / sequence_length
-    nll = nll / (2 * sequence_length)
+    gap = gap / L
+    nll = nll / (2 * L)
 
     # Compute updated coefficients with Nesterov momentum
     mom_term = i / (i + 3.0)
@@ -250,7 +255,10 @@ class BatchLoaderBase(ABC):
     This class provides common functionality for different input formats
     including batch indexing and padding for consistent batch sizes.
 
-    N = number of sequences, L = sequence length.
+    Dimension notation:
+    - N = number of sequences/regions in dataset
+    - L = sequence length
+    - B = batch size (number of regions processed simultaneously)
 
     Parameters
     ----------
@@ -258,7 +266,7 @@ class BatchLoaderBase(ABC):
         Contribution scores array.
     sequences : Int[Tensor, "N 4 L"]
         One-hot encoded sequences array.
-    sequence_length : int
+    L : int
         Sequence length.
     device : torch.device
         Target device for tensor operations.
@@ -268,12 +276,12 @@ class BatchLoaderBase(ABC):
         self,
         contribs: Union[Float[Tensor, "N 4 L"], Float[Tensor, "N L"]],
         sequences: Int[Tensor, "N 4 L"],
-        sequence_length: int,
+        L: int,
         device: torch.device,
     ) -> None:
         self.contribs = contribs
         self.sequences = sequences
-        self.sequence_length = sequence_length
+        self.L = L
         self.device = device
 
     def _get_inds_and_pad_lens(
@@ -291,13 +299,13 @@ class BatchLoaderBase(ABC):
         Returns
         -------
         inds : Int[Tensor, " Z"]
-            Padded indices tensor with -1 for padding positions.
+            Padded indices tensor with -1 for padding positions (shape: padded_batch_size).
         pad_lens : tuple
             Padding specification for F.pad (left, right, top, bottom, front, back).
         """
-        n = end - start
+        N = end - start
         end = min(end, self.contribs.shape[0])
-        overhang = n - (end - start)
+        overhang = N - (end - start)
         pad_lens = (0, 0, 0, 0, 0, overhang)
 
         inds = F.pad(
@@ -314,7 +322,9 @@ class BatchLoaderBase(ABC):
     ]:
         """Load a batch of data.
 
-        B = batch size, L = sequence length.
+        Dimension notation:
+        - B = batch size (number of regions in this batch)
+        - L = sequence length
 
         Parameters
         ----------
@@ -326,11 +336,11 @@ class BatchLoaderBase(ABC):
         Returns
         -------
         contribs_batch : Float[Tensor, "B 4 L"]
-            Batch of contribution scores.
+            Batch of contribution scores (shape: batch_size × 4_bases × L).
         sequences_batch : Union[Int[Tensor, "B 4 L"], int]
-            Batch of sequences or scalar for hypothetical mode.
-        inds_batch : Int[Tensor, "B"]
-            Batch indices.
+            Batch of one-hot encoded sequences (shape: batch_size × 4_bases × L) or scalar 1 for hypothetical mode.
+        inds_batch : Int[Tensor, " B"]
+            Batch indices mapping to original sequence indices (shape: batch_size).
 
         Notes
         -----
@@ -356,12 +366,12 @@ class BatchLoaderCompactFmt(BatchLoaderBase):
         contribs_batch = _to_channel_last_layout(
             contribs_compact, device=self.device, dtype=torch.float32
         )
-        sequences_batch = F.pad(self.sequences[start:end, :, :], pad_lens)  # (b, 4, l)
+        sequences_batch = F.pad(self.sequences[start:end, :, :], pad_lens)  # (B, 4, L)
         sequences_batch = _to_channel_last_layout(
             sequences_batch, device=self.device, dtype=torch.int8
         )
 
-        contribs_batch = contribs_batch * sequences_batch  # (b, 4, l)
+        contribs_batch = contribs_batch * sequences_batch  # (B, 4, L)
 
         return contribs_batch, sequences_batch, inds
 
@@ -382,7 +392,7 @@ class BatchLoaderProj(BatchLoaderBase):
         contribs_hyp = _to_channel_last_layout(
             contribs_hyp, device=self.device, dtype=torch.float32
         )
-        sequences_batch = F.pad(self.sequences[start:end, :, :], pad_lens)  # (b, 4, l)
+        sequences_batch = F.pad(self.sequences[start:end, :, :], pad_lens)  # (B, 4, L)
         sequences_batch = _to_channel_last_layout(
             sequences_batch, device=self.device, dtype=torch.int8
         )
@@ -440,20 +450,24 @@ def fit_contribs(
     Parameters
     ----------
     cwms : Float[ndarray, "M 4 W"]
-        Motif contribution weight matrices where M = number of motifs,
-        4 = DNA bases (A, C, G, T), W = motif width.
+        Motif contribution weight matrices where:
+        - M = number of motifs (transcription factor binding patterns)
+        - 4 = DNA bases (A, C, G, T dimensions)
+        - W = motif width (length of each motif pattern)
     contribs : Float[ndarray, "N 4 L"] | Float[ndarray, "N L"]
-        Neural network contribution scores where N = number of regions,
-        L = sequence length. Can be hypothetical (N, 4, L) or projected (N, L).
-    sequences : Float[ndarray, "N 4 L"]
-        One-hot encoded DNA sequences.
+        Neural network contribution scores where:
+        - N = number of regions in dataset
+        - L = sequence length
+        Can be hypothetical (N, 4, L) or projected (N, L) format.
+    sequences : Int[ndarray, "N 4 L"]
+        One-hot encoded DNA sequences (shape: num_regions × 4_bases × L).
     cwm_trim_mask : Float[ndarray, "M W"]
-        Binary mask indicating which positions of each CWM to use.
+        Binary mask indicating which positions of each CWM to use (shape: num_motifs × motif_width).
     use_hypothetical : bool
         Whether to use hypothetical contribution scores (True) or
         projected scores (False).
-    lambdas : Float[ndarray, "M"]
-        L1 regularization weights for each motif.
+    lambdas : Float[ndarray, " M"]
+        L1 regularization weights for each motif (shape: num_motifs).
     step_size_max : float, default 3.0
         Maximum optimization step size.
     step_size_min : float, default 0.08
@@ -531,10 +545,10 @@ def fit_contribs(
     ...     compile_optimizer=False
     ... )
     """
-    m, _, w = cwms.shape
-    n, _, sequence_length = sequences.shape
+    M, _, W = cwms.shape
+    N, _, L = sequences.shape
 
-    b = batch_size
+    B = batch_size  # Using uppercase for consistency with dimension notation
 
     if device is None:
         if torch.cuda.is_available():
@@ -574,13 +588,9 @@ def fit_contribs(
     # Initialize batch loader
     if len(contribs_tensor.shape) == 3:
         if use_hypothetical:
-            batch_loader = BatchLoaderHyp(
-                contribs_tensor, sequences_tensor, sequence_length, device
-            )
+            batch_loader = BatchLoaderHyp(contribs_tensor, sequences_tensor, L, device)
         else:
-            batch_loader = BatchLoaderProj(
-                contribs_tensor, sequences_tensor, sequence_length, device
-            )
+            batch_loader = BatchLoaderProj(contribs_tensor, sequences_tensor, L, device)
     elif len(contribs_tensor.shape) == 2:
         if use_hypothetical:
             raise ValueError(
@@ -588,7 +598,7 @@ def fit_contribs(
             )
         else:
             batch_loader = BatchLoaderCompactFmt(
-                contribs_tensor, sequences_tensor, sequence_length, device
+                contribs_tensor, sequences_tensor, L, device
             )
     else:
         raise ValueError(
@@ -612,21 +622,21 @@ def fit_contribs(
 
     # Initialize buffers for optimizer
     coef_inter: Float[Tensor, "B M P"] = torch.zeros(
-        (b, m, sequence_length - w + 1)
-    )  # (b, m, sequence_length - w + 1)
+        (B, M, L - W + 1)
+    )  # (B, M, P) where P = L - W + 1
     coef_inter = _to_channel_last_layout(coef_inter, device=device, dtype=torch.float32)
     coef: Float[Tensor, "B M P"] = torch.zeros_like(coef_inter)
-    i: Float[Tensor, "B 1 1"] = torch.zeros((b, 1, 1), dtype=torch.int, device=device)
+    i: Float[Tensor, "B 1 1"] = torch.zeros((B, 1, 1), dtype=torch.int, device=device)
     step_sizes: Float[Tensor, "B 1 1"] = torch.full(
-        (b, 1, 1), step_size_max, dtype=torch.float32, device=device
+        (B, 1, 1), step_size_max, dtype=torch.float32, device=device
     )
 
     converged: Bool[Tensor, " B"] = torch.full(
-        (b,), True, dtype=torch.bool, device=device
+        (B,), True, dtype=torch.bool, device=device
     )
-    num_load = b
+    num_load = B
 
-    contribs_buf: Float[Tensor, "B 4 L"] = torch.zeros((b, 4, sequence_length))
+    contribs_buf: Float[Tensor, "B 4 L"] = torch.zeros((B, 4, L))
     contribs_buf = _to_channel_last_layout(
         contribs_buf, device=device, dtype=torch.float32
     )
@@ -635,25 +645,23 @@ def fit_contribs(
     if use_hypothetical:
         seqs_buf = 1
     else:
-        seqs_buf = torch.zeros((b, 4, sequence_length))
+        seqs_buf = torch.zeros((B, 4, L))
         seqs_buf = _to_channel_last_layout(seqs_buf, device=device, dtype=torch.int8)
 
-    importance_scale_buf: Float[Tensor, "B M P"] = torch.zeros(
-        (b, m, sequence_length - w + 1)
-    )
+    importance_scale_buf: Float[Tensor, "B M P"] = torch.zeros((B, M, L - W + 1))
     importance_scale_buf = _to_channel_last_layout(
         importance_scale_buf, device=device, dtype=torch.float32
     )
 
-    inds_buf: Int[Tensor, " B"] = torch.zeros((b,), dtype=torch.int, device=device)
+    inds_buf: Int[Tensor, " B"] = torch.zeros((B,), dtype=torch.int, device=device)
     global_scale_buf: Float[Tensor, " B"] = torch.zeros(
-        (b,), dtype=torch.float, device=device
+        (B,), dtype=torch.float, device=device
     )
 
-    with tqdm(disable=None, unit="regions", total=n, ncols=120) as pbar:
+    with tqdm(disable=None, unit="regions", total=N, ncols=120) as pbar:
         num_complete = 0
         next_ind = 0
-        while num_complete < n:
+        while num_complete < N:
             # Retire converged peaks and fill buffer with new data
             if num_load > 0:
                 load_start = next_ind
@@ -666,9 +674,7 @@ def fit_contribs(
                 if sqrt_transform:
                     contribs_batch = _signed_sqrt(contribs_batch)
 
-                global_scale_batch = (
-                    (contribs_batch**2).sum(dim=(1, 2)) / sequence_length
-                ).sqrt()
+                global_scale_batch = ((contribs_batch**2).sum(dim=(1, 2)) / L).sqrt()
                 contribs_batch = torch.nan_to_num(
                     contribs_batch / global_scale_batch[:, None, None]
                 )
@@ -703,7 +709,7 @@ def fit_contribs(
                 coef,
                 i,
                 step_sizes,
-                sequence_length,
+                L,
                 lambdas_tensor,
             )
             i += 1
