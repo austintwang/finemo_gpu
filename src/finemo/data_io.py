@@ -1233,8 +1233,11 @@ def write_hits(
     -----
     Creates three output files:
     - hits.tsv: Complete hit data with all instances
-    - hits_unique.tsv: Deduplicated hits by genomic position and motif
+    - hits_unique.tsv: Deduplicated hits by genomic position and motif (excludes rows with NA chromosome coordinates)
     - hits.bed: BED format file for genome browser visualization
+    
+    Rows where the chromosome field is NA are filtered out during deduplication
+    to ensure that data_unique only contains well-defined genomic coordinates.
     """
     os.makedirs(out_dir, exist_ok=True)
     out_path_tsv = os.path.join(out_dir, "hits.tsv")
@@ -1275,7 +1278,7 @@ def write_hits(
         .select(HITS_DTYPES.keys())
     )
 
-    data_unique = data_all.unique(
+    data_unique = data_all.filter(pl.col("chr").is_not_null()).unique(
         subset=["chr", "start", "motif_name", "strand"], maintain_order=True
     )
 

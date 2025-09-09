@@ -198,7 +198,7 @@ Usage: `finemo call-hits -r <regions> -m <modisco_h5> -o <out_dir> [-p <peaks>] 
 - `peak_name`: The name of the peak region containing the hit, taken from the `name` field of the input peak data. `NA` if peak coordinates are not provided.
 - `peak_id`: The numerical index of the peak region containing the hit.
 
-`hits_unique.tsv`: A deduplicated list of hits in the same format as `hits.tsv`. In cases where peak regions overlap, `hits.tsv` may list multiple instances of a hit, each linked to a different peak. `hits_unique.tsv` arbitrarily selects one instance per duplicated hit. This file is generated only if peak coordinates are provided.
+`hits_unique.tsv`: A deduplicated list of hits in the same format as `hits.tsv`. In cases where peak regions overlap, `hits.tsv` may list multiple instances of a hit, each linked to a different peak. `hits_unique.tsv` arbitrarily selects one instance per duplicated hit. **This file is empty if peak coordinates are not provided.**
 
 `hits.bed`: A coordinate-sorted BED file of unique hits. It includes:
 
