@@ -1345,11 +1345,6 @@ def cli() -> None:
         )
 
     elif args.cmd == "report":
-        if args.no_recall and not args.no_seqlets:
-            raise ValueError(
-                "The `--no-seqlets` flag must be set in conjunction with `--no-recall`."
-            )
-
         report(
             args.regions,
             args.hits,
