@@ -707,7 +707,7 @@ def softmax(x: Float[ndarray, "4 W"], temp: float = 100) -> Float[ndarray, "4 W"
     return exp / np.sum(exp, axis=0, keepdims=True)
 
 
-def _motif_name_sort_key(data: Tuple[str, Any]) -> Union[Tuple[int], Tuple[int, str]]:
+def _motif_name_sort_key(data: Tuple[str, Any]) -> Union[Tuple[int, int], Tuple[int, str]]:
     """Generate sort key for TF-MoDISco motif names.
 
     This function creates a sort key that orders motifs by pattern number,
@@ -717,25 +717,27 @@ def _motif_name_sort_key(data: Tuple[str, Any]) -> Union[Tuple[int], Tuple[int, 
     ----------
     data : Tuple[str, Any]
         Tuple containing motif name as first element and additional data.
-        The motif name should follow the format 'pattern_N' where N is an integer.
+        The motif name should follow the format 'pattern_N' or 'pattern#N' where N is an integer.
 
     Returns
     -------
-    Union[Tuple[int], Tuple[int, str]]
+    Union[Tuple[int, int], Tuple[int, str]]
         Sort key tuple for ordering motifs. Standard pattern names return
-        (pattern_number,) while non-standard names return (-1, name).
+        (0, pattern_number) while non-standard names return (1, name).
 
     Notes
     -----
     This function is used internally by load_modisco_motifs to ensure
     consistent motif ordering across runs.
     """
-    name = data[0]
-    if name.startswith("pattern_"):
-        pattern_num = int(name.split("_")[-1])
-        return (pattern_num,)
-    else:
-        return (-1, name)  # Mixed tuple types for sorting
+    pattern_name = data[0]
+    try:
+        return (0, int(pattern_name.split("_")[-1]))
+    except (ValueError, IndexError):
+        try:
+            return (0, int(pattern_name.split("#")[-1]))
+        except (ValueError, IndexError):
+            return (1, pattern_name)
 
 
 MODISCO_PATTERN_GROUPS = ["pos_patterns", "neg_patterns"]
@@ -1036,10 +1038,7 @@ def load_modisco_seqlets(
 
             metacluster = modisco_results[name]
 
-            def get_pattern_number(x):
-                return int(x[0].split("_")[-1])
-
-            key = get_pattern_number
+            key = _motif_name_sort_key
             for _, (pattern_name, pattern) in enumerate(
                 sorted(metacluster.items(), key=key)  # type: ignore  # HDF5 access
             ):
