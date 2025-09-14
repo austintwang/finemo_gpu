@@ -112,7 +112,10 @@ def plot_hit_stat_distributions(
         fig, ax = plt.subplots(figsize=(5, 2))
 
         # Plot coefficient distribution
-        ax.hist(coefficients, bins=50, density=True)
+        try:
+            ax.hist(coefficients, bins=50, density=True)
+        except ValueError:
+            ax.hist(coefficients, bins=1, density=True)
 
         output_path_png = os.path.join(motifs_dir, f"{m}_coefficients.png")
         plt.savefig(output_path_png, dpi=300)
@@ -123,7 +126,10 @@ def plot_hit_stat_distributions(
         fig, ax = plt.subplots(figsize=(5, 2))
 
         # Plot similarity distribution
-        ax.hist(similarities, bins=50, density=True)
+        try:
+            ax.hist(similarities, bins=50, density=True)
+        except ValueError:
+            ax.hist(similarities, bins=1, density=True)
 
         output_path_png = os.path.join(motifs_dir, f"{m}_similarities.png")
         plt.savefig(output_path_png, dpi=300)
@@ -134,7 +140,10 @@ def plot_hit_stat_distributions(
         fig, ax = plt.subplots(figsize=(5, 2))
 
         # Plot importance distribution
-        ax.hist(importances, bins=50, density=True)
+        try:
+            ax.hist(importances, bins=50, density=True)
+        except ValueError:
+            ax.hist(importances, bins=1, density=True)
 
         output_path_png = os.path.join(motifs_dir, f"{m}_importances.png")
         plt.savefig(output_path_png, dpi=300)
