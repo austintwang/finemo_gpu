@@ -107,7 +107,7 @@ def load_regions_from_bw(peaks, fa_path, bw_paths, half_width):
                 sequences[ind,:,a:b] = one_hot_encode(sequence)
 
                 for j, bw in enumerate(bws):
-                    contrib_buffer[j,:] = np.nan_to_num(bw.values(chrom, start_adj, end_adj, numpy=True))
+                    contrib_buffer[j,a:b] = np.nan_to_num(bw.values(chrom, start_adj, end_adj, numpy=True))
 
                 contribs[ind,a:b] = np.mean(contrib_buffer, axis=0)
     
